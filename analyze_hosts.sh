@@ -2,7 +2,7 @@
 
 # analyze_hosts - Scans one or more hosts on security vulnerabilities
 #
-# Copyright (C) 2012-2013 Peter Mosmans
+# Copyright (C) 2012-2014 Peter Mosmans
 #                         <support AT go-forward.net>
 #
 # This source code (shell script) is subject to the terms of the Mozilla Public
@@ -15,7 +15,7 @@
 #       - cleanup of non-function code
 
 name=analyze_hosts
-version="0.40 (22-12-2013)"
+version="0.41 (06-01-2014)"
 
 # statuses
 declare -c CLOSED=-1
@@ -78,7 +78,7 @@ prettyprint() {
 
 usage() {
     prettyprint "$name version $version" $BLUE
-    prettyprint "      (c) 2013 Peter Mosmans [Go Forward]" $LIGHTBLUE
+    prettyprint "      (c) 2012-2014 Peter Mosmans [Go Forward]" $LIGHTBLUE
     prettyprint "      Licensed under the Mozilla Public License 2.0" $LIGHTBLUE
     echo ""
     echo " usage: $0 [OPTION]... [HOST]"
@@ -166,7 +166,7 @@ version() {
     sslscan --version
     echo ""
     prettyprint "$name version $version" $BLUE
-    prettyprint "      (c) 2013 Peter Mosmans [Go Forward]" $LIGHTBLUE
+    prettyprint "      (c) 2013-2014 Peter Mosmans [Go Forward]" $LIGHTBLUE
     prettyprint "      Licensed under the Mozilla Public License 2.0" $LIGHTBLUE
     echo ""
 }
@@ -385,7 +385,7 @@ execute_all() {
 
 looptargets() {
     if [[ -s "$inputfile" ]]; then
-        total=$(wc -l $inputfile)
+        total=$(wc -l < $inputfile)
         counter=1
         while read target; do
             showstatus ""
@@ -427,6 +427,8 @@ if [[ "$#" -le 1 ]]; then
     usage
     exit 1
 fi
+
+fulloptions=$@
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -495,7 +497,7 @@ if [[ ! -s "$inputfile" ]]; then
         echo "Nothing to do... no target specified"
         exit
     fi
-    if [[ $1 =~ '-' ]]; then
+    if [[ $1 =~ [0-9]-[0-9] ]]; then
         nmap -nsL $1 2>/dev/null|awk '/scan report/{print $5}' >$tmpfile
         inputfile=$tmpfile
     fi
@@ -511,6 +513,7 @@ showparameters() {
             showstatus "logging to $outputfile"
         fi
     fi
+    showstatus "scanparameters: $fulloptions"
 }
 
 showstatus "$name version $version starting on $(date +%d-%m-%Y' at '%R)"
