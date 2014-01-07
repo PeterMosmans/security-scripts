@@ -14,7 +14,7 @@
 #       - add no-color option
 
 name=analyze_hosts
-version="0.43 (07-01-2014)"
+version="0.44 (07-01-2014)"
 
 # statuses
 declare -c ERROR=-1
@@ -62,10 +62,8 @@ declare -c GREEN='\E[1;49;32m'
 declare -c LIGHTGREEN='\E[2;49;32m'
 
 trap abortscan INT
-trap cleanup EXIT QUIT
+trap cleanup QUIT
 umask 177
-
-flag=$OPEN
 
 # define functions
 prettyprint() {
@@ -167,6 +165,8 @@ showstatus() {
 }
 
 startup() {
+    flag=$OPEN
+    trap cleanup EXIT
     showstatus "$name version $version starting on $(date +%d-%m-%Y' at '%R)"
     if (($loglevel&$LOGFILE)); then
         if [[ -n $appendfile ]]; then
@@ -505,6 +505,11 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 
+if ! type nmap >/dev/null 2>&1; then
+    prettyprint "ERROR: the program nmap is needed but could not be found" $RED
+    exit
+fi
+
 if [[ ! -s "$inputfile" ]]; then
     if [[ ! -n "$1" ]]; then
         echo "Nothing to do... no target specified"
@@ -515,11 +520,6 @@ if [[ ! -s "$inputfile" ]]; then
         inputfile=$tmpfile
     fi
     target=$1
-fi
-
-if ! type nmap >/dev/null 2>&1; then
-    prettyprint "ERROR: the program nmap is needed but could not be found" $RED
-    exit
 fi
 
 startup
