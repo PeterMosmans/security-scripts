@@ -5,12 +5,13 @@ A collection of security related Bash shell scripts.
 No fancy programming framework required, all that is needed is a Bash shell.
 
 analyze-hosts.sh
-================
+----------------
 Acts as a wrapper around several other open source tools. Can be used to verify the security of hosts
 Performs webscans, portscans, web fingerprinting, checks webserver and SSL/TLS configuration
 
 Uses curl for TRACE checks, nikto for webscans, nmap for portscans and several other checks, sslscan for SSL/TLS configuration checks and whatweb for fingerprinting. 
 
+```
  usage: analyze_hosts.sh [OPTION]... [HOST]
 
 Scanning options:
@@ -48,3 +49,4 @@ Logging and input file:
  [HOST] can be a single (IP) address or an IP range, eg. 127.0.0.1-255
 
 example: analyze_hosts.sh -a --filter Amazon www.google.com
+```
