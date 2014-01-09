@@ -16,7 +16,7 @@
 #       - make webports configurable
 
 NAME="analyze_hosts"
-VERSION="0.47 (09-01-2014)"
+VERSION="0.48 (09-01-2014)"
 
 # statuses
 declare -c ERROR=-1
@@ -338,7 +338,11 @@ do_trace() {
                 showstatus "port $port closed" $GREEN
             else
                 showstatus "trying TRACE method on port $port... " $NONEWLINE
-                curl -q --insecure -i -m 30 -X TRACE -o $logfile http://$target/ 1>/dev/null 2>&1
+                if (($port!=443)); then
+                    curl -q --insecure -i -m 30 -X TRACE -o $logfile http://$target:$port/ 1>/dev/null 2>&1
+                else
+                    curl -q --insecure -i -m 30 -X TRACE -o $logfile https://$target:$port/ 1>/dev/null 2>&1
+                fi
                 if [[ -s $logfile ]]; then
                     status=$(awk 'NR==1 {print $2}' $logfile)
                     if [[ $status -le 302 ]]; then
