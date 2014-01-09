@@ -16,7 +16,7 @@
 #       - make webports configurable
 
 NAME="analyze_hosts"
-VERSION="0.46 (09-01-2014)"
+VERSION="0.47 (09-01-2014)"
 
 # statuses
 declare -c ERROR=-1
@@ -53,8 +53,8 @@ workdir=/tmp
 
 # temporary files
 umask 177
-portselection=$(mktemp -q $NAME.XXXXXXX)
-tmpfile=$(mktemp -q $NAME.XXXXXXX)
+portselection=$(mktemp -q $NAME.XXXXXXX --tmpdir=/tmp)
+tmpfile=$(mktemp -q $NAME.XXXXXXX --tmpdir=/tmp)
 
 # colours
 declare -c BLUE='\E[1;49;96m'
