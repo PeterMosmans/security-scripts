@@ -16,7 +16,7 @@
 #       - make webports configurable
 
 NAME="analyze_hosts"
-VERSION="0.48 (09-01-2014)"
+VERSION="0.50 (09-01-2014)"
 
 # statuses
 declare -c ERROR=-1
@@ -53,8 +53,6 @@ workdir=/tmp
 
 # temporary files
 umask 177
-portselection=$(mktemp -q $NAME.XXXXXXX --tmpdir=/tmp)
-tmpfile=$(mktemp -q $NAME.XXXXXXX --tmpdir=/tmp)
 
 # colours
 declare -c BLUE='\E[1;49;96m'
@@ -93,15 +91,15 @@ usage() {
     echo "     --filter=FILTER     only proceed with scan of HOST if WHOIS"
     echo "                         results of HOST matches regexp FILTER"
     echo " -f                      perform web fingerprinting (all webports)"
-    echo "     -- fingerprint      advanced web fingerprinting"
+    echo "     -- fingerprint      perform all web fingerprinting methods"
     echo " -h, --header            show webserver headers (all webports)"
     echo " -n, --nikto             nikto webscan (all webports)"
     echo " -p, --ports             nmap portscan"
     echo "     --allports          nmap portscan (all ports)"
     echo " -s                      check SSL configuration"
-    echo "     --ssl               alternative check of SSL configuration"
+    echo "     --ssl               perform all SSL configuration checks"
     echo " -t                      check webserver for HTTP TRACE method"
-    echo "     --trace             extra check for HTTP TRACE method"
+    echo "     --trace             perform all HTTP TRACE method checks"
     echo " -w, --whois             perform WHOIS lookup"
     echo " -W                      confirm WHOIS results before continuing scan"
     echo ""
@@ -132,17 +130,20 @@ setlogfilename() {
     if type $1 >/dev/null 2>&1; then
         tool=$1
     else
-        prettyprint "ERROR: The program $1 could not be found - aborting test" $RED
+        showstatus "ERROR: The program $1 could not be found - aborting test" $RED
         tool=$ERROR
     fi
 }
 
-# purgelogs logfile [VERBOSE]
+# purgelogs logfile [LOGLEVEL]
+# purges the current logfile
 purgelogs() {
-    if [[ -f "$logfile" ]]; then
-        if (($loglevel&$VERBOSE)) || [[ $LOGFILE=="$1" ]]; then
+    local currentloglevel=$loglevel
+    if [[ ! -z $1 ]]; then let "loglevel=loglevel|$1"; fi
+    if [[ ! -z "$$logfile" ]] && [[ -f "$logfile" ]]; then
+        if (($loglevel&$VERBOSE)); then
             if [[ -s "$logfile" ]]; then 
-                showstatus "$(cat $logfile)"
+                showstatus "$(cat $logfile)" $1
                 showstatus ""
             fi
         fi
@@ -152,9 +153,13 @@ purgelogs() {
         if !(($loglevel&$SEPARATELOGS)); then rm $logfile 1>/dev/null 2>&1; fi
     fi
     tool=$ERROR
+    loglevel=$currentloglevel
 }
 
-# showstatus message [COLOR|NONEWLINE|LOGFILE]
+# showstatus message [COLOR] [LOGFILE|NONEWLINE]
+#                    COLOR: color of message
+#                    NONEWLINE: don't echo new line character
+#                    LOGFILE: only write contents to logfile
 showstatus() {
 #    if [[ -z "$1" ]]; then return; fi
     if [[ ! -z "$2" ]]; then
@@ -220,15 +225,15 @@ do_sslscan() {
     fi
 
     setlogfilename "sslscan"
-    if (($sslscan==$BASIC)) && (($tool!=$ERROR)); then
+    if (($sslscan>=$BASIC)) && (($tool!=$ERROR)); then
        showstatus "performing sslscan..."
        sslscan --no-failed $target:443 > $logfile
        grep -qe "ERROR: Could not open a connection to host $target on port 443" $logfile||portstatus=$ERROR
-       if (($portstatus==$ERROR)) ; then
-           showstatus "could not connect to port 443" $BLUE
-       else
+#       if (($portstatus==$ERROR)) ; then
+#           showstatus "could not connect to port 443" $BLUE
+#       else
            showstatus "$(awk '/(Accepted).*(SSLv2|EXP|MD5|NULL| 40| 56)/{print $2,$3,$4,$5}' $logfile)" $RED
-       fi
+#       fi
        purgelogs
     fi
 
@@ -273,9 +278,9 @@ do_fingerprint() {
                 else
                     showstatus "retrieving headers from port $port... " $NONEWLINE
                     if (($port!=443)); then
-                        curl -q --insecure -m 10 --dump-header $logfile http://$target:$port 1>/dev/null 2>&1 || prettyprint "could not connect to port $port" $BLUE $NONEWLINE
+                        curl -A "$NAME" -q --insecure -m 10 --dump-header $logfile http://$target:$port 1>/dev/null 2>&1 || showstatus "could not connect to port $port" $BLUE $NONEWLINE
                     else
-                        curl -q --insecure -m 10 --dump-header $logfile https://$target:$port 1>/dev/null 2>&1 || prettyprint "could not connect to port $port" $BLUE $NONEWLINE
+                        curl -A "$NAME" -q --insecure -m 10 --dump-header $logfile https://$target:$port 1>/dev/null 2>&1 || showstatus "could not connect to port $port" $BLUE $NONEWLINE
                     fi
                     showstatus ""
                     purgelogs $VERBOSE
@@ -339,9 +344,9 @@ do_trace() {
             else
                 showstatus "trying TRACE method on port $port... " $NONEWLINE
                 if (($port!=443)); then
-                    curl -q --insecure -i -m 30 -X TRACE -o $logfile http://$target:$port/ 1>/dev/null 2>&1
+                    curl -A "$NAME" -q --insecure -i -m 30 -X TRACE -o $logfile http://$target:$port/ 1>/dev/null 2>&1
                 else
-                    curl -q --insecure -i -m 30 -X TRACE -o $logfile https://$target:$port/ 1>/dev/null 2>&1
+                    curl -A "$NAME" -q --insecure -i -m 30 -X TRACE -o $logfile https://$target:$port/ 1>/dev/null 2>&1
                 fi
                 if [[ -s $logfile ]]; then
                     status=$(awk 'NR==1 {print $2}' $logfile)
@@ -378,7 +383,7 @@ execute_all() {
     if (($whois>=$BASIC)); then
         local nomatch=
         local ip=
-        setlogfilename whois
+        setlogfilename "whois"
         if [[ $target =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
             ip=$target
             local reverse=$(host $target|awk '{print $5}')
@@ -387,15 +392,17 @@ execute_all() {
             else
                 showstatus "$target resolves to " $NONEWLINE
                 showstatus $reverse $BLUE
+                exit 1
             fi
         else
-            ip=$(host -c IN $target|awk '/address/{print $4}')
+            ip=$(host -c IN $target|awk '/address/{print $4}'|head -1)
             if [[ ! -n "$ip" ]]; then
                 showstatus "$target does not resolve to an IP address - aborting scans" $RED
                 purgelogs
                 return
             else
-                showstatus "$target resolves to $ip" 
+             
+                showstatus "$target resolves to $ip"
             fi
         fi
         whois -H $ip > $logfile
@@ -459,7 +466,7 @@ abortscan() {
 cleanup() {
     trap '' EXIT INT QUIT
     if [[ ! -z $tool ]] && (($ERROR!=$tool)); then 
-        prettyprint "$tool interrupted..." $RED
+        showstatus "$tool interrupted..." $RED
         purgelogs
     fi
     showstatus "cleaning up temporary files..."
@@ -497,9 +504,6 @@ while [[ $# -gt 0 ]]; do
         --fingerprint) fingerprint=$ADVANCED;;
         -h|--header) fingerprint=$ALTERNATIVE;;
         -d|--directory) workdir=$2
-                        if [[ -n "$workdir" ]]; then 
-                            [[ -d $workdir ]] && mkdir $workdir 1>/dev/null
-                        fi
                         shift ;;
         --filter) filter="$2"
                   whois=$ADVANCED
@@ -557,6 +561,11 @@ if [[ ! -s "$inputfile" ]]; then
         echo "Nothing to do... no target specified"
         exit
     fi
+    if [[ -n "$workdir" ]]; then 
+        [[ -d $workdir ]] || mkdir $workdir 1>/dev/null 2>&1
+    fi
+    portselection=$(mktemp -q $NAME.XXXXXXX --tmpdir=$workdir)
+    tmpfile=$(mktemp -q $NAME.XXXXXXX --tmpdir=$workdir)
     if [[ $1 =~ -.*[0-9]$ ]]; then
         nmap -nsL $1 2>/dev/null|awk '/scan report/{print $5}' >$tmpfile
         inputfile=$tmpfile
