@@ -12,9 +12,11 @@
 # TODO: - preflight check on hostname 
 #       - add option to only list commands, don't execute them
 #       - add no-color option
+#       - remove color from sslscan output
+#       - make webports configurable
 
-name=analyze_hosts
-version="0.44 (07-01-2014)"
+NAME="analyze_hosts"
+VERSION="0.45 (09-01-2014)"
 
 # statuses
 declare -c ERROR=-1
@@ -44,14 +46,15 @@ declare -i whois=$UNKNOWN
 declare -i hoststatus=$UNKNOWN
 declare -i loglevel=$STDOUT
 declare -i portstatus=$UNKNOWN
-declare -c WEBPORTS=80,443,8080
+declare -c WEBPORTS=80,443
 
 datestring=$(date +%Y-%m-%d)
 workdir=/tmp
 
 # temporary files
-portselection=/tmp/$name-$(date +%s)-portselection.tmp
-tmpfile=$(mktemp -q)
+umask 177
+portselection=$(mktemp -q $NAME.XXXXXXX)
+tmpfile=$(mktemp -q $NAME.XXXXXXX)
 
 # colours
 declare -c BLUE='\E[1;49;96m'
@@ -63,7 +66,6 @@ declare -c LIGHTGREEN='\E[2;49;32m'
 
 trap abortscan INT
 trap cleanup QUIT
-umask 177
 
 # define functions
 prettyprint() {
@@ -78,7 +80,7 @@ prettyprint() {
 }
 
 usage() {
-    prettyprint "$name version $version" $BLUE
+    prettyprint "$NAME version $VERSION" $BLUE
     prettyprint "      (c) 2012-2014 Peter Mosmans [Go Forward]" $LIGHTBLUE
     prettyprint "      Licensed under the Mozilla Public License 2.0" $LIGHTBLUE
     echo ""
@@ -90,9 +92,10 @@ usage() {
     echo " -b, --basic             perform basic scans (fingerprint, ssl, trace)" 
     echo "     --filter=FILTER     only proceed with scan of HOST if WHOIS"
     echo "                         results of HOST matches regexp FILTER"
-    echo " -f, --fingerprint       perform web fingerprinting"  
-    echo " -n                      nikto webscan"
-    echo "     --nikto             nikto webscan (port 80 and port 443)"
+    echo " -f                      perform web fingerprinting (all webports)"
+    echo "     -- fingerprint      advanced web fingerprinting"
+    echo " -h, --header            show webserver headers (all webports)"
+    echo " -n, --nikto             nikto webscan (all webports)"
     echo " -p, --ports             nmap portscan"
     echo "     --allports          nmap portscan (all ports)"
     echo " -s                      check SSL configuration"
@@ -134,10 +137,14 @@ setlogfilename() {
     fi
 }
 
+# purgelogs logfile [VERBOSE]
 purgelogs() {
     if [[ -f "$logfile" ]]; then
-        if (($loglevel&$VERBOSE)) || [[ ! -z "$1" ]]; then
-            showstatus "$(cat $logfile)"
+        if (($loglevel&$VERBOSE)) || [[ $LOGFILE=="$1" ]]; then
+            if [[ -s "$logfile" ]]; then 
+                showstatus "$(cat $logfile)"
+                showstatus ""
+            fi
         fi
         if (($loglevel&$RAWLOGS)); then
             grep -v '^[#%]' $logfile >> $outputfile
@@ -147,19 +154,22 @@ purgelogs() {
     tool=$ERROR
 }
 
-# showstatus (message) [COLOR] [NONEWLINE]
+# showstatus message [COLOR|NONEWLINE|LOGFILE]
 showstatus() {
-    if [[ -z "$1" ]]; then return; fi
+#    if [[ -z "$1" ]]; then return; fi
     if [[ ! -z "$2" ]]; then
-        if [[ "$2" == "$NONEWLINE" ]]; then
-            if !(($loglevel&$QUIET)); then echo -n "$1"; fi
-            if (($loglevel&$LOGFILE)); then echo -n "$1" >> $outputfile; fi
-        else
-            prettyprint "$1" $2 $3
-            if (($loglevel&$LOGFILE)); then echo "$1" >> $outputfile; fi
-        fi
+        case "$2" in
+            $LOGFILE)
+                if (($loglevel&$LOGFILE)); then echo "$1" >> $outputfile; fi;;
+            $NONEWLINE)
+                if !(($loglevel&$QUIET)); then echo -n "$1"; fi
+                if (($loglevel&$LOGFILE)); then echo -n "$1" >> $outputfile; fi;;
+            (*) 
+                prettyprint "$1" $2 $3
+                if (($loglevel&$LOGFILE)); then echo "$1" >> $outputfile; fi;;
+        esac
     else
-            if !(($loglevel&$QUIET)); then echo "$1"; fi
+        if !(($loglevel&$QUIET)); then echo "$1"; fi
         if (($loglevel&$LOGFILE)); then echo "$1" >> $outputfile; fi
     fi
 }
@@ -167,7 +177,7 @@ showstatus() {
 startup() {
     flag=$OPEN
     trap cleanup EXIT
-    showstatus "$name version $version starting on $(date +%d-%m-%Y' at '%R)"
+    showstatus "$NAME version $VERSION starting on $(date +%d-%m-%Y' at '%R)"
     if (($loglevel&$LOGFILE)); then
         if [[ -n $appendfile ]]; then
             showstatus "appending to existing file $outputfile"
@@ -175,7 +185,7 @@ startup() {
             showstatus "logging to $outputfile"
         fi
     fi
-    showstatus "scanparameters: $fulloptions"
+    showstatus "scanparameters: ${fulloptions//-- /}" $LOGFILE
     if [[ -n "$workdir" ]]; then pushd $workdir 1>/dev/null; fi
 }
 
@@ -188,7 +198,7 @@ version() {
     echo ""
     sslscan --version
     echo ""
-    prettyprint "$name version $version" $BLUE
+    prettyprint "$NAME version $VERSION" $BLUE
     prettyprint "      (c) 2013-2014 Peter Mosmans [Go Forward]" $LIGHTBLUE
     prettyprint "      Licensed under the Mozilla Public License 2.0" $LIGHTBLUE
     echo ""
@@ -236,15 +246,41 @@ do_sslscan() {
 }
 
 do_fingerprint() {
-    checkifportopen 80
-    if (($portstatus==$ERROR)); then
-        showstatus "port 80 closed" $BLUE
-    else
+    if (($fingerprint==$BASIC)) || (($fingerprint==$ADVANCED)); then
         setlogfilename "whatweb"
         if (($tool!=$ERROR)); then
-            showstatus "performing whatweb fingerprinting..."
-            whatweb -a3 --color never $target --log-brief $logfile 1>/dev/null 2>&1
-            purgelogs $VERBOSE
+            for port in ${WEBPORTS//,/ }; do
+                setlogfilename "whatweb"
+                showstatus "performing whatweb fingerprinting on port $port... "
+                if (($port!=443)); then
+                    whatweb -a3 --color never http://$target:$port --log-brief $logfile 1>/dev/null 2>&1
+                else
+                    whatweb -a3 --color never https://$target:$port --log-brief $logfile 1>/dev/null 2>&1
+                fi
+                purgelogs $VERBOSE
+            done
+        fi
+    fi
+
+    if (($fingerprint==$ADVANCED)) || (($fingerprint==$ALTERNATIVE)); then
+        setlogfilename "curl"
+        if (($tool!=$ERROR)); then
+            for port in ${WEBPORTS//,/ }; do
+                setlogfilename "curl"
+                checkifportopen $port
+                if (($portstatus==$ERROR)); then
+                    showstatus "port $port closed" $GREEN
+                else
+                    showstatus "retrieving headers from port $port... " $NONEWLINE
+                    if (($port!=443)); then
+                        curl -q --insecure -m 10 --dump-header $logfile http://$target:$port 1>/dev/null 2>&1 || prettyprint "could not connect to port $port" $BLUE $NONEWLINE
+                    else
+                        curl -q --insecure -m 10 --dump-header $logfile https://$target:$port 1>/dev/null 2>&1 || prettyprint "could not connect to port $port" $BLUE $NONEWLINE
+                    fi
+                    showstatus ""
+                    purgelogs $VERBOSE
+                fi
+            done
         fi
     fi
 }
@@ -264,7 +300,7 @@ do_nikto() {
                 showstatus "performing nikto webscan on port $port... "
                 nikto -host $target:$port -Format txt -output $logfile 1>/dev/null 2>&1 </dev/null
             fi
-            purgelogs
+            purgelogs $VERBOSE
         done
     fi
 }
@@ -418,19 +454,19 @@ abortscan() {
 
 cleanup() {
     trap '' EXIT INT QUIT
-    if (($tool!=$ERROR)); then 
+    if [[ ! -z $tool ]] && (($ERROR!=$tool)); then 
         prettyprint "$tool interrupted..." $RED
         purgelogs
     fi
     showstatus "cleaning up temporary files..."
-    if [[ -s "$portselection" ]]; then rm "$portselection" ; fi
-    if [[ -s "$tmpfile" ]]; then rm "$tmpfile" ; fi
+    if [[ -e "$portselection" ]]; then rm "$portselection" ; fi
+    if [[ -e "$tmpfile" ]]; then rm "$tmpfile" ; fi
     if [[ -n "$workdir" ]]; then popd 1>/dev/null ; fi
     showstatus "ended on $(date +%d-%m-%Y' at '%R)"
     exit
 }
 
-if ! options=$(getopt -o ad:fi:lno:pqstvwWy -l allports,directory:,filter:,fingerprint,inputfile:,log,max,nikto,output:,ports,quiet,ssl,trace,version,whois -- "$@") ; then
+if ! options=$(getopt -o ad:fhi:lno:pqstvwWy -l allports,directory:,filter:,fingerprint,header,inputfile:,log,max,nikto,output:,ports,quiet,ssl,trace,version,whois -- "$@") ; then
     usage
     exit 1
 fi 
@@ -453,7 +489,9 @@ while [[ $# -gt 0 ]]; do
             trace=$BASIC
             whois=$BASIC;;
         --allports) portscan=$ADVANCED;;
-        -f|--fp) fingerprint=$BASIC;;
+        -f) fingerprint=$BASIC;;
+        --fingerprint) fingerprint=$ADVANCED;;
+        -h|--header) fingerprint=$ALTERNATIVE;;
         -d|--directory) workdir=$2
                         if [[ -n "$workdir" ]]; then 
                             [[ -d $workdir ]] && mkdir $workdir 1>/dev/null
