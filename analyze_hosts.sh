@@ -16,7 +16,7 @@
 #       - make webports configurable
 
 NAME="analyze_hosts"
-VERSION="0.45 (09-01-2014)"
+VERSION="0.46 (09-01-2014)"
 
 # statuses
 declare -c ERROR=-1
@@ -232,9 +232,9 @@ do_sslscan() {
        purgelogs
     fi
 
-    setlogfilename "nmap"
     if (($sslscan>=$ADVANCED)); then
         showstatus "performing nmap sslscan..."
+        setlogfilename "nmap"
         nmap -p 443,8080 --script ssl-enum-ciphers --open -oN $logfile $target 1>/dev/null 2>&1 </dev/null
         if [[ -s $logfile ]] ; then
             showstatus "$(awk '/( - )(broken|weak|unknown)/{print $2}' $logfile)" $RED
