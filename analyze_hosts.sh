@@ -16,7 +16,7 @@
 #       - make webports configurable
 
 NAME="analyze_hosts"
-VERSION="0.50 (09-01-2014)"
+VERSION="0.53 (09-01-2014)"
 
 # statuses
 declare -c ERROR=-1
@@ -137,13 +137,14 @@ setlogfilename() {
 
 # purgelogs logfile [LOGLEVEL]
 # purges the current logfile
+# if LOGLEVEL = VERBOSE then show log on screen
 purgelogs() {
     local currentloglevel=$loglevel
     if [[ ! -z $1 ]]; then let "loglevel=loglevel|$1"; fi
     if [[ ! -z "$$logfile" ]] && [[ -f "$logfile" ]]; then
         if (($loglevel&$VERBOSE)); then
             if [[ -s "$logfile" ]]; then 
-                showstatus "$(cat $logfile)" $1
+                showstatus "$(cat $logfile)"
                 showstatus ""
             fi
         fi
@@ -161,7 +162,6 @@ purgelogs() {
 #                    NONEWLINE: don't echo new line character
 #                    LOGFILE: only write contents to logfile
 showstatus() {
-#    if [[ -z "$1" ]]; then return; fi
     if [[ ! -z "$2" ]]; then
         case "$2" in
             $LOGFILE)
@@ -473,6 +473,9 @@ cleanup() {
     if [[ -e "$portselection" ]]; then rm "$portselection" ; fi
     if [[ -e "$tmpfile" ]]; then rm "$tmpfile" ; fi
     if [[ -n "$workdir" ]]; then popd 1>/dev/null ; fi
+    if (($loglevel&$LOGFILE)); then
+        showstatus "logged to $outputfile"
+    fi
     showstatus "ended on $(date +%d-%m-%Y' at '%R)"
     exit
 }
@@ -504,16 +507,19 @@ while [[ $# -gt 0 ]]; do
         --fingerprint) fingerprint=$ADVANCED;;
         -h|--header) fingerprint=$ALTERNATIVE;;
         -d|--directory) workdir=$2
-                        shift ;;
+            shift ;;
         --filter) filter="$2"
-                  whois=$ADVANCED
-                  shift ;;
+            whois=$ADVANCED
+            shift ;;
         -i|--inputfile) inputfile="$2"
-                        if [[ ! -s "$inputfile" ]]; then
-                            echo "error: cannot find $inputfile" 
-                            exit 1
-                        fi           
-                        shift ;;
+            if [[ ! $inputfile =~ ^/ ]]; then
+                inputfile=$(pwd)/$inputfile
+            fi
+            if [[ ! -s "$inputfile" ]]; then
+                echo "error: cannot find $inputfile" 
+                exit 1
+            fi           
+            shift ;;
         -l) log="TRUE";;
         --max)             
             fingerprint=$ADVANCED
