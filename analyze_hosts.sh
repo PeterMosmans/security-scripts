@@ -10,12 +10,9 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 # TODO: - add: option to only list commands, don't execute them
-#       - add: no-color option
-#       - add: remove color from sslscan output
-#       - add: make webports configurable
 
 NAME="analyze_hosts"
-VERSION="0.55 (13-01-2014)"
+VERSION="0.56 (13-01-2014)"
 
 # statuses
 declare -c ERROR=-1
@@ -45,8 +42,8 @@ declare -i whois=$UNKNOWN
 declare -i hoststatus=$UNKNOWN
 declare -i loglevel=$STDOUT
 declare -i portstatus=$UNKNOWN
-declare -c WEBPORTS=80,443
-
+declare webports=80,443
+declare sslports=443,465,993,995
 datestring=$(date +%Y-%m-%d)
 workdir=/tmp
 
@@ -66,14 +63,14 @@ trap cleanup QUIT
 
 # define functions
 prettyprint() {
-    if (($loglevel&$QUIET)); then return; fi
-    echo -ne $2
+    (($loglevel&$QUIET)) && return
+    [[ -z $nocolor ]] && echo -ne $2
     if [[ "$3" == "$NONEWLINE" ]]; then
         echo -n "$1"
     else
         echo "$1"
     fi
-    tput sgr0
+    [[ -z $nocolor ]] && tput sgr0
 }
 
 usage() {
@@ -93,8 +90,8 @@ usage() {
     echo "     -- fingerprint      perform all web fingerprinting methods"
     echo " -h, --header            show webserver headers (all webports)"
     echo " -n, --nikto             nikto webscan (all webports)"
-    echo " -p, --ports             nmap portscan"
-    echo "     --allports          nmap portscan (all ports)"
+    echo " -p                      nmap portscan (top 1000 ports)"
+    echo "     --ports             nmap portscan (all ports)"
     echo " -s                      check SSL configuration"
     echo "     --ssl               perform all SSL configuration checks"
     echo " -t                      check webserver for HTTP TRACE method"
@@ -102,10 +99,15 @@ usage() {
     echo " -w, --whois             perform WHOIS lookup"
     echo " -W                      confirm WHOIS results before continuing scan"
     echo ""
+    echo "Port selection (comma separated list):"
+    echo "     --webports=PORTS    use PORTS for web scans (default $webports)"
+    echo "     --sslports=PORTS    use PORTS for ssl scans (default $sslports)"
+    echo ""
     echo "Logging and input file:"
     echo " -d, --directory=DIR     location of temporary files (default /tmp)"
     echo " -i, --inputfile=FILE    use a file containing hostnames"
     echo " -l, --log               log each scan in a separate logfile"
+    echo "     --nocolor           don't use fancy colors in screen output" 
     echo " -o, --output=FILE       concatenate all results into FILE"
     echo " -q, --quiet             quiet"
     echo " -v, --verbose           show server responses"
@@ -200,7 +202,7 @@ version() {
     echo ""
     nmap -V
     echo ""
-    sslscan --version
+    sslscan --version|sed -r "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g"
     echo ""
     prettyprint "$NAME version $VERSION" $BLUE
     prettyprint "      (c) 2013-2014 Peter Mosmans [Go Forward]" $LIGHTBLUE
@@ -217,37 +219,39 @@ checkifportopen() {
 }
 
 do_sslscan() {
-    checkifportopen 443
-    if (($portstatus==$ERROR)); then
-        showstatus "port 443 closed" $BLUE
-        return
-    fi
-
     setlogfilename "sslscan"
     if (($sslscan>=$BASIC)) && (($tool!=$ERROR)); then
-       showstatus "performing sslscan..."
-       sslscan --no-failed $target:443 > $logfile
-        if [[ -s $logfile ]] ; then
-           grep -qe "ERROR: Could not open a connection to host $target on port 443" $logfile||portstatus=$ERROR
-       else
-           portstatus=$ERROR
-       fi
-       if (($portstatus==$ERROR)) ; then
-           showstatus "could not connect to port 443" $BLUE
-       else
-           showstatus "$(awk '/(Accepted).*(SSLv2|EXP|MD5|NULL| 40| 56)/{print $2,$3,$4,$5}' $logfile)" $RED
-       fi
-       purgelogs
+       for port in ${sslports//,/ }; do
+           checkifportopen $port
+           if (($portstatus==$ERROR)); then
+               showstatus "port $port closed" $BLUE
+               return
+           fi
+           showstatus "performing sslscan on port $port..." $NONEWLINE
+           sslscan --no-failed $target:$port|sed -r "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g" > $logfile
+           if [[ -s $logfile ]] ; then
+               grep -qe "ERROR: Could not open a connection to host" $logfile&&portstatus=$ERROR
+           else
+               portstatus=$ERROR
+           fi
+           if (($portstatus==$ERROR)) ; then
+               showstatus "could not connect to port $port" $BLUE
+           else
+               showstatus ""
+               showstatus "$(awk '/(Accepted).*(SSLv2|EXP|MD5|NULL| 40| 56)/{print $2,$3,$4,$5}' $logfile)" $RED
+           fi
+           purgelogs
+       done
     fi
 
     if (($sslscan>=$ADVANCED)); then
-        showstatus "performing nmap sslscan..."
+        showstatus "performing nmap sslscan on ports $sslports..."
         setlogfilename "nmap"
-        nmap -p 443,8080 --script ssl-enum-ciphers --open -oN $logfile $target 1>/dev/null 2>&1 </dev/null
+        nmap -p $sslports --script ssl-enum-ciphers --open -oN $logfile $target 1>/dev/null 2>&1 </dev/null
         if [[ -s $logfile ]] ; then
             showstatus "$(awk '/( - )(broken|weak|unknown)/{print $2}' $logfile)" $RED
         else
-            showstatus "could not connect to port 443" $BLUE
+            showstatus "could not connect to ports $sslports" $BLUE
         fi
         purgelogs
     fi
@@ -257,10 +261,10 @@ do_fingerprint() {
     if (($fingerprint==$BASIC)) || (($fingerprint==$ADVANCED)); then
         setlogfilename "whatweb"
         if (($tool!=$ERROR)); then
-            for port in ${WEBPORTS//,/ }; do
+            for port in ${webports//,/ }; do
                 setlogfilename "whatweb"
                 showstatus "performing whatweb fingerprinting on port $port... "
-                if (($port!=443)); then
+                if [[ ! $sslports =~ $port ]]; then
                     whatweb -a3 --color never http://$target:$port --log-brief $logfile 1>/dev/null 2>&1
                 else
                     whatweb -a3 --color never https://$target:$port --log-brief $logfile 1>/dev/null 2>&1
@@ -273,14 +277,14 @@ do_fingerprint() {
     if (($fingerprint==$ADVANCED)) || (($fingerprint==$ALTERNATIVE)); then
         setlogfilename "curl"
         if (($tool!=$ERROR)); then
-            for port in ${WEBPORTS//,/ }; do
+            for port in ${webports//,/ }; do
                 setlogfilename "curl"
                 checkifportopen $port
                 if (($portstatus==$ERROR)); then
                     showstatus "port $port closed" $GREEN
                 else
                     showstatus "retrieving headers from port $port... " $NONEWLINE
-                    if (($port!=443)); then
+                    if [[ ! $sslports =~ $port ]]; then
                         curl -A "$NAME" -q --insecure -m 10 --dump-header $logfile http://$target:$port 1>/dev/null 2>&1 || showstatus "could not connect to port $port" $BLUE $NONEWLINE
                     else
                         curl -A "$NAME" -q --insecure -m 10 --dump-header $logfile https://$target:$port 1>/dev/null 2>&1 || showstatus "could not connect to port $port" $BLUE $NONEWLINE
@@ -299,7 +303,7 @@ do_nikto() {
         if [[ $target =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
             showstatus "FQDN preferred over IP address"
         fi
-        for port in ${WEBPORTS//,/ }; do
+        for port in ${webports//,/ }; do
             setlogfilename "nikto"
             checkifportopen $port
             if (($portstatus==$ERROR)); then
@@ -339,14 +343,14 @@ do_portscan() {
 do_trace() {
     setlogfilename "curl"
     if (($tool!=$ERROR)); then
-        for port in ${WEBPORTS//,/ }; do
+        for port in ${webports//,/ }; do
             setlogfilename "curl"
             checkifportopen $port
             if (($portstatus==$ERROR)); then
                 showstatus "port $port closed" $GREEN
             else
                 showstatus "trying TRACE method on port $port... " $NONEWLINE
-                if (($port!=443)); then
+                if [[ ! $sslports =~ $port ]]; then
                     curl -A "$NAME" -q --insecure -i -m 30 -X TRACE -o $logfile http://$target:$port/ 1>/dev/null 2>&1
                 else
                     curl -A "$NAME" -q --insecure -i -m 30 -X TRACE -o $logfile https://$target:$port/ 1>/dev/null 2>&1
@@ -368,8 +372,8 @@ do_trace() {
 
     if (($trace>=$ADVANCED)); then
         setlogfilename "nmap"
-        showstatus "trying nmap TRACE method on ports $WEBPORTS... " $NONEWLINE
-        nmap -p$WEBPORTS --open --script http-trace -oN $logfile $target 1>/dev/null 2>&1 </dev/null
+        showstatus "trying nmap TRACE method on ports $webports... " $NONEWLINE
+        nmap -p$webports --open --script http-trace -oN $logfile $target 1>/dev/null 2>&1 </dev/null
 	if [[ -s $logfile ]]; then
             status="$(awk '{FS="/";a[++i]=$1}/TRACE is enabled/{print "TRACE enabled on port "a[NR-1]}' $logfile)"
             if [[ -z "$status" ]]; then
@@ -484,7 +488,7 @@ cleanup() {
     exit
 }
 
-if ! options=$(getopt -o ad:fhi:lno:pqstvwWy -l allports,directory:,filter:,fingerprint,header,inputfile:,log,max,nikto,output:,ports,quiet,ssl,trace,version,whois -- "$@") ; then
+if ! options=$(getopt -o ad:fhi:lno:pqstvwWy -l directory:,filter:,fingerprint,header,inputfile:,log,max,nikto,nocolor,output:,ports,quiet,ssl,sslports:,trace,version,webports:,whois -- "$@") ; then
     usage
     exit 1
 fi 
@@ -534,6 +538,7 @@ while [[ $# -gt 0 ]]; do
             whois=$ADVANCED;; 
         -n) nikto=$BASIC;;
         --nikto) nikto=$ADVANCED;;
+        --nocolor) nocolor=TRUE;;
         -o|--output)
             let "loglevel=loglevel|$LOGFILE"
             outputfile=$2
@@ -542,7 +547,12 @@ while [[ $# -gt 0 ]]; do
             fi
             [[ -s $outputfile ]] && appendfile=1
             shift ;;
-        -p|--ports) portscan=$BASIC;;
+        -p) portscan=$BASIC;;
+        --ports) portscan=$ADVANCED;;
+        --webports) webports=$2
+            shift ;;
+        --sslports) sslports=$2
+            shift ;;
         -q|--quiet) let "loglevel=loglevel|$QUIET";;
         -s) sslscan=$BASIC;;
         --ssl) sslscan=$ADVANCED;;
