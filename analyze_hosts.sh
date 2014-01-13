@@ -391,7 +391,7 @@ execute_all() {
         if [[ $target =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
             ip=$target
             local reverse=$(host $target|awk '{print $5}'|sed s'/[.]$//')
-            if [[ "$reverse" == "3(NXDOMAIN)" ]] || ; then
+            if [[ "$reverse" == "3(NXDOMAIN)" ]] ; then
                 showstatus "$target does not resolve to a PTR record" 
             else
                 showstatus "$target resolves to " $NONEWLINE
