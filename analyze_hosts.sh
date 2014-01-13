@@ -12,7 +12,7 @@
 # TODO: - add: option to only list commands, don't execute them
 
 NAME="analyze_hosts"
-VERSION="0.56 (13-01-2014)"
+VERSION="0.57 (13-01-2014)"
 
 # statuses
 declare -c ERROR=-1
@@ -43,7 +43,7 @@ declare -i hoststatus=$UNKNOWN
 declare -i loglevel=$STDOUT
 declare -i portstatus=$UNKNOWN
 declare webports=80,443
-declare sslports=443,465,993,995
+declare sslports=443,993,995
 datestring=$(date +%Y-%m-%d)
 workdir=/tmp
 
@@ -400,7 +400,6 @@ execute_all() {
             else
                 showstatus "$target resolves to " $NONEWLINE
                 showstatus $reverse $BLUE
-                exit 1
             fi
         else
             ip=$(host -c IN $target|awk '/address/{print $4}'|head -1)
@@ -409,7 +408,6 @@ execute_all() {
                 purgelogs
                 return
             else
-             
                 showstatus "$target resolves to $ip"
             fi
         fi
