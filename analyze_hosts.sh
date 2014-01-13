@@ -9,14 +9,13 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-# TODO: - preflight check on hostname 
-#       - add option to only list commands, don't execute them
-#       - add no-color option
-#       - remove color from sslscan output
-#       - make webports configurable
+# TODO: - add: option to only list commands, don't execute them
+#       - add: no-color option
+#       - add: remove color from sslscan output
+#       - add: make webports configurable
 
 NAME="analyze_hosts"
-VERSION="0.53 (09-01-2014)"
+VERSION="0.55 (13-01-2014)"
 
 # statuses
 declare -c ERROR=-1
@@ -190,7 +189,7 @@ startup() {
             showstatus "logging to $outputfile"
         fi
     fi
-    showstatus "scanparameters: ${fulloptions//-- /}" $LOGFILE
+    showstatus "scanparameters: ${fulloptions// --/}" $LOGFILE
     if [[ -n "$workdir" ]]; then pushd $workdir 1>/dev/null; fi
 }
 
@@ -228,12 +227,16 @@ do_sslscan() {
     if (($sslscan>=$BASIC)) && (($tool!=$ERROR)); then
        showstatus "performing sslscan..."
        sslscan --no-failed $target:443 > $logfile
-       grep -qe "ERROR: Could not open a connection to host $target on port 443" $logfile||portstatus=$ERROR
-#       if (($portstatus==$ERROR)) ; then
-#           showstatus "could not connect to port 443" $BLUE
-#       else
+        if [[ -s $logfile ]] ; then
+           grep -qe "ERROR: Could not open a connection to host $target on port 443" $logfile||portstatus=$ERROR
+       else
+           portstatus=$ERROR
+       fi
+       if (($portstatus==$ERROR)) ; then
+           showstatus "could not connect to port 443" $BLUE
+       else
            showstatus "$(awk '/(Accepted).*(SSLv2|EXP|MD5|NULL| 40| 56)/{print $2,$3,$4,$5}' $logfile)" $RED
-#       fi
+       fi
        purgelogs
     fi
 
@@ -380,14 +383,15 @@ do_trace() {
 }
 
 execute_all() {
+    portselection=$(mktemp -q $NAME.XXXXXXX --tmpdir=$workdir)
     if (($whois>=$BASIC)); then
         local nomatch=
         local ip=
         setlogfilename "whois"
         if [[ $target =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
             ip=$target
-            local reverse=$(host $target|awk '{print $5}')
-            if [[ "$reverse" == "3(NXDOMAIN)" ]]; then
+            local reverse=$(host $target|awk '{print $5}'|sed s'/[.]$//')
+            if [[ "$reverse" == "3(NXDOMAIN)" ]] || ; then
                 showstatus "$target does not resolve to a PTR record" 
             else
                 showstatus "$target resolves to " $NONEWLINE
@@ -428,7 +432,7 @@ execute_all() {
     if (($nikto>=$BASIC)); then do_nikto; fi
     if (($sslscan>=$BASIC)); then do_sslscan; fi
     if (($trace>=$BASIC)); then do_trace; fi
-    if [[ ! -n "$portselection" ]]; then rm $portselection 1>/dev/null 2>&1; fi
+    if [[ -e "$portselection" ]]; then rm $portselection 1>/dev/null 2>&1; fi
 }
 
 looptargets() {
@@ -455,7 +459,7 @@ abortscan() {
     flag=$ERROR
      if (($tool!=$ERROR)); then
          showstatus ""
-         prettyprint "$tool interrupted..." $RED
+         showstatus "interrupted $tool while working on $target..." $RED
          purgelogs
          prettyprint "press Ctrl-C again to abort scan, or wait 10 seconds to resume" $BLUE
          sleep 10 && flag=$OPEN
@@ -570,7 +574,6 @@ if [[ ! -s "$inputfile" ]]; then
     if [[ -n "$workdir" ]]; then 
         [[ -d $workdir ]] || mkdir $workdir 1>/dev/null 2>&1
     fi
-    portselection=$(mktemp -q $NAME.XXXXXXX --tmpdir=$workdir)
     tmpfile=$(mktemp -q $NAME.XXXXXXX --tmpdir=$workdir)
     if [[ $1 =~ -.*[0-9]$ ]]; then
         nmap -nsL $1 2>/dev/null|awk '/scan report/{print $5}' >$tmpfile
