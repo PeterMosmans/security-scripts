@@ -13,7 +13,7 @@
 
 
 NAME="analyze_hosts"
-VERSION="0.60 (14-01-2014)"
+VERSION="0.61 (14-01-2014)"
 
 # statuses
 declare -c ERROR=-1
@@ -97,7 +97,7 @@ usage() {
     echo "     --ssl               perform all SSL configuration checks"
     echo " -t                      check webserver for HTTP TRACE method"
     echo "     --trace             perform all HTTP TRACE method checks"
-    echo " -w, --whois             perform WHOIS lookup"
+    echo " -w, --whois             perform WHOIS lookup for the IP address"
     echo " -W                      confirm WHOIS results before continuing scan"
     echo ""
     echo "Port selection (comma separated list):"
@@ -592,8 +592,6 @@ if ! type nmap >/dev/null 2>&1; then
     prettyprint "ERROR: the program nmap is needed but could not be found" $RED
     exit
 fi
-
-(($update>=$BASIC)) && do_update
 
 if [[ ! -s "$inputfile" ]]; then
     if [[ ! -n "$1" ]]; then
