@@ -13,7 +13,7 @@
 
 
 NAME="analyze_hosts"
-VERSION="0.61 (14-01-2014)"
+VERSION="0.62 (14-01-2014)"
 
 # statuses
 declare -c ERROR=-1
@@ -47,9 +47,6 @@ declare webports=80,443
 declare sslports=443,993,995
 datestring=$(date +%Y-%m-%d)
 workdir=/tmp
-
-# temporary files
-umask 177
 
 # colours
 declare -c BLUE='\E[1;49;96m'
@@ -598,6 +595,7 @@ if [[ ! -s "$inputfile" ]]; then
         echo "Nothing to do... no target specified"
         exit
     fi
+    umask 177
     if [[ -n "$workdir" ]]; then 
         [[ -d $workdir ]] || mkdir $workdir 1>/dev/null 2>&1
     fi
