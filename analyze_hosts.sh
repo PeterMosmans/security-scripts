@@ -11,8 +11,9 @@
 
 # TODO: - add: option to only list commands, don't execute them
 
+
 NAME="analyze_hosts"
-VERSION="0.57 (13-01-2014)"
+VERSION="0.58 (14-01-2014)"
 
 # statuses
 declare -c ERROR=-1
@@ -439,15 +440,17 @@ execute_all() {
 
 looptargets() {
     if [[ -s "$inputfile" ]]; then
-        total=$(wc -l < $inputfile)
+        total=$(sed '/^\s*$/d' $inputfile| wc -l)
         counter=1
         while read target; do
-            showstatus ""
-            showstatus "working on " $NONEWLINE
-            showstatus "$target" $BLUE $NONEWLINE
-            showstatus " ($counter of $total)"
-            execute_all
-            let counter=$counter+1
+            if [[ ! -z "$target" ]]; then
+               showstatus ""
+               showstatus "working on " $NONEWLINE
+               showstatus "$target" $BLUE $NONEWLINE
+               showstatus " ($counter of $total)"
+               let counter=$counter+1
+               execute_all
+            fi
         done < "$inputfile"
     else
         showstatus ""
