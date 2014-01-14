@@ -13,7 +13,7 @@
 
 
 NAME="analyze_hosts"
-VERSION="0.58 (14-01-2014)"
+VERSION="0.60 (14-01-2014)"
 
 # statuses
 declare -c ERROR=-1
@@ -113,6 +113,7 @@ usage() {
     echo " -q, --quiet             quiet"
     echo " -v, --verbose           show server responses"
     echo ""
+    echo " -u, --update            update this script (if it's a cloned repository)"
     echo "     --version           print version information and exit"
     echo ""
     prettyprint "                         BLUE: status messages" $BLUE
@@ -179,6 +180,20 @@ showstatus() {
         if !(($loglevel&$QUIET)); then echo "$1"; fi
         if (($loglevel&$LOGFILE)); then echo "$1" >> $outputfile; fi
     fi
+}
+
+do_update() {
+    local realpath=$(dirname $(readlink -f $0))
+    if [[ -d $realpath/.git ]]; then
+        pushd $realpath
+        showstatus "$(git pull)"
+        popd
+        exit 0
+    else
+        showstatus "Sorry, doesn't seem to be an git archive"
+        showstatus "Please clone the repository using the following command: "
+        showstatus "git clone https://github.com/PeterMosmans/security-scripts.git"
+    fi;
 }
 
 startup() {
@@ -440,7 +455,7 @@ execute_all() {
 
 looptargets() {
     if [[ -s "$inputfile" ]]; then
-        total=$(sed '/^\s*$/d' $inputfile| wc -l)
+        total=$(grep -c . $inputfile)
         counter=1
         while read target; do
             if [[ ! -z "$target" ]]; then
@@ -489,7 +504,7 @@ cleanup() {
     exit
 }
 
-if ! options=$(getopt -o ad:fhi:lno:pqstvwWy -l directory:,filter:,fingerprint,header,inputfile:,log,max,nikto,nocolor,output:,ports,quiet,ssl,sslports:,trace,version,webports:,whois -- "$@") ; then
+if ! options=$(getopt -o ad:fhi:lno:pqstuvwWy -l directory:,filter:,fingerprint,header,inputfile:,log,max,nikto,nocolor,output:,ports,quiet,ssl,sslports:,trace,update,version,webports:,whois -- "$@") ; then
     usage
     exit 1
 fi 
@@ -559,6 +574,7 @@ while [[ $# -gt 0 ]]; do
         --ssl) sslscan=$ADVANCED;;
         -t) trace=$BASIC;;
         --trace) trace=$ADVANCED;;
+        -u|--update) do_update && exit 0;;
         -v) let "loglevel=loglevel|$VERBOSE";;
         --version) version;
                    exit 0;;
@@ -576,6 +592,8 @@ if ! type nmap >/dev/null 2>&1; then
     prettyprint "ERROR: the program nmap is needed but could not be found" $RED
     exit
 fi
+
+(($update>=$BASIC)) && do_update
 
 if [[ ! -s "$inputfile" ]]; then
     if [[ ! -n "$1" ]]; then
