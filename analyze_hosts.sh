@@ -13,7 +13,7 @@
 
 
 NAME="analyze_hosts"
-VERSION="0.62 (14-01-2014)"
+VERSION="0.63 (15-01-2014)"
 
 # statuses
 declare -c ERROR=-1
@@ -182,9 +182,9 @@ showstatus() {
 do_update() {
     local realpath=$(dirname $(readlink -f $0))
     if [[ -d $realpath/.git ]]; then
-        pushd $realpath
+        pushd $realpath 1>/dev/null 2>&1
         showstatus "$(git pull)"
-        popd
+        popd 1>/dev/null 2>&1
         exit 0
     else
         showstatus "Sorry, doesn't seem to be an git archive"
@@ -205,7 +205,7 @@ startup() {
         fi
     fi
     showstatus "scanparameters: ${fulloptions// --/}" $LOGFILE
-    if [[ -n "$workdir" ]]; then pushd $workdir 1>/dev/null; fi
+    [[ -n "$workdir" ]] && pushd $workdir 1>/dev/null 2>&1
 }
 
 version() {
@@ -436,18 +436,16 @@ execute_all() {
             fi
         fi
 
-        if (($whois&$ADVANCED)); then
-            read -p "press any key to continue: " failsafe < stdin
-        fi
+        (($whois&$ADVANCED)) && read -p "press any key to continue: " failsafe < stdin
         purgelogs
     fi
 
-    if (($portscan>=$BASIC)); then do_portscan; fi
-    if (($fingerprint>=$BASIC)); then do_fingerprint; fi
-    if (($nikto>=$BASIC)); then do_nikto; fi
-    if (($sslscan>=$BASIC)); then do_sslscan; fi
-    if (($trace>=$BASIC)); then do_trace; fi
-    if [[ -e "$portselection" ]]; then rm $portselection 1>/dev/null 2>&1; fi
+    (($portscan>=$BASIC)) && do_portscan
+    (($fingerprint>=$BASIC)) && do_fingerprint
+    (($nikto>=$BASIC)) && do_nikto
+    (($sslscan>=$BASIC)) && do_sslscan
+    (($trace>=$BASIC)) && do_trace
+    [[ -e "$portselection" ]] && rm $portselection 1>/dev/null 2>&1
 }
 
 looptargets() {
@@ -481,7 +479,7 @@ abortscan() {
          prettyprint "press Ctrl-C again to abort scan, or wait 10 seconds to resume" $BLUE
          sleep 10 && flag=$OPEN
      fi
-     if ((flag==$ERROR)); then exit 1; fi
+     ((flag==$ERROR)) && exit 1
 }
 
 cleanup() {
@@ -533,9 +531,7 @@ while [[ $# -gt 0 ]]; do
             whois=$ADVANCED
             shift ;;
         -i|--inputfile) inputfile="$2"
-            if [[ ! $inputfile =~ ^/ ]]; then
-                inputfile=$(pwd)/$inputfile
-            fi
+            [[ ! $inputfile =~ ^/ ]] && inputfile=$(pwd)/$inputfile
             if [[ ! -s "$inputfile" ]]; then
                 echo "error: cannot find $inputfile" 
                 exit 1
@@ -555,9 +551,7 @@ while [[ $# -gt 0 ]]; do
         -o|--output)
             let "loglevel=loglevel|$LOGFILE"
             outputfile=$2
-            if [[ ! $outputfile =~ ^/ ]]; then 	        
-                outputfile=$(pwd)/$outputfile
-            fi
+            [[ ! $outputfile =~ ^/ ]] && outputfile=$(pwd)/$outputfile
             [[ -s $outputfile ]] && appendfile=1
             shift ;;
         -p) portscan=$BASIC;;
