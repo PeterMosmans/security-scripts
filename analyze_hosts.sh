@@ -15,7 +15,7 @@
 
 
 NAME="analyze_hosts"
-VERSION="0.66 (20-01-2014)"
+VERSION="0.67 (20-01-2014)"
 
 # statuses
 declare -c ERROR=-1
@@ -37,6 +37,7 @@ declare -c SEPARATELOGS=32
 
 # scantypes, defaults
 declare -i fingerprint=$UNKNOWN
+declare -i dnstest=$UNKNOWN
 declare -i nikto=$UNKNOWN
 declare -i portscan=$UNKNOWN
 declare -i sshscan=$UNKNOWN
@@ -87,8 +88,9 @@ usage() {
     echo " -b, --basic             perform basic scans (fingerprint, ssl, trace)" 
     echo "     --filter=FILTER     only proceed with scan of HOST if WHOIS"
     echo "                         results of HOST matches regexp FILTER"
+    echo "     --dns               test for recursive query"
     echo " -f                      perform web fingerprinting (all webports)"
-    echo "     -- fingerprint      perform all web fingerprinting methods"
+    echo "     --fingerprint       perform all web fingerprinting methods"
     echo " -h, --header            show webserver headers (all webports)"
     echo " -n, --nikto             nikto webscan (all webports)"
     echo " -p                      nmap portscan (top 1000 ports)"
@@ -232,6 +234,24 @@ checkifportopen() {
     if [[ -s "$portselection" ]]; then
         portstatus=$ERROR
         grep -q " $1/open/" $portselection && portstatus=$OPEN
+    fi
+}
+
+do_dnstest() {
+    setlogfilename "dig"
+    if (($tool!=$ERROR)); then
+        local status=$UNKNOWN
+        local ports=53
+        showstatus "trying recursive dig... " $NONEWLINE
+        dig google.com @$target 1>$logfile 2>&1 </dev/null
+        grep -q "ANSWER SECTION" $logfile && status=$OPEN
+        if (($status==$OPEN)); then
+            showstatus "recursion allowed" $RED
+            purgelogs
+        else
+            showstatus "no recursion or answer detected" $GREEN
+            purgelogs
+        fi
     fi
 }
 
@@ -463,6 +483,7 @@ execute_all() {
     fi
 
     (($portscan>=$BASIC)) && do_portscan
+    (($dnstest>=$BASIC)) && do_dnstest
     (($fingerprint>=$BASIC)) && do_fingerprint
     (($nikto>=$BASIC)) && do_nikto
     (($sshscan>=$BASIC)) && do_sshscan
@@ -522,7 +543,7 @@ cleanup() {
     exit
 }
 
-if ! options=$(getopt -o ad:fhi:lno:pqstuvwWy -l directory:,filter:,fingerprint,header,inputfile:,log,max,nikto,nocolor,output:,ports,quiet,ssh,ssl,sslports:,trace,update,version,webports:,whois -- "$@") ; then
+if ! options=$(getopt -o ad:fhi:lno:pqstuvwWy -l dns,directory:,filter:,fingerprint,header,inputfile:,log,max,nikto,nocolor,output:,ports,quiet,ssh,ssl,sslports:,trace,update,version,webports:,whois -- "$@") ; then
     usage
     exit 1
 fi 
@@ -538,13 +559,16 @@ fulloptions=$@
 while [[ $# -gt 0 ]]; do
     case $1 in
         -a|--all) 
+            dnstest=$BASIC
             fingerprint=$BASIC
             nikto=$BASIC
             portscan=$BASIC
+            sshscan=$BASIC
             sslscan=$BASIC
             trace=$BASIC
             whois=$BASIC;;
         --allports) portscan=$ADVANCED;;
+        --dns) dnstest=$ADVANCED;;
         -f) fingerprint=$BASIC;;
         --fingerprint) fingerprint=$ADVANCED;;
         -h|--header) fingerprint=$ALTERNATIVE;;
@@ -562,9 +586,11 @@ while [[ $# -gt 0 ]]; do
             shift ;;
         -l) log="TRUE";;
         --max)             
+            dnstest=$ADVANCED
             fingerprint=$ADVANCED
             nikto=$ADVANCED
             portscan=$ADVANCED
+            sshscan=$ADVANCED
             sslscan=$ADVANCED
             trace=$ADVANCED
             whois=$ADVANCED;; 
