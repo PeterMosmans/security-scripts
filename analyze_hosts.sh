@@ -15,7 +15,7 @@
 
 
 NAME="analyze_hosts"
-VERSION="0.68 (20-01-2014)"
+VERSION="0.69 (20-01-2014)"
 
 # statuses
 declare -c ERROR=-1
@@ -190,18 +190,18 @@ do_update() {
     if [[ -d $realpath/.git ]]; then
         setlogfilename "git"
         local status=$UNKNOWN
-        showstatus "current version: $VERSION" 
+        showstatus "current version: $VERSION"
         pushd $realpath 1>/dev/null 2>&1
         git pull 1>$logfile 2>&1
-        grep -q "error: " $logfile && status=$ERROR       
+        grep -q "error: " $logfile && status=$ERROR
+        grep -q "Already up-to-date." $logfile && status=$OPEN
         popd 1>/dev/null 2>&1
-        if (($status>$ERROR)); then
-            showstatus "succesfully updated to $(awk '{FS="\""}/^VERSION=/{print $2}' $0)" $GREEN
-            purgelogs
-        else
-            showstatus "error updating $0" $RED
-            purgelogs $VERBOSE
-        fi
+        case $status in
+            $ERROR) showstatus "error updating $0" $RED;;
+            $UNKNOWN) showstatus "succesfully updated to $(awk '{FS="\""}/^VERSION=/{print $2}' $0)" $GREEN;;
+            $OPEN) showstatus "already running latest version" $BLUE;;
+        esac
+        purgelogs
         exit 0
     else
         showstatus "Sorry, this doesn't seem to be a git archive"
