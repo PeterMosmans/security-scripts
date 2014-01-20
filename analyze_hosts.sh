@@ -15,7 +15,7 @@
 
 
 NAME="analyze_hosts"
-VERSION="0.67 (20-01-2014)"
+VERSION="0.68 (20-01-2014)"
 
 # statuses
 declare -c ERROR=-1
@@ -132,7 +132,7 @@ usage() {
 # setlogfilename (name)
 # sets the GLOBAL variable logfile and tool
 setlogfilename() {
-    logfile=${target}_$1_${datestring}.txt
+    logfile=$workdir/${target}_$1_${datestring}.txt
     if type $1 >/dev/null 2>&1; then
         tool=$1
     else
@@ -188,12 +188,23 @@ showstatus() {
 do_update() {
     local realpath=$(dirname $(readlink -f $0))
     if [[ -d $realpath/.git ]]; then
+        setlogfilename "git"
+        local status=$UNKNOWN
+        showstatus "current version: $VERSION" 
         pushd $realpath 1>/dev/null 2>&1
-        showstatus "$(git pull)"
+        git pull 1>$logfile 2>&1
+        grep -q "error: " $logfile && status=$ERROR       
         popd 1>/dev/null 2>&1
+        if (($status>$ERROR)); then
+            showstatus "succesfully updated to $(awk '{FS="\""}/^VERSION=/{print $2}' $0)" $GREEN
+            purgelogs
+        else
+            showstatus "error updating $0" $RED
+            purgelogs $VERBOSE
+        fi
         exit 0
     else
-        showstatus "Sorry, doesn't seem to be an git archive"
+        showstatus "Sorry, this doesn't seem to be a git archive"
         showstatus "Please clone the repository using the following command: "
         showstatus "git clone https://github.com/PeterMosmans/security-scripts.git"
     fi;
