@@ -10,10 +10,12 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 # TODO: - add: option to only list commands, don't execute them
+#       - add: make logging of output default
+#       - add: grep on errors of ssh script output
 
 
 NAME="analyze_hosts"
-VERSION="0.63 (15-01-2014)"
+VERSION="0.66 (20-01-2014)"
 
 # statuses
 declare -c ERROR=-1
@@ -37,6 +39,7 @@ declare -c SEPARATELOGS=32
 declare -i fingerprint=$UNKNOWN
 declare -i nikto=$UNKNOWN
 declare -i portscan=$UNKNOWN
+declare -i sshscan=$UNKNOWN
 declare -i sslscan=$UNKNOWN
 declare -i trace=$UNKNOWN
 declare -i whois=$UNKNOWN
@@ -92,6 +95,7 @@ usage() {
     echo "     --ports             nmap portscan (all ports)"
     echo " -s                      check SSL configuration"
     echo "     --ssl               perform all SSL configuration checks"
+    echo "     --ssh               perform SSH configuration checks"
     echo " -t                      check webserver for HTTP TRACE method"
     echo "     --trace             perform all HTTP TRACE method checks"
     echo " -w, --whois             perform WHOIS lookup for the IP address"
@@ -310,6 +314,24 @@ do_fingerprint() {
     fi
 }
 
+do_sshscan() {
+    if (($sshscan>=$BASIC)); then
+        setlogfilename "nmap"
+        local portstatus=$UNKNOWN
+        local ports=22
+        showstatus "trying nmap SSH scan on port $ports... " $NONEWLINE
+        nmap -Pn -p $ports --open --script banner.nse,sshv1.nse,ssh-hostkey.nse,ssh2-enum-algos.nse -oN $logfile $target 1>/dev/null 2>&1 </dev/null
+        grep -q " open " $logfile && portstatus=$OPEN
+        if (($portstatus<$OPEN)); then
+            showstatus "port closed" $BLUE
+            purgelogs
+        else
+            showstatus "port open" $BLUE
+            purgelogs $VERBOSE
+        fi
+    fi
+}
+
 do_nikto() {
     setlogfilename "nikto"
     if (($tool!=$ERROR)); then
@@ -443,6 +465,7 @@ execute_all() {
     (($portscan>=$BASIC)) && do_portscan
     (($fingerprint>=$BASIC)) && do_fingerprint
     (($nikto>=$BASIC)) && do_nikto
+    (($sshscan>=$BASIC)) && do_sshscan
     (($sslscan>=$BASIC)) && do_sslscan
     (($trace>=$BASIC)) && do_trace
     [[ -e "$portselection" ]] && rm $portselection 1>/dev/null 2>&1
@@ -499,7 +522,7 @@ cleanup() {
     exit
 }
 
-if ! options=$(getopt -o ad:fhi:lno:pqstuvwWy -l directory:,filter:,fingerprint,header,inputfile:,log,max,nikto,nocolor,output:,ports,quiet,ssl,sslports:,trace,update,version,webports:,whois -- "$@") ; then
+if ! options=$(getopt -o ad:fhi:lno:pqstuvwWy -l directory:,filter:,fingerprint,header,inputfile:,log,max,nikto,nocolor,output:,ports,quiet,ssh,ssl,sslports:,trace,update,version,webports:,whois -- "$@") ; then
     usage
     exit 1
 fi 
@@ -562,6 +585,7 @@ while [[ $# -gt 0 ]]; do
             shift ;;
         -q|--quiet) let "loglevel=loglevel|$QUIET";;
         -s) sslscan=$BASIC;;
+        --ssh) sshscan=$BASIC;;
         --ssl) sslscan=$ADVANCED;;
         -t) trace=$BASIC;;
         --trace) trace=$ADVANCED;;
