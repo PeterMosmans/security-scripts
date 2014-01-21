@@ -15,7 +15,7 @@
 
 
 NAME="analyze_hosts"
-VERSION="0.71 (21-01-2014)"
+VERSION="0.72 (21-01-2014)"
 
 # statuses
 declare -c ERROR=-1
@@ -123,7 +123,8 @@ usage() {
     prettyprint "                         GREEN: secure settings" $GREEN
     prettyprint "                         RED: possible vulnerabilities" $RED
     echo ""
-    echo " [HOST] can be a single (IP) address or an IP range, eg. 127.0.0.1-255"
+    echo " [HOST] can be a single (IP) address, an IP range, eg. 127.0.0.1-255"
+    echo " or multiple comma-separated addressess"
     echo ""
     echo "example: $0 -a --filter Amazon www.google.com"
     echo ""
@@ -221,7 +222,7 @@ startup() {
             showstatus "logging to $outputfile"
         fi
     fi
-    showstatus "scanparameters: $fulloptions" $LOGFILE
+    showstatus "scanparameters: $options" $LOGFILE
     [[ -n "$workdir" ]] && pushd $workdir 1>/dev/null 2>&1
 }
 
@@ -266,45 +267,6 @@ do_dnstest() {
     fi
 }
 
-do_sslscan() {
-    setlogfilename "sslscan"
-    if (($sslscan>=$BASIC)) && (($tool!=$ERROR)); then
-       for port in ${sslports//,/ }; do
-           checkifportopen $port
-           if (($portstatus==$ERROR)); then
-               showstatus "port $port closed" $BLUE
-               return
-           fi
-           showstatus "performing sslscan on $target port $port..." $NONEWLINE
-           sslscan --no-failed $target:$port|sed -r "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g" > $logfile
-           if [[ -s $logfile ]] ; then
-               grep -qe "ERROR: Could not open a connection to host" $logfile&&portstatus=$ERROR
-           else
-               portstatus=$ERROR
-           fi
-           if (($portstatus==$ERROR)) ; then
-               showstatus "could not connect to $target port $port" $BLUE
-           else
-               showstatus ""
-               showstatus "$(awk '/(Accepted).*(SSLv2|EXP|MD5|NULL| 40| 56)/{print $2,$3,$4,$5}' $logfile)" $RED
-           fi
-           purgelogs
-       done
-    fi
-
-    if (($sslscan>=$ADVANCED)); then
-        showstatus "performing nmap sslscan on $target ports $sslports..."
-        setlogfilename "nmap"
-        nmap -p $sslports --script ssl-enum-ciphers --open -oN $logfile $target 1>/dev/null 2>&1 </dev/null
-        if [[ -s $logfile ]] ; then
-            showstatus "$(awk '/( - )(broken|weak|unknown)/{print $2}' $logfile)" $RED
-        else
-            showstatus "could not connect to $target ports $sslports" $BLUE
-        fi
-        purgelogs
-    fi
-}
-
 do_fingerprint() {
     if (($fingerprint==$BASIC)) || (($fingerprint==$ADVANCED)); then
         setlogfilename "whatweb"
@@ -345,24 +307,6 @@ do_fingerprint() {
     fi
 }
 
-do_sshscan() {
-    if (($sshscan>=$BASIC)); then
-        setlogfilename "nmap"
-        local portstatus=$UNKNOWN
-        local ports=22
-        showstatus "trying nmap SSH scan on $target port $ports... " $NONEWLINE
-        nmap -Pn -p $ports --open --script banner.nse,sshv1.nse,ssh-hostkey.nse,ssh2-enum-algos.nse -oN $logfile $target 1>/dev/null 2>&1 </dev/null
-        grep -q " open " $logfile && portstatus=$OPEN
-        if (($portstatus<$OPEN)); then
-            showstatus "port closed" $BLUE
-            purgelogs
-        else
-            showstatus "port open" $BLUE
-            purgelogs $VERBOSE
-        fi
-    fi
-}
-
 do_nikto() {
     setlogfilename "nikto"
     if (($tool!=$ERROR)); then
@@ -399,12 +343,67 @@ do_portscan() {
     else
         showstatus "host is up" $BLUE
     fi
-    # show logfiles regardless of verbose level
-    previousloglevel=$loglevel
-    let "loglevel=loglevel|$VERBOSE"
-    purgelogs
-    loglevel=$previousloglevel
+    purgelogs $VERBOSE
 }
+
+do_sshscan() {
+    if (($sshscan>=$BASIC)); then
+        setlogfilename "nmap"
+        local portstatus=$UNKNOWN
+        local ports=22
+        showstatus "trying nmap SSH scan on $target port $ports... " $NONEWLINE
+        nmap -Pn -p $ports --open --script banner.nse,sshv1.nse,ssh-hostkey.nse,ssh2-enum-algos.nse -oN $logfile $target 1>/dev/null 2>&1 </dev/null
+        grep -q " open " $logfile && portstatus=$OPEN
+        if (($portstatus<$OPEN)); then
+            showstatus "port closed" $BLUE
+            purgelogs
+        else
+            showstatus "port open" $BLUE
+            purgelogs $VERBOSE
+        fi
+    fi
+}
+
+
+do_sslscan() {
+    setlogfilename "sslscan"
+    if (($sslscan>=$BASIC)) && (($tool!=$ERROR)); then
+       for port in ${sslports//,/ }; do
+           checkifportopen $port
+           if (($portstatus==$ERROR)); then
+               showstatus "port $port closed" $BLUE
+               return
+           fi
+           showstatus "performing sslscan on $target port $port..." $NONEWLINE
+           sslscan --no-failed $target:$port|sed -r "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g" > $logfile
+           if [[ -s $logfile ]] ; then
+               grep -qe "ERROR: Could not open a connection to host" $logfile&&portstatus=$ERROR
+           else
+               portstatus=$ERROR
+           fi
+           if (($portstatus==$ERROR)) ; then
+               showstatus "could not connect to $target port $port" $BLUE
+           else
+               showstatus ""
+               showstatus "$(awk '/(Accepted).*(SSLv2|EXP|MD5|NULL| 40| 56)/{print $2,$3,$4,$5}' $logfile)" $RED
+           fi
+           purgelogs
+       done
+    fi
+
+    if (($sslscan>=$ADVANCED)); then
+        showstatus "performing nmap sslscan on $target ports $sslports..."
+        setlogfilename "nmap"
+        nmap -p $sslports --script ssl-enum-ciphers --open -oN $logfile $target 1>/dev/null 2>&1 </dev/null
+        if [[ -s $logfile ]] ; then
+            showstatus "$(awk '/( - )(broken|weak|unknown)/{print $2}' $logfile)" $RED
+        else
+            showstatus "could not connect to $target ports $sslports" $BLUE
+        fi
+        purgelogs
+    fi
+}
+
 
 do_trace() {
     setlogfilename "curl"
@@ -570,8 +569,6 @@ if [[ "$#" -le 1 ]]; then
     exit 1
 fi
 
-fulloptions=$@
-
 while [[ $# -gt 0 ]]; do
     case $1 in
         -a|--all) 
@@ -664,8 +661,14 @@ if [[ ! -s "$inputfile" ]]; then
         nmap -nsL $1 2>/dev/null|awk '/scan report/{print $5}' >$tmpfile
         inputfile=$tmpfile
     fi
-    target=$1
+    if [[ $1 =~ , ]]; then
+        for targets in ${1//,/ }; do
+            echo $targets >> $tmpfile
+        done
+        inputfile=$tmpfile
+    fi
 fi
 
+target=$1
 startup
 looptargets
