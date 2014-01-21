@@ -13,9 +13,8 @@
 #       - add: make logging of output default
 #       - add: grep on errors of ssh script output
 
-
 NAME="analyze_hosts"
-VERSION="0.72 (21-01-2014)"
+VERSION="0.73 (21-01-2014)"
 
 # statuses
 declare -c ERROR=-1
@@ -116,7 +115,8 @@ usage() {
     echo " -q, --quiet             quiet"
     echo " -v, --verbose           show server responses"
     echo ""
-    echo " -u, --update            update this script (if it's a cloned repository)"
+    echo " -u                      update this script (if it's a cloned repository)"
+    echo "     --update            force update (overwrite all local modifications)"
     echo "     --version           print version information and exit"
     echo ""
     prettyprint "                         BLUE: status messages" $BLUE
@@ -124,7 +124,7 @@ usage() {
     prettyprint "                         RED: possible vulnerabilities" $RED
     echo ""
     echo " [HOST] can be a single (IP) address, an IP range, eg. 127.0.0.1-255"
-    echo " or multiple comma-separated addresses, eg. 127.0.0.1,127.0.0.2"
+    echo " or multiple comma-separated addressess"
     echo ""
     echo "example: $0 -a --filter Amazon www.google.com"
     echo ""
@@ -193,7 +193,13 @@ do_update() {
         local status=$UNKNOWN
         showstatus "current version: $VERSION"
         pushd $realpath 1>/dev/null 2>&1
-        git pull 1>$logfile 2>&1
+        if [[ ! -z "$1" ]]; then
+            showstatus "forcing update, overwriting local changes"
+            git fetch origin master 1>$logfile 2>&1
+            git reset --hard FETCH_HEAD 1>>$logfile 2>&1
+        else
+            git pull 1>$logfile 2>&1
+        fi
         grep -q "error: " $logfile && status=$ERROR
         grep -q "Already up-to-date." $logfile && status=$OPEN
         popd 1>/dev/null 2>&1
@@ -628,7 +634,8 @@ while [[ $# -gt 0 ]]; do
         --ssl) sslscan=$ADVANCED;;
         -t) trace=$BASIC;;
         --trace) trace=$ADVANCED;;
-        -u|--update) do_update && exit 0;;
+        -u) do_update && exit 0;;
+        --update) do_update 1 && exit 0;;
         -v) let "loglevel=loglevel|$VERBOSE";;
         --version) version;
                    exit 0;;
