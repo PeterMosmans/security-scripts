@@ -15,7 +15,7 @@
 
 
 NAME="analyze_hosts"
-VERSION="0.69 (20-01-2014)"
+VERSION="0.71 (21-01-2014)"
 
 # statuses
 declare -c ERROR=-1
@@ -150,7 +150,7 @@ purgelogs() {
     if [[ ! -z "$$logfile" ]] && [[ -f "$logfile" ]]; then
         if (($loglevel&$VERBOSE)); then
             if [[ -s "$logfile" ]]; then 
-                showstatus "$(cat $logfile)"
+                showstatus "$(grep -v '^#' $logfile)"
                 showstatus ""
             fi
         fi
@@ -221,7 +221,7 @@ startup() {
             showstatus "logging to $outputfile"
         fi
     fi
-    showstatus "scanparameters: ${fulloptions// --/}" $LOGFILE
+    showstatus "scanparameters: $fulloptions" $LOGFILE
     [[ -n "$workdir" ]] && pushd $workdir 1>/dev/null 2>&1
 }
 
@@ -275,7 +275,7 @@ do_sslscan() {
                showstatus "port $port closed" $BLUE
                return
            fi
-           showstatus "performing sslscan on port $port..." $NONEWLINE
+           showstatus "performing sslscan on $target port $port..." $NONEWLINE
            sslscan --no-failed $target:$port|sed -r "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g" > $logfile
            if [[ -s $logfile ]] ; then
                grep -qe "ERROR: Could not open a connection to host" $logfile&&portstatus=$ERROR
@@ -283,7 +283,7 @@ do_sslscan() {
                portstatus=$ERROR
            fi
            if (($portstatus==$ERROR)) ; then
-               showstatus "could not connect to port $port" $BLUE
+               showstatus "could not connect to $target port $port" $BLUE
            else
                showstatus ""
                showstatus "$(awk '/(Accepted).*(SSLv2|EXP|MD5|NULL| 40| 56)/{print $2,$3,$4,$5}' $logfile)" $RED
@@ -293,13 +293,13 @@ do_sslscan() {
     fi
 
     if (($sslscan>=$ADVANCED)); then
-        showstatus "performing nmap sslscan on ports $sslports..."
+        showstatus "performing nmap sslscan on $target ports $sslports..."
         setlogfilename "nmap"
         nmap -p $sslports --script ssl-enum-ciphers --open -oN $logfile $target 1>/dev/null 2>&1 </dev/null
         if [[ -s $logfile ]] ; then
             showstatus "$(awk '/( - )(broken|weak|unknown)/{print $2}' $logfile)" $RED
         else
-            showstatus "could not connect to ports $sslports" $BLUE
+            showstatus "could not connect to $target ports $sslports" $BLUE
         fi
         purgelogs
     fi
@@ -311,7 +311,7 @@ do_fingerprint() {
         if (($tool!=$ERROR)); then
             for port in ${webports//,/ }; do
                 setlogfilename "whatweb"
-                showstatus "performing whatweb fingerprinting on port $port... "
+                showstatus "performing whatweb fingerprinting on $target port $port... "
                 if [[ ! $sslports =~ $port ]]; then
                     whatweb -a3 --color never http://$target:$port --log-brief $logfile 1>/dev/null 2>&1
                 else
@@ -329,13 +329,13 @@ do_fingerprint() {
                 setlogfilename "curl"
                 checkifportopen $port
                 if (($portstatus==$ERROR)); then
-                    showstatus "port $port closed" $GREEN
+                    showstatus "$target port $port closed" $BLUE
                 else
-                    showstatus "retrieving headers from port $port... " $NONEWLINE
+                    showstatus "retrieving headers from $target port $port... " $NONEWLINE
                     if [[ ! $sslports =~ $port ]]; then
-                        curl -A "$NAME" -q --insecure -m 10 --dump-header $logfile http://$target:$port 1>/dev/null 2>&1 || showstatus "could not connect to port $port" $BLUE $NONEWLINE
+                        curl -A "$NAME" -q --insecure -m 10 --dump-header $logfile http://$target:$port 1>/dev/null 2>&1 || showstatus "could not connect to $target port $port" $BLUE $NONEWLINE
                     else
-                        curl -A "$NAME" -q --insecure -m 10 --dump-header $logfile https://$target:$port 1>/dev/null 2>&1 || showstatus "could not connect to port $port" $BLUE $NONEWLINE
+                        curl -A "$NAME" -q --insecure -m 10 --dump-header $logfile https://$target:$port 1>/dev/null 2>&1 || showstatus "could not connect to $target port $port" $BLUE $NONEWLINE
                     fi
                     showstatus ""
                     purgelogs $VERBOSE
@@ -350,7 +350,7 @@ do_sshscan() {
         setlogfilename "nmap"
         local portstatus=$UNKNOWN
         local ports=22
-        showstatus "trying nmap SSH scan on port $ports... " $NONEWLINE
+        showstatus "trying nmap SSH scan on $target port $ports... " $NONEWLINE
         nmap -Pn -p $ports --open --script banner.nse,sshv1.nse,ssh-hostkey.nse,ssh2-enum-algos.nse -oN $logfile $target 1>/dev/null 2>&1 </dev/null
         grep -q " open " $logfile && portstatus=$OPEN
         if (($portstatus<$OPEN)); then
@@ -412,24 +412,24 @@ do_trace() {
         for port in ${webports//,/ }; do
             setlogfilename "curl"
             checkifportopen $port
+            showstatus "trying TRACE method on $target port $port... " $NONEWLINE
             if (($portstatus==$ERROR)); then
-                showstatus "port $port closed" $GREEN
+                showstatus "$target port $port closed" $GREEN
             else
-                showstatus "trying TRACE method on port $port... " $NONEWLINE
                 if [[ ! $sslports =~ $port ]]; then
-                    curl -A "$NAME" -q --insecure -i -m 30 -X TRACE -o $logfile http://$target:$port/ 1>/dev/null 2>&1
+                    curl -q -s -A "$NAME" -i -m 30 -X TRACE -o $logfile http://$target:$port/ 1>/dev/null 2>&1
                 else
-                    curl -A "$NAME" -q --insecure -i -m 30 -X TRACE -o $logfile https://$target:$port/ 1>/dev/null 2>&1
+                    curl -q -s -A "$NAME" --insecure -i -m 30 -X TRACE -o $logfile https://$target:$port/ 1>/dev/null 2>&1
                 fi
                 if [[ -s $logfile ]]; then
                     status=$(awk 'NR==1 {print $2}' $logfile)
-                    if [[ $status -le 302 ]]; then
+                    if (($status==200)); then
                         showstatus "TRACE enabled on port $port" $RED
                     else
-                        showstatus "disabled (HTTP statuscode $status)" $GREEN
+                        showstatus "disabled (HTTP $status)" $GREEN
                     fi
                 else
-                    showstatus "could not connect to port $port" $GREEN
+                    showstatus "could not connect" $BLUE
                 fi
             fi
             purgelogs
@@ -443,7 +443,12 @@ do_trace() {
 	if [[ -s $logfile ]]; then
             status="$(awk '{FS="/";a[++i]=$1}/TRACE is enabled/{print "TRACE enabled on port "a[NR-1]}' $logfile)"
             if [[ -z "$status" ]]; then
-                showstatus "disabled"  $GREEN
+                grep -q " open " $logfile && status=$OPEN
+                if [[ $OPEN -eq $status ]]; then
+                    showstatus "disabled"  $GREEN
+                else
+                    showstatus "could not connect" $BLUE
+                fi
             else
                 showstatus "$status" $RED
             fi
