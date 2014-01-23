@@ -14,7 +14,7 @@
 #       - add: grep on errors of ssh script output
 
 NAME="analyze_hosts"
-VERSION="0.73 (21-01-2014)"
+VERSION="0.74 (23-01-2014)"
 
 # statuses
 declare -c ERROR=-1
@@ -46,6 +46,7 @@ declare -i whois=$UNKNOWN
 declare -i hoststatus=$UNKNOWN
 declare -i loglevel=$STDOUT
 declare -i portstatus=$UNKNOWN
+declare -i timeout=30
 declare webports=80,443
 declare sslports=443,993,995
 datestring=$(date +%Y-%m-%d)
@@ -96,6 +97,7 @@ usage() {
     echo "     --ports             nmap portscan (all ports)"
     echo " -s                      check SSL configuration"
     echo "     --ssl               perform all SSL configuration checks"
+    echo "     --timeout=SECONDS   change timeout for sslscan (default=$timeout)"
     echo "     --ssh               perform SSH configuration checks"
     echo " -t                      check webserver for HTTP TRACE method"
     echo "     --trace             perform all HTTP TRACE method checks"
@@ -381,14 +383,14 @@ do_sslscan() {
                return
            fi
            showstatus "performing sslscan on $target port $port..." $NONEWLINE
-           sslscan --no-failed $target:$port|sed -r "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g" > $logfile
+           timeout $timeout sslscan --no-failed $target:$port|sed -r "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g" > $logfile || portstatus=$ERROR
            if [[ -s $logfile ]] ; then
                grep -qe "ERROR: Could not open a connection to host" $logfile&&portstatus=$ERROR
            else
                portstatus=$ERROR
            fi
            if (($portstatus==$ERROR)) ; then
-               showstatus "could not connect to $target port $port" $BLUE
+               showstatus "could not connect" $BLUE
            else
                showstatus ""
                showstatus "$(awk '/(Accepted).*(SSLv2|EXP|MD5|NULL| 40| 56)/{print $2,$3,$4,$5}' $logfile)" $RED
@@ -564,7 +566,7 @@ cleanup() {
     exit
 }
 
-if ! options=$(getopt -o ad:fhi:lno:pqstuvwWy -l dns,directory:,filter:,fingerprint,header,inputfile:,log,max,nikto,nocolor,output:,ports,quiet,ssh,ssl,sslports:,trace,update,version,webports:,whois -- "$@") ; then
+if ! options=$(getopt -o ad:fhi:lno:pqstuvwWy -l dns,directory:,filter:,fingerprint,header,inputfile:,log,max,nikto,nocolor,output:,ports,quiet,ssh,ssl,sslports:,timeout:,trace,update,version,webports:,whois -- "$@") ; then
     usage
     exit 1
 fi 
@@ -633,6 +635,8 @@ while [[ $# -gt 0 ]]; do
         --ssh) sshscan=$BASIC;;
         --ssl) sslscan=$ADVANCED;;
         -t) trace=$BASIC;;
+        --timeout) timeout=$2
+            shift ;;
         --trace) trace=$ADVANCED;;
         -u) do_update && exit 0;;
         --update) do_update 1 && exit 0;;
