@@ -16,7 +16,7 @@
 
 
 NAME="analyze_hosts"
-VERSION="0.75 (23-01-2014)"
+VERSION="0.76 (23-01-2014)"
 
 # statuses
 declare -c ERROR=-1
@@ -489,6 +489,11 @@ execute_all() {
                 showstatus $reverse $BLUE
             fi
         else
+            whois ${target#*.} > $logfile
+            grep -q "No match for" $logfile && whois ${target%%*.} > $logfile
+            # not all whois servers use the same formatting
+            showstatus "$(grep -iE '^(registra|date|admin |tech|name server)(.*):(.*)[^ ]$' $logfile)"
+            showstatus "$(awk '/Registrar( Technical Contacts)*:[ ]*$|(Domain )*[Nn]ameservers:[ ]*$|Technical:[ ]*$/{s=1}s; /^$/{s=0}' $logfile)"
             ip=$(host -c IN $target|awk '/address/{print $4}'|head -1)
             if [[ ! -n "$ip" ]]; then
                 showstatus "$target does not resolve to an IP address - aborting scans" $RED
