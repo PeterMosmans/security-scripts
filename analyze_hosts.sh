@@ -12,9 +12,11 @@
 # TODO: - add: option to only list commands, don't execute them
 #       - add: make logging of output default
 #       - add: grep on errors of ssh script output
+#       - add: check installation (whether all tools are present)
+
 
 NAME="analyze_hosts"
-VERSION="0.74 (23-01-2014)"
+VERSION="0.75 (23-01-2014)"
 
 # statuses
 declare -c ERROR=-1
@@ -27,6 +29,7 @@ declare -c ADVANCED=2
 declare -c ALTERNATIVE=4
 
 # logging and verboseness
+declare -c NOLOGFILE=-1
 declare -c QUIET=1
 declare -c STDOUT=2
 declare -c VERBOSE=4
@@ -139,7 +142,7 @@ setlogfilename() {
     if type $1 >/dev/null 2>&1; then
         tool=$1
     else
-        showstatus "ERROR: The program $1 could not be found - aborting test" $RED
+        showstatus "ERROR: The program $1 could not be found" $RED
         tool=$ERROR
     fi
 }
@@ -166,25 +169,29 @@ purgelogs() {
     loglevel=$currentloglevel
 }
 
-# showstatus message [COLOR] [LOGFILE|NONEWLINE]
+# showstatus message [COLOR] [LOGFILE|NOLOGFILE|NONEWLINE]
 #                    COLOR: color of message
-#                    NONEWLINE: don't echo new line character
 #                    LOGFILE: only write contents to logfile
+#                    NOLOGFILE: don't log contents to logfile
+#                    NONEWLINE: don't echo new line character
+
 showstatus() {
     if [[ ! -z "$2" ]]; then
         case "$2" in
             $LOGFILE)
-                if (($loglevel&$LOGFILE)); then echo "$1" >> $outputfile; fi;;
+                (($loglevel&$LOGFILE)) && echo "$1" >> $outputfile;;
+            $NOLOGFILE)
+                !(($loglevel&$QUIET)) && echo "$1";;
             $NONEWLINE)
-                if !(($loglevel&$QUIET)); then echo -n "$1"; fi
-                if (($loglevel&$LOGFILE)); then echo -n "$1" >> $outputfile; fi;;
+                !(($loglevel&$QUIET)) && echo -n "$1"
+                (($loglevel&$LOGFILE)) && echo -n "$1" >> $outputfile;;
             (*) 
                 prettyprint "$1" $2 $3
-                if (($loglevel&$LOGFILE)); then echo "$1" >> $outputfile; fi;;
+                (($loglevel&$LOGFILE)) && echo "$1" >> $outputfile;;
         esac
     else
-        if !(($loglevel&$QUIET)); then echo "$1"; fi
-        if (($loglevel&$LOGFILE)); then echo "$1" >> $outputfile; fi
+        !(($loglevel&$QUIET)) && echo "$1"
+        (($loglevel&$LOGFILE)) && echo "$1" >> $outputfile
     fi
 }
 
@@ -192,19 +199,23 @@ do_update() {
     local realpath=$(dirname $(readlink -f $0))
     if [[ -d $realpath/.git ]]; then
         setlogfilename "git"
-        local status=$UNKNOWN
-        showstatus "current version: $VERSION"
-        pushd $realpath 1>/dev/null 2>&1
-        if [[ ! -z "$1" ]]; then
-            showstatus "forcing update, overwriting local changes"
-            git fetch origin master 1>$logfile 2>&1
-            git reset --hard FETCH_HEAD 1>>$logfile 2>&1
+        if (($tool!=$ERROR)); then
+            local status=$UNKNOWN
+            showstatus "current version: $VERSION"
+            pushd $realpath 1>/dev/null 2>&1
+            if [[ ! -z "$1" ]]; then
+                showstatus "forcing update, overwriting local changes"
+                git fetch origin master 1>$logfile 2>&1
+                git reset --hard FETCH_HEAD 1>>$logfile 2>&1
+            else
+                git pull 1>$logfile 2>&1
+            fi
+            grep -Eq "error: |Permission denied" $logfile && status=$ERROR
+            grep -q "Already up-to-date." $logfile && status=$OPEN
+            popd 1>/dev/null 2>&1
         else
-            git pull 1>$logfile 2>&1
+            status=$ERROR
         fi
-        grep -q "error: " $logfile && status=$ERROR
-        grep -q "Already up-to-date." $logfile && status=$OPEN
-        popd 1>/dev/null 2>&1
         case $status in
             $ERROR) showstatus "error updating $0" $RED;;
             $UNKNOWN) showstatus "succesfully updated to $(awk '{FS="\""}/^VERSION=/{print $2}' $0)" $GREEN;;
@@ -372,7 +383,6 @@ do_sshscan() {
     fi
 }
 
-
 do_sslscan() {
     setlogfilename "sslscan"
     if (($sslscan>=$BASIC)) && (($tool!=$ERROR)); then
@@ -411,7 +421,6 @@ do_sslscan() {
         purgelogs
     fi
 }
-
 
 do_trace() {
     setlogfilename "curl"
@@ -556,12 +565,10 @@ cleanup() {
         purgelogs
     fi
     showstatus "cleaning up temporary files..."
-    if [[ -e "$portselection" ]]; then rm "$portselection" ; fi
-    if [[ -e "$tmpfile" ]]; then rm "$tmpfile" ; fi
-    if [[ -n "$workdir" ]]; then popd 1>/dev/null ; fi
-    if (($loglevel&$LOGFILE)); then
-        showstatus "logged to $outputfile"
-    fi
+    [[ -e "$portselection" ]] && rm "$portselection"
+    [[ -e "$tmpfile" ]] && rm "$tmpfile"
+    [[ -n "$workdir" ]] && popd 1>/dev/null
+    (($loglevel&$LOGFILE)) && showstatus "logged to $outputfile" $NOLOGFILE
     showstatus "ended on $(date +%d-%m-%Y' at '%R)"
     exit
 }
