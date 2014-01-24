@@ -6,10 +6,8 @@ No fancy programming framework required, all that is needed is a Bash shell.
 
 analyze-hosts.sh
 ----------------
-Acts as a wrapper around several other open source tools. Can be used to verify the security of hosts
-Performs webscans, portscans, web fingerprinting, checks webserver and SSL/TLS configuration
-
-Uses curl for TRACE checks, nikto for webscans, nmap for portscans and several other checks, sslscan for SSL/TLS configuration checks and whatweb for fingerprinting. 
+A simple wrapper script around several open source security tools to simplify scanning of hosts for network vulnerabilities. The script lets you analyze one or several hosts for common misconfiguration vulnerabilities and weaknesses.
+The main objectives for the script is to make it as easy as possible to perform generic security tests, without any heavy prerequisites, make the output as informative as possible, and use open source tools.
 
 ```
  usage: analyze_hosts.sh [OPTION]... [HOST]
@@ -20,33 +18,44 @@ Scanning options:
  -b, --basic             perform basic scans (fingerprint, ssl, trace)
      --filter=FILTER     only proceed with scan of HOST if WHOIS
                          results of HOST matches regexp FILTER
- -f, --fingerprint       perform web fingerprinting
- -n                      nikto webscan
-     --nikto             nikto webscan (port 80 and port 443)
- -p, --ports             nmap portscan
-     --allports          nmap portscan (all ports)
+     --dns               test for recursive query
+ -f                      perform web fingerprinting (all webports)
+     --fingerprint       perform all web fingerprinting methods
+ -h, --header            show webserver headers (all webports)
+ -n, --nikto             nikto webscan (all webports)
+ -p                      nmap portscan (top 1000 ports)
+     --ports             nmap portscan (all ports)
  -s                      check SSL configuration
-     --ssl               alternative check of SSL configuration
+     --ssl               perform all SSL configuration checks
+     --timeout=SECONDS   change timeout for sslscan (default=30)
+     --ssh               perform SSH configuration checks
  -t                      check webserver for HTTP TRACE method
-     --trace             extra check for HTTP TRACE method
- -w, --whois             perform WHOIS lookup
+     --trace             perform all HTTP TRACE method checks
+ -w, --whois             perform WHOIS lookup for the IP address
  -W                      confirm WHOIS results before continuing scan
+
+Port selection (comma separated list):
+     --webports=PORTS    use PORTS for web scans (default 80,443)
+     --sslports=PORTS    use PORTS for ssl scans (default 443,993,995)
 
 Logging and input file:
  -d, --directory=DIR     location of temporary files (default /tmp)
  -i, --inputfile=FILE    use a file containing hostnames
  -l, --log               log each scan in a separate logfile
+     --nocolor           don't use fancy colors in screen output
  -o, --output=FILE       concatenate all results into FILE
  -q, --quiet             quiet
  -v, --verbose           show server responses
 
+ -u                      update this script (if it's a cloned repository)
+     --update            force update (overwrite all local modifications)
      --version           print version information and exit
 
                          BLUE: status messages
                          GREEN: secure settings
                          RED: possible vulnerabilities
 
- [HOST] can be a single (IP) address or an IP range, eg. 127.0.0.1-255
+ [HOST] can be a single (IP) address, an IP range, eg. 127.0.0.1-255
+ or multiple comma-separated addressess
 
-example: analyze_hosts.sh -a --filter Amazon www.google.com
 ```
