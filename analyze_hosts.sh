@@ -16,7 +16,7 @@
 
 
 NAME="analyze_hosts"
-VERSION="0.77 (28-01-2014)"
+VERSION="0.78 (28-01-2014)"
 
 # statuses
 declare -c ERROR=-1
@@ -474,7 +474,7 @@ do_webscan() {
     setlogfilename "curl"
     if (($tool!=$ERROR)); then
         for port in ${webports//,/ }; do
-            showstatus "trying to fetch files in $wordlist on $target port $port... "
+            showstatus "trying list $wordlist on $target port $port... "
             local prefix="http://"
             [[ ! $sslports =~ $port ]] && prefix="--insecure https://"
             if [[ -s "$wordlist" ]]; then
@@ -485,11 +485,7 @@ do_webscan() {
                     curl -q -s -A "$NAME" -I -m 10 -o $logfile $prefix$target/$word </dev/null
                     if [[ -s $logfile ]]; then
                         status=$(awk 'NR==1 {print $2}' $logfile)
-                        if (($status==200)); then
-                            showstatus "found $word" $RED
-                        else
-                            showstatus "$word gave $status" $BLUE
-                        fi
+                        (($status==200)) && showstatus "$target:$port/$word exists" $RED
                     fi
                     purgelogs
                 done < "$wordlist"
