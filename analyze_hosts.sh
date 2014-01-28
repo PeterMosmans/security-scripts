@@ -16,7 +16,7 @@
 
 
 NAME="analyze_hosts"
-VERSION="0.76 (23-01-2014)"
+VERSION="0.77 (28-01-2014)"
 
 # statuses
 declare -c ERROR=-1
@@ -46,6 +46,7 @@ declare -i sshscan=$UNKNOWN
 declare -i sslscan=$UNKNOWN
 declare -i trace=$UNKNOWN
 declare -i whois=$UNKNOWN
+declare -i webscan=$UNKNOWN
 declare -i hoststatus=$UNKNOWN
 declare -i loglevel=$STDOUT
 declare -i portstatus=$UNKNOWN
@@ -89,7 +90,6 @@ usage() {
     echo " -a, --all               perform all basic scans" 
     echo "     --max               perform all advanced scans (more thorough)" 
     echo " -b, --basic             perform basic scans (fingerprint, ssl, trace)" 
-    echo "     --filter=FILTER     only proceed with scan of HOST if WHOIS"
     echo "                         results of HOST matches regexp FILTER"
     echo "     --dns               test for recursive query"
     echo " -f                      perform web fingerprinting (all webports)"
@@ -104,8 +104,10 @@ usage() {
     echo "     --ssh               perform SSH configuration checks"
     echo " -t                      check webserver for HTTP TRACE method"
     echo "     --trace             perform all HTTP TRACE method checks"
-    echo " -w, --whois             perform WHOIS lookup for the IP address"
+    echo " -w, --whois             perform WHOIS lookup for (hostname and) IP address"
     echo " -W                      confirm WHOIS results before continuing scan"
+    echo "     --filter=FILTER     only proceed with scan of HOST if WHOIS"
+    echo "     --wordlist=filename scan webserver for existence of files in filename"
     echo ""
     echo "Port selection (comma separated list):"
     echo "     --webports=PORTS    use PORTS for web scans (default $webports)"
@@ -278,11 +280,10 @@ do_dnstest() {
         grep -q "ANSWER SECTION" $logfile && status=$OPEN
         if (($status==$OPEN)); then
             showstatus "recursion allowed" $RED
-            purgelogs
         else
             showstatus "no recursion or answer detected" $GREEN
-            purgelogs
         fi
+        purgelogs
     fi
 }
 
@@ -329,9 +330,7 @@ do_fingerprint() {
 do_nikto() {
     setlogfilename "nikto"
     if (($tool!=$ERROR)); then
-        if [[ $target =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
-            showstatus "FQDN preferred over IP address"
-        fi
+        [[ $target =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]] && showstatus "FQDN preferred over IP address"
         for port in ${webports//,/ }; do
             setlogfilename "nikto"
             checkifportopen $port
@@ -432,11 +431,9 @@ do_trace() {
             if (($portstatus==$ERROR)); then
                 showstatus "$target port $port closed" $GREEN
             else
-                if [[ ! $sslports =~ $port ]]; then
-                    curl -q -s -A "$NAME" -i -m 30 -X TRACE -o $logfile http://$target:$port/ 1>/dev/null 2>&1
-                else
-                    curl -q -s -A "$NAME" --insecure -i -m 30 -X TRACE -o $logfile https://$target:$port/ 1>/dev/null 2>&1
-                fi
+                local prefix="http://"
+                [[ ! $sslports =~ $port ]] && prefix="--insecure https://"
+                curl -q -s -A "$NAME" -i -m 30 -X TRACE -o $logfile $prefix$target:$port/ 1>/dev/null 2>&1
                 if [[ -s $logfile ]]; then
                     status=$(awk 'NR==1 {print $2}' $logfile)
                     if (($status==200)); then
@@ -470,6 +467,36 @@ do_trace() {
             fi
         fi
         purgelogs
+    fi
+}
+
+do_webscan() {
+    setlogfilename "curl"
+    if (($tool!=$ERROR)); then
+        for port in ${webports//,/ }; do
+            showstatus "trying to fetch files in $wordlist on $target port $port... "
+            local prefix="http://"
+            [[ ! $sslports =~ $port ]] && prefix="--insecure https://"
+            if [[ -s "$wordlist" ]]; then
+                total=$(grep -c . $wordlist)
+                counter=1
+                while read word; do
+                    setlogfilename "curl"
+                    curl -q -s -A "$NAME" -I -m 10 -o $logfile $prefix$target/$word </dev/null
+                    if [[ -s $logfile ]]; then
+                        status=$(awk 'NR==1 {print $2}' $logfile)
+                        if (($status==200)); then
+                            showstatus "found $word" $RED
+                        else
+                            showstatus "$word gave $status" $BLUE
+                        fi
+                    fi
+                    purgelogs
+                done < "$wordlist"
+            else
+                showstatus "could not open $wordlist" $RED
+            fi
+        done
     fi
 }
 
@@ -526,6 +553,7 @@ execute_all() {
     (($sshscan>=$BASIC)) && do_sshscan
     (($sslscan>=$BASIC)) && do_sslscan
     (($trace>=$BASIC)) && do_trace
+    (($webscan>=$BASIC)) && do_webscan
     [[ -e "$portselection" ]] && rm $portselection 1>/dev/null 2>&1
 }
 
@@ -578,7 +606,7 @@ cleanup() {
     exit
 }
 
-if ! options=$(getopt -o ad:fhi:lno:pqstuvwWy -l dns,directory:,filter:,fingerprint,header,inputfile:,log,max,nikto,nocolor,output:,ports,quiet,ssh,ssl,sslports:,timeout:,trace,update,version,webports:,whois -- "$@") ; then
+if ! options=$(getopt -o ad:fhi:lno:pqstuvwWy -l dns,directory:,filter:,fingerprint,header,inputfile:,log,max,nikto,nocolor,output:,ports,quiet,ssh,ssl,sslports:,timeout:,trace,update,version,webports:,whois,wordlist: -- "$@") ; then
     usage
     exit 1
 fi 
@@ -657,6 +685,10 @@ while [[ $# -gt 0 ]]; do
                    exit 0;;
         -w|--whois) whois=$BASIC;;
         -W) let "whois=whois|$ADVANCED";;
+        --wordlist) let "webscan=webscan|$BASIC"
+            wordlist=$2
+            [[ ! $wordlist =~ ^/ ]] && wordlist=$(pwd)/$wordlist
+            shift ;;
         (--) shift; 
              break;;
         (-*) echo "$0: unrecognized option $1" 1>&2; exit 1;;
