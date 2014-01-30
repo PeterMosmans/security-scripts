@@ -10,21 +10,20 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 # TODO: - add: option to only list commands, don't execute them
+#       - change: use base options
 #       - add: make logging of output default
 #       - add: grep on errors of ssh script output
 #       - add: check installation (whether all tools are present)
+#       - change: refactor looping of ports
 
 
 NAME="analyze_hosts"
-VERSION="0.78 (28-01-2014)"
+VERSION="0.80 (30-01-2014)"
 
 # statuses
 declare -c ERROR=-1
 declare -c UNKNOWN=0
-declare -c OPEN=1
-declare -c UP=1
-declare -c NONEWLINE=1
-declare -c BASIC=1
+declare -c OPEN=1 UP=1 NONEWLINE=1 BASIC=1
 declare -c ADVANCED=2
 declare -c ALTERNATIVE=4
 
@@ -37,32 +36,26 @@ declare -c LOGFILE=8
 declare -c RAWLOGS=16
 declare -c SEPARATELOGS=32
 
-# scantypes, defaults
-declare -i fingerprint=$UNKNOWN
-declare -i dnstest=$UNKNOWN
-declare -i nikto=$UNKNOWN
-declare -i portscan=$UNKNOWN
-declare -i sshscan=$UNKNOWN
-declare -i sslscan=$UNKNOWN
-declare -i trace=$UNKNOWN
-declare -i whois=$UNKNOWN
-declare -i webscan=$UNKNOWN
-declare -i hoststatus=$UNKNOWN
+# scantypes
+declare -i dnstest=$UNKNOWN fingerprint=$UNKNOWN nikto=$UNKNOWN
+declare -i portscan=$UNKNOWN sshscan=$UNKNOWN sslscan=$UNKNOWN
+declare -i trace=$UNKNOWN whois=$UNKNOWN webscan=$UNKNOWN
+
+# defaults
 declare -i loglevel=$STDOUT
-declare -i portstatus=$UNKNOWN
 declare -i timeout=30
 declare webports=80,443
 declare sslports=443,993,995
+
+# statuses
+declare -i hoststatus=$UNKNOWN portstatus=$UNKNOWN
 datestring=$(date +%Y-%m-%d)
 workdir=/tmp
 
 # colours
-declare -c BLUE='\E[1;49;96m'
-declare -c LIGHTBLUE='\E[2;49;96m'
-declare -c RED='\E[1;49;31m'
-declare -c LIGHTRED='\E[2;49;31m'
-declare -c GREEN='\E[1;49;32m'
-declare -c LIGHTGREEN='\E[2;49;32m'
+declare -c BLUE='\E[1;49;96m' LIGHTBLUE='\E[2;49;96m'
+declare -c RED='\E[1;49;31m' LIGHTRED='\E[2;49;31m'
+declare -c GREEN='\E[1;49;32m' LIGHTGREEN='\E[2;49;32m'
 
 trap abortscan INT
 trap cleanup QUIT
@@ -476,16 +469,14 @@ do_webscan() {
         for port in ${webports//,/ }; do
             showstatus "trying list $wordlist on $target port $port... "
             local prefix="http://"
-            [[ ! $sslports =~ $port ]] && prefix="--insecure https://"
+            [[ $sslports =~ $port ]] && prefix="--insecure https://"
             if [[ -s "$wordlist" ]]; then
-                total=$(grep -c . $wordlist)
-                counter=1
                 while read word; do
                     setlogfilename "curl"
                     curl -q -s -A "$NAME" -I -m 10 -o $logfile $prefix$target/$word </dev/null
                     if [[ -s $logfile ]]; then
                         status=$(awk 'NR==1 {print $2}' $logfile)
-                        (($status==200)) && showstatus "$target:$port/$word exists" $RED
+                        (($status==200)) && showstatus "$target:$port/$word returns 200 OK" $RED
                     fi
                     purgelogs
                 done < "$wordlist"
@@ -556,7 +547,7 @@ execute_all() {
 looptargets() {
     if [[ -s "$inputfile" ]]; then
         total=$(grep -c . $inputfile)
-        counter=1
+        local counter=1
         while read target; do
             if [[ ! -z "$target" ]]; then
                showstatus ""

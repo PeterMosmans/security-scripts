@@ -16,13 +16,13 @@ Scanning options:
  -a, --all               perform all basic scans
      --max               perform all advanced scans (more thorough)
  -b, --basic             perform basic scans (fingerprint, ssl, trace)
-     --filter=FILTER     only proceed with scan of HOST if WHOIS
                          results of HOST matches regexp FILTER
      --dns               test for recursive query
  -f                      perform web fingerprinting (all webports)
      --fingerprint       perform all web fingerprinting methods
  -h, --header            show webserver headers (all webports)
  -n, --nikto             nikto webscan (all webports)
+     --wordlist=FILE     scan webserver for existence of files in FILE
  -p                      nmap portscan (top 1000 ports)
      --ports             nmap portscan (all ports)
  -s                      check SSL configuration
@@ -31,8 +31,9 @@ Scanning options:
      --ssh               perform SSH configuration checks
  -t                      check webserver for HTTP TRACE method
      --trace             perform all HTTP TRACE method checks
- -w, --whois             perform WHOIS lookup for the IP address
+ -w, --whois             perform WHOIS lookup for (hostname and) IP address
  -W                      confirm WHOIS results before continuing scan
+     --filter=FILTER     only proceed with scan of HOST if WHOIS
 
 Port selection (comma separated list):
      --webports=PORTS    use PORTS for web scans (default 80,443)
@@ -57,5 +58,8 @@ Logging and input file:
 
  [HOST] can be a single (IP) address, an IP range, eg. 127.0.0.1-255
  or multiple comma-separated addressess
+
+example: analyze_hosts -a --filter Amazon www.google.com
+
 
 ```
