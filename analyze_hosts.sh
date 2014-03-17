@@ -18,7 +18,7 @@
 
 
 NAME="analyze_hosts"
-VERSION="0.80 (30-01-2014)"
+VERSION="0.81 (17-03-2014)"
 
 # statuses
 declare -c ERROR=-1
