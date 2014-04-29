@@ -18,7 +18,7 @@
 
 
 NAME="analyze_hosts"
-VERSION="0.81 (17-03-2014)"
+VERSION="0.82 (29-04-2014)"
 
 # statuses
 declare -c ERROR=-1
@@ -395,7 +395,7 @@ do_sslscan() {
                showstatus "could not connect" $BLUE
            else
                showstatus ""
-               showstatus "$(awk '/(Accepted).*(SSLv2|EXP|MD5|NULL| 40| 56)/{print $2,$3,$4,$5}' $logfile)" $RED
+               showstatus "$(awk '/(Accepted).*(ADH|RC4|IDEA|SSLv2|EXP|MD5|NULL| 40| 56)/{print $2,$3,$4,$5}' $logfile)" $RED
            fi
            purgelogs
        done
