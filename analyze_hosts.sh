@@ -529,7 +529,7 @@ execute_all() {
             fi
         fi
 
-        (($whois&$ADVANCED)) && read -p "press any key to continue: " failsafe < stdin
+        (($whois&$ADVANCED)) && read -p "press any key to continue: " failsafe < /dev/stdin
         purgelogs
     fi
 
