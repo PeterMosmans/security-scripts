@@ -18,7 +18,7 @@
 
 
 NAME="analyze_hosts"
-VERSION="0.82 (29-04-2014)"
+VERSION="0.83 (12-05-2014)"
 
 # statuses
 declare -c ERROR=-1
@@ -404,7 +404,7 @@ do_sslscan() {
     if (($sslscan>=$ADVANCED)); then
         showstatus "performing nmap sslscan on $target ports $sslports..."
         setlogfilename "nmap"
-        nmap -p $sslports --script ssl-enum-ciphers --open -oN $logfile $target 1>/dev/null 2>&1 </dev/null
+        nmap -p $sslports --script ssl-enum-ciphers --script ssl-heartbleed --open -oN $logfile $target 1>/dev/null 2>&1 </dev/null
         if [[ -s $logfile ]] ; then
             showstatus "$(awk '/( - )(broken|weak|unknown)/{print $2}' $logfile)" $RED
         else
