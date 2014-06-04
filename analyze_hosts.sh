@@ -623,7 +623,7 @@ while [[ $# -gt 0 ]]; do
         -d|--directory) workdir=$2
             shift ;;
         --filter) filter="$2"
-#            whois=$ADVANCED
+            let "whois=whois|$BASIC";;
             shift ;;
         -i|--inputfile) inputfile="$2"
             [[ ! $inputfile =~ ^/ ]] && inputfile=$(pwd)/$inputfile
