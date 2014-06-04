@@ -18,7 +18,7 @@
 
 
 NAME="analyze_hosts"
-VERSION="0.83 (12-05-2014)"
+VERSION="0.84 (04-06-2014) BETA"
 
 # statuses
 declare -c ERROR=-1
@@ -529,7 +529,7 @@ execute_all() {
             fi
         fi
 
-        (($whois&$ADVANCED)) && read -p "press any key to continue: " failsafe < /dev/stdin
+        (($whois&$ADVANCED)) && read -p "press ENTER to continue: " failsafe < /dev/stdin
         purgelogs
     fi
 
@@ -623,7 +623,7 @@ while [[ $# -gt 0 ]]; do
         -d|--directory) workdir=$2
             shift ;;
         --filter) filter="$2"
-            whois=$ADVANCED
+#            whois=$ADVANCED
             shift ;;
         -i|--inputfile) inputfile="$2"
             [[ ! $inputfile =~ ^/ ]] && inputfile=$(pwd)/$inputfile
