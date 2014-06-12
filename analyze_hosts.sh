@@ -45,7 +45,7 @@ declare -i trace=$UNKNOWN whois=$UNKNOWN webscan=$UNKNOWN
 declare -i loglevel=$STDOUT
 declare -i timeout=30
 declare webports=80,443
-declare sslports=443,993,995
+declare sslports=443,465,993,995
 
 # statuses
 declare -i hoststatus=$UNKNOWN portstatus=$UNKNOWN
