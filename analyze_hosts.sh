@@ -15,26 +15,27 @@
 #       - add: grep on errors of ssh script output
 #       - add: check installation (whether all tools are present)
 #       - change: refactor looping of ports
+#       - change: do --ssl commands per port
 
 
 NAME="analyze_hosts"
 VERSION="0.84 (04-06-2014) BETA"
 
 # statuses
-declare -c ERROR=-1
-declare -c UNKNOWN=0
-declare -c OPEN=1 UP=1 NONEWLINE=1 BASIC=1
-declare -c ADVANCED=2
-declare -c ALTERNATIVE=4
+declare ERROR=-1
+declare UNKNOWN=0
+declare OPEN=1 UP=1 NONEWLINE=1 BASIC=1
+declare ADVANCED=2
+declare ALTERNATIVE=4
 
 # logging and verboseness
-declare -c NOLOGFILE=-1
-declare -c QUIET=1
-declare -c STDOUT=2
-declare -c VERBOSE=4
-declare -c LOGFILE=8
-declare -c RAWLOGS=16
-declare -c SEPARATELOGS=32
+declare NOLOGFILE=-1
+declare QUIET=1
+declare STDOUT=2
+declare VERBOSE=4
+declare LOGFILE=8
+declare RAWLOGS=16
+declare SEPARATELOGS=32
 
 # scantypes
 declare -i dnstest=$UNKNOWN fingerprint=$UNKNOWN nikto=$UNKNOWN
@@ -45,6 +46,9 @@ declare -i trace=$UNKNOWN whois=$UNKNOWN webscan=$UNKNOWN
 declare -i loglevel=$STDOUT
 declare -i timeout=30
 declare webports=80,443
+# 465: SMTP/ssl
+# 993: IMAP/ssl
+# 995: POP/ssl
 declare sslports=443,465,993,995
 
 # statuses
@@ -53,9 +57,9 @@ datestring=$(date +%Y-%m-%d)
 workdir=/tmp
 
 # colours
-declare -c BLUE='\E[1;49;96m' LIGHTBLUE='\E[2;49;96m'
-declare -c RED='\E[1;49;31m' LIGHTRED='\E[2;49;31m'
-declare -c GREEN='\E[1;49;32m' LIGHTGREEN='\E[2;49;32m'
+declare BLUE='\E[1;49;96m' LIGHTBLUE='\E[2;49;96m'
+declare RED='\E[1;49;31m' LIGHTRED='\E[2;49;31m'
+declare GREEN='\E[1;49;32m' LIGHTGREEN='\E[2;49;32m'
 
 trap abortscan INT
 trap cleanup QUIT
@@ -73,7 +77,16 @@ prettyprint() {
 }
 
 usage() {
-    prettyprint "$NAME version $VERSION" $BLUE
+    local realpath=$(dirname $(readlink -f $0))
+    if [[ -d $realpath/.git ]]; then
+        pushd $realpath 1>/dev/null 2>&1
+        local branch=$(git rev-parse --abbrev-ref HEAD)
+        local commit=$(git log|head -1|awk '{print $2}'|cut -c -10)
+        popd
+        prettyprint "$NAME (git) from ${branch} branch commit ${commit}" $BLUE
+    else
+        prettyprint "$NAME version $VERSION" $BLUE
+    fi
     prettyprint "      (c) 2012-2014 Peter Mosmans [Go Forward]" $LIGHTBLUE
     prettyprint "      Licensed under the Mozilla Public License 2.0" $LIGHTBLUE
     echo ""
@@ -192,12 +205,16 @@ showstatus() {
 
 do_update() {
     local realpath=$(dirname $(readlink -f $0))
+    local branch="unkown"
+    local commit="unknown"
     if [[ -d $realpath/.git ]]; then
         setlogfilename "git"
         if (($tool!=$ERROR)); then
             local status=$UNKNOWN
-            showstatus "current version: $VERSION"
             pushd $realpath 1>/dev/null 2>&1
+            branch=$(git rev-parse --abbrev-ref HEAD)
+            commit=$(git log|head -1|awk '{print $2}'|cut -c -10)
+            showstatus "current version: $VERSION (${branch} branch commit ${commit})"
             if [[ ! -z "$1" ]]; then
                 showstatus "forcing update, overwriting local changes"
                 git fetch origin master 1>$logfile 2>&1
@@ -205,6 +222,7 @@ do_update() {
             else
                 git pull 1>$logfile 2>&1
             fi
+            commit=$(git log|head -1|awk '{print $2}'|cut -c -10)
             grep -Eq "error: |Permission denied" $logfile && status=$ERROR
             grep -q "Already up-to-date." $logfile && status=$OPEN
             popd 1>/dev/null 2>&1
@@ -213,7 +231,7 @@ do_update() {
         fi
         case $status in
             $ERROR) showstatus "error updating $0" $RED;;
-            $UNKNOWN) showstatus "succesfully updated to $(awk '{FS="\""}/^VERSION=/{print $2}' $0)" $GREEN;;
+            $UNKNOWN) showstatus "succesfully updated to $(awk '{FS="\""}/^VERSION=/{print $2}' $0) (commit ${commit})" $GREEN;;
             $OPEN) showstatus "already running latest version" $BLUE;;
         esac
         purgelogs
@@ -593,6 +611,7 @@ cleanup() {
     exit
 }
 
+which tput 1>/dev/null 2>&1 || nocolor=TRUE
 if ! options=$(getopt -o ad:fhi:lno:pqstuvwWy -l dns,directory:,filter:,fingerprint,header,inputfile:,log,max,nikto,nocolor,output:,ports,quiet,ssh,ssl,sslports:,timeout:,trace,update,version,webports:,whois,wordlist: -- "$@") ; then
     usage
     exit 1
