@@ -15,11 +15,13 @@
 #       - add: grep on errors of ssh script output
 #       - add: check installation (whether all tools are present)
 #       - change: refactor looping of ports
-#       - change: do --ssl commands per port
+#       - change: iterate --ssl commands per port instead of per tool
+#       - change: make script Bash < 4 proof
+#       - add: show SSL certificate name
 
 
 NAME="analyze_hosts"
-VERSION="0.84 (04-06-2014) BETA"
+VERSION="0.85 (16-06-2014)"
 
 # statuses
 declare ERROR=-1
