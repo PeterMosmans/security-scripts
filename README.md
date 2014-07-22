@@ -4,10 +4,18 @@ security-scripts
 A collection of security related Bash shell scripts.
 No fancy programming framework required, all that is needed is a Bash shell.
 
+
 analyze-hosts.sh
 ----------------
 A simple wrapper script around several open source security tools to simplify scanning of hosts for network vulnerabilities. The script lets you analyze one or several hosts for common misconfiguration vulnerabilities and weaknesses.
-The main objectives for the script is to make it as easy as possible to perform generic security tests, without any heavy prerequisites, make the output as informative as possible, and use open source tools.
+The main objectives for the script is to make it as easy as possible to perform generic security tests, without any heavy prerequisites, make the output as informative as possible, and use open source tools....
+
+* [cipherscan](https://github.com/jvehent/cipherscan)
+* curl
+* nmap
+* [openssl](https://github.com/PeterMosmans/openssl/tree/1.0.2-chacha/)
+* [whatweb](https://github.com/urbanadventurer/WhatWeb)
+
 
 ```
  usage: ./analyze_hosts.sh [OPTION]... [HOST]
