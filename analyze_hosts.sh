@@ -418,12 +418,12 @@ do_sslscan() {
         for port in ${sslports//,/ }; do
             showstatus "performing cipherscan on $target port $port... " $NONEWLINE
             $cipherscan -o $openssl $target:$port 1>$logfile 2>/dev/null || portstatus=$ERROR
-            cat $logfile
             if [[ -s $logfile ]] ; then
                 # Do some *cough* inline *cough* logfile parsing
                 awk '/^[0-9]/{print $2,$3}' $logfile > $tempfile && mv -f $tempfile $logfile
                 showstatus ""
                 showstatus "$(awk '/(ADH|RC4|IDEA|SSLv2|EXP|MD5|NULL| 40| 56)/{print $1,$2}' $logfile)" $RED
+                parse_cert $target:$port
             else
                 showstatus "could not connect" $BLUE
             fi
