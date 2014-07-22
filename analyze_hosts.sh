@@ -50,7 +50,7 @@ declare openssl=$(which openssl)
 declare -i loglevel=$STDOUT
 # timeout for program, eg. cipherscan
 declare -i timeout=60
-# timeout for single request
+# timeout for single requests
 declare -i requesttimeout=10
 declare webports=80,443,8080
 declare sslports=443,465,993,995,3389
@@ -111,7 +111,7 @@ usage() {
     echo " -s                      check SSL configuration"
     echo "     --ssl               perform all SSL configuration checks"
     echo "     --sslcert           show details of SSL certificate"
-    echo "     --timeout=SECONDS   change timeout for sslscan (default=${timeout})"
+    echo "     --timeout=SECONDS   change timeout for tools (default ${timeout})"
     echo "     --ssh               perform SSH configuration checks"
     echo " -t                      check webserver for HTTP TRACE method"
     echo "     --trace             perform all HTTP TRACE method checks"
@@ -152,15 +152,21 @@ usage() {
     echo ""
 }
 
-# setlogfilename (name)
-# sets the GLOBAL variable logfile and tool
-setlogfilename() {
-    if type $1 >/dev/null 2>&1; then
-        tool=$(basename $1)
-        logfile=$workdir/${target}_${tool}_${datestring}.txt
-    else
+# starttool (name)
+# GLOBAL:   logfile
+#           resultsfile
+starttool() {
+    checkfortool $1
+    tool=$(basename $1)
+    logfile=$workdir/${target}_${tool}_${datestring}.txt
+    resultsfile=$workdir/${target}_${tool}_${datestring}_results.txt
+}
+
+checkfortool() {
+    if ! type $1 >/dev/null 2>&1; then
         showstatus "ERROR: The program $1 could not be found" $RED
         tool=$ERROR
+        exit
     fi
 }
 
@@ -172,9 +178,10 @@ purgelogs() {
     if [[ ! -z $1 ]]; then let "loglevel=loglevel|$1"; fi
     if [[ ! -z "$$logfile" ]] && [[ -f "$logfile" ]]; then
         if (($loglevel&$VERBOSE)); then
-            if [[ -s "$logfile" ]]; then 
-                showstatus "$(grep -v '^#' $logfile)"
-                showstatus ""
+            if [[ -s "$logfile" ]]; then
+                #                showstatus "$(grep -v '^#' $logfile)"
+                cat $logfile | grep -v '^#'
+#                showstatus ""
             fi
         fi
         if (($loglevel&$RAWLOGS)); then
@@ -182,8 +189,17 @@ purgelogs() {
         fi
         if !(($loglevel&$SEPARATELOGS)); then rm $logfile 1>/dev/null 2>&1; fi
     fi
-    tool=$ERROR
     loglevel=$currentloglevel
+}
+
+# clears logfiles
+clearlogs() {
+    rm -f $logfile
+    rm -f $resultsfile
+}
+
+endtool() {
+    tool=$ERROR
 }
 
 # showstatus message [COLOR] [LOGFILE|NOLOGFILE|NONEWLINE]
@@ -191,7 +207,6 @@ purgelogs() {
 #                    LOGFILE: only write contents to logfile
 #                    NOLOGFILE: don't log contents to logfile
 #                    NONEWLINE: don't echo new line character
-
 showstatus() {
     if [[ ! -z "$2" ]]; then
         case "$2" in
@@ -217,7 +232,7 @@ do_update() {
     local branch="unkown"
     local commit="unknown"
     if [[ -d $realpath/.git ]]; then
-        setlogfilename "git"
+        starttool "git"
         if (($tool!=$ERROR)); then
             local status=$UNKNOWN
             pushd $realpath 1>/dev/null 2>&1
@@ -291,82 +306,78 @@ checkifportopen() {
 }
 
 do_dnstest() {
-    setlogfilename "dig"
-    if (($tool!=$ERROR)); then
-        local status=$UNKNOWN
-        local ports=53
-        showstatus "trying recursive dig... " $NONEWLINE
-        dig google.com @$target 1>$logfile 2>&1 </dev/null
-        grep -q "ANSWER SECTION" $logfile && status=$OPEN
-        if (($status==$OPEN)); then
-            showstatus "recursion allowed" $RED
-        else
-            showstatus "no recursion or answer detected" $GREEN
-        fi
-        purgelogs
+    starttool "dig"
+    local status=$UNKNOWN
+    local ports=53
+    showstatus "trying recursive dig... " $NONEWLINE
+    dig google.com @$target 1>$logfile 2>&1 </dev/null
+    grep -q "ANSWER SECTION" $logfile && status=$OPEN
+    if (($status==$OPEN)); then
+        showstatus "recursion allowed" $RED
+    else
+        showstatus "no recursion or answer detected" $GREEN
     fi
 }
 
 do_fingerprint() {
     if (($fingerprint==$BASIC)) || (($fingerprint==$ADVANCED)); then
-        setlogfilename "whatweb"
-        if (($tool!=$ERROR)); then
-            for port in ${webports//,/ }; do
-                setlogfilename "whatweb"
-                showstatus "performing whatweb fingerprinting on $target port $port... "
-                if [[ ! $sslports =~ $port ]]; then
-                    whatweb -a3 --color never http://$target:$port --log-brief $logfile 1>/dev/null 2>&1
-                else
-                    whatweb -a3 --color never https://$target:$port --log-brief $logfile 1>/dev/null 2>&1
-                fi
-                purgelogs $VERBOSE
-            done
-        fi
+        starttool "whatweb"
+        for port in ${webports//,/ }; do
+            starttool "whatweb"
+            showstatus "performing whatweb fingerprinting on $target port $port... " $NONEWLINE
+            if [[ ! $sslports =~ $port ]]; then
+                whatweb -a3 --color never http://$target:$port --log-brief $logfile 1>/dev/null 2>&1
+            else
+                whatweb -a3 --color never https://$target:$port --log-brief $logfile 1>/dev/null 2>&1
+            fi
+            if [[ -s $logfile ]]; then
+                showstatus "connected"  $GREEN
+            else
+                showstatus "could not connect" $BLUE
+            fi
+            purgelogs $VERBOSE
+        done
+        endtool
     fi
 
     if (($fingerprint==$ADVANCED)) || (($fingerprint==$ALTERNATIVE)); then
-        setlogfilename "curl"
-        if (($tool!=$ERROR)); then
-            for port in ${webports//,/ }; do
-                setlogfilename "curl"
-                checkifportopen $port
-                if (($portstatus==$ERROR)); then
-                    showstatus "$target port $port closed" $BLUE
-                else
-                    showstatus "retrieving headers from $target port $port... " $NONEWLINE
-                    if [[ ! $sslports =~ $port ]]; then
-                        curl -A "$NAME" -q --insecure -m 10 --dump-header $logfile http://$target:$port 1>/dev/null 2>&1 || showstatus "could not connect to $target port $port" $BLUE $NONEWLINE
-                    else
-                        curl -A "$NAME" -q --insecure -m 10 --dump-header $logfile https://$target:$port 1>/dev/null 2>&1 || showstatus "could not connect to $target port $port" $BLUE $NONEWLINE
-                    fi
-                    showstatus ""
-                    purgelogs $VERBOSE
-                fi
-            done
-        fi
+        starttool "curl"
+        for port in ${webports//,/ }; do
+            showstatus "retrieving headers from $target port $port... " $NONEWLINE
+            if [[ ! $sslports =~ $port ]]; then
+                curl -A "$NAME" -q --insecure -m 10 --dump-header $logfile http://$target:$port 1>/dev/null 2>&1
+            else
+                curl -A "$NAME" -q --insecure -m 10 --dump-header $logfile https://$target:$port 1>/dev/null 2>&1
+            fi
+            if [[ -s $logfile ]]; then
+                showstatus "connected"  $GREEN
+            else
+                showstatus "could not connect" $BLUE
+            fi
+            purgelogs $VERBOSE
+        done
+        endtool
     fi
 }
 
 do_nikto() {
-    setlogfilename "nikto"
-    if (($tool!=$ERROR)); then
-        [[ $target =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]] && showstatus "FQDN preferred over IP address"
-        for port in ${webports//,/ }; do
-            setlogfilename "nikto"
-            checkifportopen $port
-            if (($portstatus==$ERROR)); then
-                showstatus "port $port closed" $GREEN
-            else
-                showstatus "performing nikto webscan on port $port... "
-                nikto -host $target:$port -Format txt -output $logfile 1>/dev/null 2>&1 </dev/null
-            fi
-            purgelogs $VERBOSE
-        done
-    fi
+    starttool "nikto"
+    [[ $target =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]] && showstatus "FQDN preferred over IP address"
+    for port in ${webports//,/ }; do
+        checkifportopen $port
+        if (($portstatus==$ERROR)); then
+            showstatus "port $port closed" $GREEN
+        else
+            showstatus "performing nikto webscan on port $port... "
+            nikto -host $target:$port -Format txt -output $logfile 1>/dev/null 2>&1 </dev/null
+        fi
+        purgelogs $VERBOSE
+    done
+    endtool
 }
 
 do_portscan() {
-    setlogfilename "nmap"
+    starttool "nmap"
     hoststatus=$UNKNOWN
     if (($portscan>=$ADVANCED)); then
         showstatus "performing advanced nmap portscan (all ports)... " $NONEWLINE
@@ -382,11 +393,12 @@ do_portscan() {
         showstatus "host is up" $BLUE
     fi
     purgelogs $VERBOSE
+    endtool
 }
 
 do_sshscan() {
     if (($sshscan>=$BASIC)); then
-        setlogfilename "nmap"
+        starttool "nmap"
         local portstatus=$UNKNOWN
         local ports=22
         showstatus "trying nmap SSH scan on $target port $ports... " $NONEWLINE
@@ -399,11 +411,12 @@ do_sshscan() {
             showstatus "port open" $BLUE
             purgelogs $VERBOSE
         fi
+        endtool
     fi
 }
 
 do_sslscan() {
-    # check if only a sslcert is requested
+    # check if only --sslcert is requested
     if (($sslscan==$ALTERNATIVE)); then
         # if so, only check port 443
         port=443
@@ -411,29 +424,35 @@ do_sslscan() {
         return
     fi
 
-    setlogfilename $cipherscan
-    if (($sslscan>=$BASIC)) && [[ "$tool" != "$ERROR" ]]; then
+    if (($sslscan>=$BASIC)); then
+        starttool $cipherscan
         #TODO: needs to check for openssl as well
-        tempfile=$(mktemp -q $NAME.XXXXXXX)
         for port in ${sslports//,/ }; do
             showstatus "performing cipherscan on $target port $port... " $NONEWLINE
             $cipherscan -o $openssl $target:$port 1>$logfile 2>/dev/null || portstatus=$ERROR
             if [[ -s $logfile ]] ; then
-                # Do some *cough* inline *cough* logfile parsing
-                awk '/^[0-9]/{print $2,$3}' $logfile > $tempfile && mv -f $tempfile $logfile
-                showstatus ""
-                showstatus "$(awk '/(ADH|RC4|IDEA|SSLv2|EXP|MD5|NULL| 40| 56)/{print $1,$2}' $logfile)" $RED
-                parse_cert $target:$port
+                # Check if cipherscan was able to connect to the server
+                failedstring="Certificate: UNTRUSTED,  bit,  signature"
+                grep -q "$failedstring" $logfile && portstatus=$ERROR
+                if ((portstatus!=$ERROR)); then
+                    showstatus "connected" $GREEN
+                    awk '/^[0-9].*(ADH|RC4|IDEA|SSLv2|EXP|MD5|NULL| 40| 56)/{print $2,$3}' $logfile > $resultsfile
+                    [[ -s $resultsfile ]] && showstatus "$(cat $resultsfile)" $RED
+                    purgelogs
+                    parse_cert $target:$port
+                fi
             else
-                showstatus "could not connect" $BLUE
+                portstatus=$ERROR
             fi
-       done
+            (($portstatus==$ERROR)) && showstatus "could not connect" $BLUE
+        done
+        endtool
+        rm -f $resultsfile
     fi
-    purgelogs
 
     if (($sslscan>=$ADVANCED)); then
+        starttool "nmap"
         showstatus "performing nmap sslscan on $target ports $sslports..."
-        setlogfilename "nmap"
         nmap -p $sslports --script ssl-enum-ciphers --script ssl-heartbleed --open -oN $logfile $target 1>/dev/null 2>&1 </dev/null
         if [[ -s $logfile ]] ; then
             showstatus "$(awk '/( - )(broken|weak|unknown)/{print $2}' $logfile)" $RED
@@ -441,40 +460,35 @@ do_sslscan() {
             showstatus "could not connect to $target ports $sslports" $BLUE
         fi
         purgelogs
+        endtool
     fi
 }
 
 do_trace() {
-    setlogfilename "curl"
-    if (($tool!=$ERROR)); then
-        for port in ${webports//,/ }; do
-            setlogfilename "curl"
-            checkifportopen $port
-            showstatus "trying TRACE method on $target port $port... " $NONEWLINE
-            if (($portstatus==$ERROR)); then
-                showstatus "$target port $port closed" $GREEN
+    starttool "curl"
+    for port in ${webports//,/ }; do
+        local prefix="http://"
+        [[ $sslports =~ $port ]] && prefix="--insecure https://"
+        showstatus "trying $target port $port... " $NONEWLINE
+        curl -q -s -A "$NAME" -i -m 30 -X TRACE -o $logfile $prefix$target:$port/ 1>/dev/null 2>&1
+        if [[ -s $logfile ]]; then
+            status=$(awk 'NR==1 {print $2}' $logfile)
+            if (($status==200)); then
+                showstatus "TRACE enabled on port $port" $RED
             else
-                local prefix="http://"
-                [[ $sslports =~ $port ]] && prefix="--insecure https://"
-                curl -q -s -A "$NAME" -i -m 30 -X TRACE -o $logfile $prefix$target:$port/ 1>/dev/null 2>&1
-                if [[ -s $logfile ]]; then
-                    status=$(awk 'NR==1 {print $2}' $logfile)
-                    if (($status==200)); then
-                        showstatus "TRACE enabled on port $port" $RED
-                    else
-                        showstatus "disabled (HTTP $status)" $GREEN
-                    fi
-                else
-                    showstatus "could not connect" $BLUE
-                fi
+                showstatus "disabled (HTTP $status)" $GREEN
             fi
-            purgelogs
-        done
-    fi
+        else
+            showstatus "could not connect" $BLUE
+        fi
+        purgelogs
+    done
+
+    endtool
 
     if (($trace>=$ADVANCED)); then
-        setlogfilename "nmap"
-        showstatus "trying nmap TRACE method on ports $webports... " $NONEWLINE
+        starttool "nmap"
+        showstatus "trying nmap TRACE method on ports $webports... "
         nmap -p$webports --open --script http-trace -oN $logfile $target 1>/dev/null 2>&1 </dev/null
 	if [[ -s $logfile ]]; then
             status="$(awk '{FS="/";a[++i]=$1}/TRACE is enabled/{print "TRACE enabled on port "a[NR-1]}' $logfile)"
@@ -490,31 +504,31 @@ do_trace() {
             fi
         fi
         purgelogs
+        endtool
     fi
 }
 
 do_webscan() {
-    setlogfilename "curl"
-    if (($tool!=$ERROR)); then
-        for port in ${webports//,/ }; do
-            showstatus "trying list $wordlist on $target port $port... "
-            local prefix="http://"
-            [[ $sslports =~ $port ]] && prefix="--insecure https://"
-            if [[ -s "$wordlist" ]]; then
-                while read word; do
-                    setlogfilename "curl"
-                    curl -q -s -A "$NAME" -I -m 10 -o $logfile $prefix$target/$word </dev/null
-                    if [[ -s $logfile ]]; then
-                        status=$(awk 'NR==1 {print $2}' $logfile)
-                        (($status==200)) && showstatus "$target:$port/$word returns 200 OK" $RED
-                    fi
-                    purgelogs
-                done < "$wordlist"
-            else
-                showstatus "could not open $wordlist" $RED
-            fi
-        done
-    fi
+    starttool "curl"
+    for port in ${webports//,/ }; do
+        showstatus "trying list $wordlist on $target port $port... "
+        local prefix="http://"
+        [[ $sslports =~ $port ]] && prefix="--insecure https://"
+        if [[ -s "$wordlist" ]]; then
+            while read word; do
+                starttool "curl"
+                curl -q -s -A "$NAME" -I -m 10 -o $logfile $prefix$target/$word </dev/null
+                if [[ -s $logfile ]]; then
+                    status=$(awk 'NR==1 {print $2}' $logfile)
+                    (($status==200)) && showstatus "$target:$port/$word returns 200 OK" $RED
+                fi
+                purgelogs
+            done < "$wordlist"
+        else
+            showstatus "could not open $wordlist" $RED
+        fi
+    done
+    endtool
 }
 
 execute_all() {
@@ -522,7 +536,7 @@ execute_all() {
     if (($whois>=$BASIC)); then
         local nomatch=
         local ip=
-        setlogfilename "whois"
+        starttool "whois"
         if [[ $target =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
             ip=$target
             local reverse=$(host $target|awk '{print $5}'|sed s'/[.]$//')
@@ -561,6 +575,7 @@ execute_all() {
 
         (($whois&$ADVANCED)) && read -p "press ENTER to continue: " failsafe < /dev/stdin
         purgelogs
+        endtool
     fi
 
     (($portscan>=$BASIC)) && do_portscan
@@ -571,7 +586,6 @@ execute_all() {
     (($sslscan>=$BASIC)) && do_sslscan
     (($trace>=$BASIC)) && do_trace
     (($webscan>=$BASIC)) && do_webscan
-    [[ -e "$portselection" ]] && rm $portselection 1>/dev/null 2>&1
 }
 
 looptargets() {
@@ -598,7 +612,7 @@ looptargets() {
 
 abortscan() {
     flag=$ERROR
-     if (($tool!=$ERROR)); then
+     if [[ "$tool" != "$ERROR" ]]; then
          showstatus ""
          showstatus "interrupted $tool while working on $target..." $RED
          purgelogs
@@ -610,21 +624,32 @@ abortscan() {
 
 cleanup() {
     trap '' EXIT INT QUIT
-    if [[ ! -z $tool ]] && (($ERROR!=$tool)); then 
+    if [[ ! -z $tool ]] && [[ "$ERROR" != "$tool" ]]; then 
         showstatus "$tool interrupted..." $RED
         purgelogs
     fi
     showstatus "cleaning up temporary files..."
-    [[ -e "$portselection" ]] && rm "$portselection"
-    [[ -e "$tmpfile" ]] && rm "$tmpfile"
+    [[ -e "$logfile" ]] && rm "$logfile"
+    [[ -e "$portselection" ]] && rm $portselection 1>/dev/null 2>&1
+    [[ -e "$resultsfile" ]] && rm "$resultsfile"
     [[ -n "$workdir" ]] && popd 1>/dev/null
+    [[ -e "$tmpfile" ]] && rm "$tmpfile"
     (($loglevel&$LOGFILE)) && showstatus "logged to $outputfile" $NOLOGFILE
     showstatus "ended on $(date +%d-%m-%Y' at '%R)"
     exit
 }
 
+timeoutstring() {
+    # workaround for systems that don't have GNU timeout (eg. Windows)
+    if timeout --version >/dev/null 2>&1; then
+        echo "timeout $1"
+    else
+        echo ""
+    fi
+}
+
 ################################################################################
-#  a x.509 certificate and shows whether the dates are valid
+# Retrieves a x.509 certificate and shows whether the dates are valid
 #
 # Arguments: 1 target
 #            2 port
@@ -632,11 +657,12 @@ cleanup() {
 parse_cert() {
     local target=$1
     local port=$2
-    setlogfilename $openssl
+    starttool $openssl
     if [[ "$tool" != "$ERROR" ]]; then
+        timeoutcmd=$(timeoutstring $requesttimeout)
         showstatus "trying to retrieve SSL x.509 certificate on ${target}:${port}... " $NONEWLINE
         certificate=$(mktemp -q $NAME.XXXXXXX)
-        echo Q | $openssl s_client -connect $target:$port -servername $target 1>$certificate 2>/dev/null
+        echo Q | $timeoutcmd $openssl s_client -connect $target:$port -servername $target 1>$certificate 2>/dev/null
         if [[ -s $certificate ]]; then
             showstatus "received" $GREEN
             showstatus "$($openssl x509 -noout -subject -nameopt multiline -in $certificate 2>/dev/null)"
@@ -658,10 +684,10 @@ parse_cert() {
         else
             showstatus "failed" $BLUE
         fi
-        purgelogs
         rm -f $certificate 1>/dev/null
     fi
     purgelogs
+    endtool
 }
 
 
