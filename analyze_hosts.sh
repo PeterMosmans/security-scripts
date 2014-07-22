@@ -17,11 +17,11 @@
 #       - change: refactor looping of ports
 #       - change: iterate --ssl commands per port instead of per tool
 #       - change: make script Bash < 4 proof
-#       - add: show SSL certificate name
+
 
 
 NAME="analyze_hosts"
-VERSION="0.85 (16-06-2014)"
+VERSION="0.86 (22-07-2014)"
 
 # statuses
 declare ERROR=-1
@@ -45,13 +45,15 @@ declare -i portscan=$UNKNOWN sshscan=$UNKNOWN sslscan=$UNKNOWN
 declare -i trace=$UNKNOWN whois=$UNKNOWN webscan=$UNKNOWN
 
 # defaults
+declare cipherscan=/usr/local/bin/cipherscan/cipherscan
+declare openssl=$(which openssl)
 declare -i loglevel=$STDOUT
-declare -i timeout=30
-declare webports=80,443
-# 465: SMTP/ssl
-# 993: IMAP/ssl
-# 995: POP/ssl
-declare sslports=443,465,993,995
+# timeout for program, eg. cipherscan
+declare -i timeout=60
+# timeout for single request
+declare -i requesttimeout=10
+declare webports=80,443,8080
+declare sslports=443,465,993,995,3389
 
 # statuses
 declare -i hoststatus=$UNKNOWN portstatus=$UNKNOWN
@@ -108,7 +110,8 @@ usage() {
     echo "     --ports             nmap portscan (all ports)"
     echo " -s                      check SSL configuration"
     echo "     --ssl               perform all SSL configuration checks"
-    echo "     --timeout=SECONDS   change timeout for sslscan (default=$timeout)"
+    echo "     --sslcert           show details of SSL certificate"
+    echo "     --timeout=SECONDS   change timeout for sslscan (default=${timeout})"
     echo "     --ssh               perform SSH configuration checks"
     echo " -t                      check webserver for HTTP TRACE method"
     echo "     --trace             perform all HTTP TRACE method checks"
@@ -130,6 +133,10 @@ usage() {
     echo " -q, --quiet             quiet"
     echo " -v, --verbose           show server responses"
     echo ""
+    echo "Default programs:"
+    echo "     --cipherscan=FILE   location of cipherscan (default ${cipherscan})"
+    echo "     --openssl=FILE      location of openssl (default ${openssl})"
+    echo ""
     echo " -u                      update this script (if it's a cloned repository)"
     echo "     --update            force update (overwrite all local modifications)"
     echo "     --version           print version information and exit"
@@ -148,9 +155,9 @@ usage() {
 # setlogfilename (name)
 # sets the GLOBAL variable logfile and tool
 setlogfilename() {
-    logfile=$workdir/${target}_$1_${datestring}.txt
     if type $1 >/dev/null 2>&1; then
-        tool=$1
+        tool=$(basename $1)
+        logfile=$workdir/${target}_${tool}_${datestring}.txt
     else
         showstatus "ERROR: The program $1 could not be found" $RED
         tool=$ERROR
@@ -396,30 +403,33 @@ do_sshscan() {
 }
 
 do_sslscan() {
-    setlogfilename "sslscan"
-    if (($sslscan>=$BASIC)) && (($tool!=$ERROR)); then
-       for port in ${sslports//,/ }; do
-           checkifportopen $port
-           if (($portstatus==$ERROR)); then
-               showstatus "port $port closed" $BLUE
-               return
-           fi
-           showstatus "performing sslscan on $target port $port..." $NONEWLINE
-           timeout $timeout sslscan --no-failed $target:$port|sed -r "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g" > $logfile || portstatus=$ERROR
-           if [[ -s $logfile ]] ; then
-               grep -qe "ERROR: Could not open a connection to host" $logfile&&portstatus=$ERROR
-           else
-               portstatus=$ERROR
-           fi
-           if (($portstatus==$ERROR)) ; then
-               showstatus "could not connect" $BLUE
-           else
-               showstatus ""
-               showstatus "$(awk '/(Accepted).*(ADH|RC4|IDEA|SSLv2|EXP|MD5|NULL| 40| 56)/{print $2,$3,$4,$5}' $logfile)" $RED
-           fi
-           purgelogs
+    # check if only a sslcert is requested
+    if (($sslscan==$ALTERNATIVE)); then
+        # if so, only check port 443
+        port=443
+        parse_cert $target $port
+        return
+    fi
+
+    setlogfilename $cipherscan
+    if (($sslscan>=$BASIC)) && [[ "$tool" != "$ERROR" ]]; then
+        #TODO: needs to check for openssl as well
+        tempfile=$(mktemp -q $NAME.XXXXXXX)
+        for port in ${sslports//,/ }; do
+            showstatus "performing cipherscan on $target port $port... " $NONEWLINE
+            $cipherscan -o $openssl $target:$port 1>$logfile 2>/dev/null || portstatus=$ERROR
+            cat $logfile
+            if [[ -s $logfile ]] ; then
+                # Do some *cough* inline *cough* logfile parsing
+                awk '/^[0-9]/{print $2,$3}' $logfile > $tempfile && mv -f $tempfile $logfile
+                showstatus ""
+                showstatus "$(awk '/(ADH|RC4|IDEA|SSLv2|EXP|MD5|NULL| 40| 56)/{print $1,$2}' $logfile)" $RED
+            else
+                showstatus "could not connect" $BLUE
+            fi
        done
     fi
+    purgelogs
 
     if (($sslscan>=$ADVANCED)); then
         showstatus "performing nmap sslscan on $target ports $sslports..."
@@ -508,7 +518,7 @@ do_webscan() {
 }
 
 execute_all() {
-    portselection=$(mktemp -q $NAME.XXXXXXX --tmpdir=$workdir)
+    portselection=$(mktemp -q $NAME.XXXXXXX)
     if (($whois>=$BASIC)); then
         local nomatch=
         local ip=
@@ -613,8 +623,50 @@ cleanup() {
     exit
 }
 
+################################################################################
+#  a x.509 certificate and shows whether the dates are valid
+#
+# Arguments: 1 target
+#            2 port
+################################################################################
+parse_cert() {
+    local target=$1
+    local port=$2
+    setlogfilename $openssl
+    if [[ "$tool" != "$ERROR" ]]; then
+        showstatus "trying to retrieve SSL x.509 certificate on ${target}:${port}... " $NONEWLINE
+        certificate=$(mktemp -q $NAME.XXXXXXX)
+        echo Q | $openssl s_client -connect $target:$port -servername $target 1>$certificate 2>/dev/null
+        if [[ -s $certificate ]]; then
+            showstatus "received" $GREEN
+            showstatus "$($openssl x509 -noout -subject -nameopt multiline -in $certificate 2>/dev/null)"
+            startdate=$($openssl x509 -noout -startdate -in $certificate 2>/dev/null|cut -d= -f 2)
+            enddate=$($openssl x509 -noout -enddate -in $certificate 2>/dev/null|cut -d= -f 2)
+            parsedstartdate=$(date --date="$startdate" +%Y%m%d)
+            parsedenddate=$(date --date="$enddate" +%Y%m%d)
+            localizedstartdate=$(date --date="$startdate" +%d-%m-%Y)
+            localizedenddate=$(date --date="$enddate" +%d-%m-%Y)
+            if [[ $parsedstartdate -gt $(date +%Y%m%d) ]]; then
+                showstatus "certificate is not valid yet, valid from ${localizedstartdate} until ${localizedenddate}" $RED
+            else
+                if [[ $parsedenddate -lt $(date +%Y%m%d) ]]; then
+                    showstatus "certificate has expired on ${localizedenddate}" $RED
+                else
+                    showstatus "certificate is valid between ${localizedstartdate} and ${localizedenddate}" $GREEN
+                fi
+            fi
+        else
+            showstatus "failed" $BLUE
+        fi
+        purgelogs
+        rm -f $certificate 1>/dev/null
+    fi
+    purgelogs
+}
+
+
 which tput 1>/dev/null 2>&1 || nocolor=TRUE
-if ! options=$(getopt -o ad:fhi:lno:pqstuvwWy -l dns,directory:,filter:,fingerprint,header,inputfile:,log,max,nikto,nocolor,output:,ports,quiet,ssh,ssl,sslports:,timeout:,trace,update,version,webports:,whois,wordlist: -- "$@") ; then
+if ! options=$(getopt -o ad:fhi:lno:pqstuvwWy -l cipherscan:,dns,directory:,filter:,fingerprint,header,inputfile:,log,max,nikto,nocolor,openssl:,output:,ports,quiet,ssh,ssl,sslcert,sslports:,timeout:,trace,update,version,webports:,whois,wordlist: -- "$@") ; then
     usage
     exit 1
 fi 
@@ -637,6 +689,9 @@ while [[ $# -gt 0 ]]; do
             trace=$BASIC
             whois=$BASIC;;
         --allports) portscan=$ADVANCED;;
+        --cipherscan)
+            cipherscan=$2
+            shift;;
         --dns) dnstest=$ADVANCED;;
         -f) fingerprint=$BASIC;;
         --fingerprint) fingerprint=$ADVANCED;;
@@ -672,6 +727,9 @@ while [[ $# -gt 0 ]]; do
             [[ ! $outputfile =~ ^/ ]] && outputfile=$(pwd)/$outputfile
             [[ -s $outputfile ]] && appendfile=1
             shift ;;
+        --openssl)
+            openssl=$2
+            shift;;
         -p) portscan=$BASIC;;
         --ports) portscan=$ADVANCED;;
         --webports) webports=$2
@@ -679,9 +737,10 @@ while [[ $# -gt 0 ]]; do
         --sslports) sslports=$2
             shift ;;
         -q|--quiet) let "loglevel=loglevel|$QUIET";;
-        -s) sslscan=$BASIC;;
-        --ssh) sshscan=$BASIC;;
-        --ssl) sslscan=$ADVANCED;;
+        -s) let "sslscan=sslscan|$BASIC";;
+         --ssh) sshscan=$BASIC;;
+        --ssl) let "sslscan=sslscan|$ADVANCED";;
+        --sslcert) let "sslscan=sslscan|$ALTERNATIVE";;
         -t) trace=$BASIC;;
         --timeout) timeout=$2
             shift ;;
@@ -705,10 +764,10 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 
-if ! type nmap >/dev/null 2>&1; then
-    prettyprint "ERROR: the program nmap is needed but could not be found" $RED
-    exit
-fi
+#if ! type nmap >/dev/null 2>&1; then
+#    prettyprint "ERROR: the program nmap is needed but could not be found" $RED
+#    exit
+#fi
 
 if [[ ! -s "$inputfile" ]]; then
     if [[ ! -n "$1" ]]; then
@@ -719,7 +778,7 @@ if [[ ! -s "$inputfile" ]]; then
     if [[ -n "$workdir" ]]; then 
         [[ -d $workdir ]] || mkdir $workdir 1>/dev/null 2>&1
     fi
-    tmpfile=$(mktemp -q $NAME.XXXXXXX --tmpdir=$workdir)
+    tmpfile=$(mktemp -q $NAME.XXXXXXX)
     if [[ $1 =~ -.*[0-9]$ ]]; then
         nmap -nsL $1 2>/dev/null|awk '/scan report/{print $5}' >$tmpfile
         inputfile=$tmpfile
