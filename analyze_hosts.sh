@@ -561,7 +561,8 @@ execute_all() {
                 showstatus "$target resolves to $ip"
             fi
         fi
-        whois -H $ip > $logfile
+        # not all versions of whois support -H (hide legal disclaimer)     
+        whois -H $ip 1>$logfile 2>/dev/null
         showstatus "$(grep -iE '^(inetnum|netrange|netname|nettype|descr|orgname|orgid|originas|country|origin):(.*)[^ ]$' $logfile)"
         if [[ -n "$filter" ]]; then
             if grep -qiE "^(inetnum|netrange|netname|nettype|descr|orgname|orgid|originas|country|origin):.*($filter)" $logfile; then
