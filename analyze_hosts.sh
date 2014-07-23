@@ -106,8 +106,8 @@ usage() {
     echo "     --fingerprint       perform all web fingerprinting methods"
     echo " -h, --header            show webserver headers (all webports)"
     echo " -n, --nikto             nikto webscan (all webports)"
-    echo " -p                      nmap portscan (top 1000 ports)"
-    echo "     --ports             nmap portscan (all ports)"
+    echo " -p                      nmap portscan (top 1000 TCP ports)"
+    echo "     --ports             nmap portscan (all ports, TCP and UDP)"
     echo " -s                      check SSL configuration"
     echo "     --ssl               perform all SSL configuration checks"
     echo "     --sslcert           show details of SSL certificate"
@@ -380,8 +380,8 @@ do_portscan() {
     starttool "nmap"
     hoststatus=$UNKNOWN
     if (($portscan>=$ADVANCED)); then
-        showstatus "performing advanced nmap portscan (all ports)... " $NONEWLINE
-        nmap --open -p- -sV -sC -oN $logfile -oG $portselection $target 1>/dev/null 2>&1 </dev/null
+        showstatus "performing advanced nmap portscan (TCP, UDP, all ports)... " $NONEWLINE
+        nmap --open -p- -sS -sU -sV -sC -oN $logfile -oG $portselection $target 1>/dev/null 2>&1 </dev/null
     else
         showstatus "performing nmap portscan... " $NONEWLINE
         nmap --open -sV -sC -oN $logfile -oG $portselection $target 1>/dev/null 2>&1 </dev/null
