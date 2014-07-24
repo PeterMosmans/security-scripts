@@ -17,6 +17,7 @@
 #       - change: refactor looping of ports
 #       - change: iterate --ssl commands per port instead of per tool
 #       - change: make script Bash < 4 proof
+#       - refactor: git part/version header info
 
 
 
@@ -47,6 +48,7 @@ declare -i trace=$UNKNOWN whois=$UNKNOWN webscan=$UNKNOWN
 # defaults
 declare cipherscan=/usr/local/bin/cipherscan/cipherscan
 declare openssl=$(which openssl 2>/dev/null)
+declare gitsource=https://github.com/PeterMosmans/security-scripts.git
 declare -i loglevel=$STDOUT
 # timeout for program, eg. cipherscan
 declare -i timeout=60
@@ -54,6 +56,7 @@ declare -i timeout=60
 declare -i requesttimeout=10
 declare webports=80,443,8080
 declare sslports=443,465,993,995,3389
+
 
 # statuses
 declare -i hoststatus=$UNKNOWN portstatus=$UNKNOWN
@@ -227,45 +230,56 @@ showstatus() {
     fi
 }
 
+################################################################################
+# Updates the script from the git repository
+#
+# Parameters: [1] force update
+################################################################################
 do_update() {
+    local force=false
+    [[ ! -z "$1" ]] && local force=true
     local realpath=$(dirname $(readlink -f $0))
     local branch="unkown"
     local commit="unknown"
     if [[ -d $realpath/.git ]]; then
         starttool "git"
-        if (($tool!=$ERROR)); then
-            local status=$UNKNOWN
-            pushd $realpath 1>/dev/null 2>&1
-            branch=$(git rev-parse --abbrev-ref HEAD)
-            commit=$(git log|head -1|awk '{print $2}'|cut -c -10)
-            showstatus "current version: $VERSION (${branch} branch commit ${commit})"
-            if [[ ! -z "$1" ]]; then
-                showstatus "forcing update, overwriting local changes"
-                git fetch origin master 1>$logfile 2>&1
-                git reset --hard FETCH_HEAD 1>>$logfile 2>&1
-            else
-                git pull 1>$logfile 2>&1
-            fi
-            commit=$(git log|head -1|awk '{print $2}'|cut -c -10)
-            grep -Eq "error: |Permission denied" $logfile && status=$ERROR
-            grep -q "Already up-to-date." $logfile && status=$OPEN
-            popd 1>/dev/null 2>&1
+        pushd $realpath 1>/dev/null 2>&1
+        local status=$UNKNOWN
+        branch=$(git rev-parse --abbrev-ref HEAD)
+        commit=$(git rev-parse --short HEAD)
+        showstatus "current version: ${branch} branch, commit ${commit}"
+        if $force; then
+            showstatus "forcing update, overwriting local changes"
+            git fetch origin master 1>$logfile 2>&1
+            git reset --hard FETCH_HEAD 1>>$logfile 2>&1
         else
-            status=$ERROR
+            git pull 1>$logfile 2>&1
         fi
+        commit=$(git rev-parse --short HEAD)
+        grep -Eq "error: |Permission denied" $logfile && status=$ERROR
+        grep -q "Already up-to-date." $logfile && status=$OPEN
         case $status in
             $ERROR) showstatus "error updating $0" $RED
+                    showstatus ""
                     showstatus "use --update to force an update, overwriting local changes";;
-            $UNKNOWN) showstatus "succesfully updated to $(awk '{FS="\""}/^VERSION=/{print $2}' $0) (commit ${commit})" $GREEN;;
+            $UNKNOWN) showstatus "succesfully updated to latest version (commit ${commit})" $GREEN
+                      showstatus "$(git log --oneline -n 1)";;
             $OPEN) showstatus "already running latest version" $BLUE;;
         esac
-        purgelogs
-        exit 0
+        popd 1>/dev/null 2>&1
+        endtool
     else
-        showstatus "Sorry, this doesn't seem to be a git archive"
-        showstatus "Please clone the repository using the following command: "
-        showstatus "git clone https://github.com/PeterMosmans/security-scripts.git"
-    fi;
+        if $force; then
+            git clone $gitsource
+        else
+            showstatus "Sorry, this doesn't seem to be a git archive - cannot update" $RED
+            showstatus "Please clone the repository using the following command: "
+            showstatus "git clone ${gitsource}"
+            showstatus ""
+            showstatus "use --update to do this automatically, creating an archive in ${realpath}"
+        fi
+    fi
+    exit 0
 }
 
 startup() {
