@@ -46,7 +46,7 @@ declare -i trace=$UNKNOWN whois=$UNKNOWN webscan=$UNKNOWN
 
 # defaults
 declare cipherscan=/usr/local/bin/cipherscan/cipherscan
-declare openssl=$(which openssl)
+declare openssl=$(which openssl 2>/dev/null)
 declare -i loglevel=$STDOUT
 # timeout for program, eg. cipherscan
 declare -i timeout=60
@@ -805,9 +805,11 @@ if [[ ! -s "$inputfile" ]]; then
     if [[ -n "$workdir" ]]; then 
         [[ -d $workdir ]] || mkdir $workdir 1>/dev/null 2>&1
     fi
-    tmpfile=$(mktemp -q $NAME.XXXXXXX)
+    tmpfile=$(mktemp -q $workdir/$NAME.XXXXXXX)
     if [[ $1 =~ -.*[0-9]$ ]]; then
+        starttool "nmap"
         nmap -nsL $1 2>/dev/null|awk '/scan report/{print $5}' >$tmpfile
+        endtool
         inputfile=$tmpfile
     fi
     if [[ $1 =~ , ]]; then
