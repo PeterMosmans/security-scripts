@@ -254,7 +254,8 @@ do_update() {
             status=$ERROR
         fi
         case $status in
-            $ERROR) showstatus "error updating $0" $RED;;
+            $ERROR) showstatus "error updating $0" $RED
+                    showstatus "use --update to force an update, overwriting local changes";;
             $UNKNOWN) showstatus "succesfully updated to $(awk '{FS="\""}/^VERSION=/{print $2}' $0) (commit ${commit})" $GREEN;;
             $OPEN) showstatus "already running latest version" $BLUE;;
         esac
