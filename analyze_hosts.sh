@@ -202,7 +202,7 @@ clearlogs() {
 }
 
 endtool() {
-    pugelogs
+    purgelogs
     tool=$ERROR
 }
 
