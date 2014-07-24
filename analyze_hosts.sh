@@ -202,6 +202,7 @@ clearlogs() {
 }
 
 endtool() {
+    pugelogs
     tool=$ERROR
 }
 
@@ -332,6 +333,7 @@ do_dnstest() {
     else
         showstatus "no recursion or answer detected" $GREEN
     fi
+    endtool
 }
 
 do_fingerprint() {
@@ -431,11 +433,11 @@ do_sshscan() {
 }
 
 do_sslscan() {
+    local portstatus=$UNKNOWN
     # check if only --sslcert is requested
     if (($sslscan==$ALTERNATIVE)); then
         # if so, only check port 443
-        port=443
-        parse_cert $target $port
+        parse_cert $target 443
         return
     fi
 
@@ -460,6 +462,7 @@ do_sslscan() {
                 portstatus=$ERROR
             fi
             (($portstatus==$ERROR)) && showstatus "could not connect" $BLUE
+            purgelogs
         done
         endtool
         rm -f $resultsfile
@@ -474,7 +477,6 @@ do_sslscan() {
         else
             showstatus "could not connect to $target ports $sslports" $BLUE
         fi
-        purgelogs
         endtool
     fi
 }
@@ -518,7 +520,6 @@ do_trace() {
                 showstatus "$status" $RED
             fi
         fi
-        purgelogs
         endtool
     fi
 }
