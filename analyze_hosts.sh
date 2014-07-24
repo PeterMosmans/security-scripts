@@ -455,14 +455,17 @@ do_sslscan() {
                     showstatus "connected" $GREEN
                     awk '/^[0-9].*(ADH|RC4|IDEA|SSLv2|EXP|MD5|NULL| 40| 56)/{print $2,$3}' $logfile > $resultsfile
                     [[ -s $resultsfile ]] && showstatus "$(cat $resultsfile)" $RED
-                    purgelogs
                     parse_cert $target:$port
                 fi
             else
                 portstatus=$ERROR
             fi
-            (($portstatus==$ERROR)) && showstatus "could not connect" $BLUE
-            purgelogs
+            if (($portstatus==$ERROR)); then
+                showstatus "could not connect" $BLUE
+                clearlogs
+            else
+                purgelogs
+            fi
         done
         endtool
         rm -f $resultsfile
@@ -500,7 +503,6 @@ do_trace() {
         fi
         purgelogs
     done
-
     endtool
 
     if (($trace>=$ADVANCED)); then
