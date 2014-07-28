@@ -18,11 +18,12 @@
 #       - change: iterate --ssl commands per port instead of per tool
 #       - change: make script Bash < 4 proof
 #       - refactor: git part/version header info
+#       - better output for issues (grepable)
 
 
 
 NAME="analyze_hosts"
-VERSION="0.86 (22-07-2014)"
+VERSION="0.87"
 
 # statuses
 declare ERROR=-1
@@ -40,6 +41,12 @@ declare LOGFILE=8
 declare RAWLOGS=16
 declare SEPARATELOGS=32
 
+# the global variable message keeps track of the current message type
+declare INFO=0
+declare OK=1
+declare WARNING=2
+declare -i defaultmessage=$INFO
+
 # scantypes
 declare -i dnstest=$UNKNOWN fingerprint=$UNKNOWN nikto=$UNKNOWN
 declare -i portscan=$UNKNOWN sshscan=$UNKNOWN sslscan=$UNKNOWN
@@ -47,7 +54,7 @@ declare -i trace=$UNKNOWN whois=$UNKNOWN webscan=$UNKNOWN
 
 # defaults
 declare cipherscan=/usr/local/bin/cipherscan/cipherscan
-declare openssl=$(which openssl 2>/dev/null)
+declare openssl="openssl"
 declare gitsource=https://github.com/PeterMosmans/security-scripts.git
 declare -i loglevel=$STDOUT
 # timeout for program, eg. cipherscan
@@ -132,7 +139,7 @@ usage() {
     echo " -i, --inputfile=FILE    use a file containing hostnames"
     echo " -l, --log               log each scan in a separate logfile"
     echo "     --nocolor           don't use fancy colors in screen output" 
-    echo " -o, --output=FILE       concatenate all results into FILE"
+    echo " -o, --output=FILE       concatenate all OK and WARNING messages into FILE"
     echo " -q, --quiet             quiet"
     echo " -v, --verbose           show server responses"
     echo ""
@@ -144,9 +151,9 @@ usage() {
     echo "     --update            force update (overwrite all local modifications)"
     echo "     --version           print version information and exit"
     echo ""
-    prettyprint "                         BLUE: status messages" $BLUE
-    prettyprint "                         GREEN: secure settings" $GREEN
-    prettyprint "                         RED: possible vulnerabilities" $RED
+    prettyprint "                         BLUE: INFO, status messages" $BLUE
+    prettyprint "                         GREEN: OK, secure settings" $GREEN
+    prettyprint "                         RED: WARNING, possible vulnerabilities" $RED
     echo ""
     echo " [HOST] can be a single (IP) address, an IP range, eg. 127.0.0.1-255"
     echo " or multiple comma-separated addressess"
@@ -173,9 +180,11 @@ checkfortool() {
     fi
 }
 
-# purgelogs logfile [LOGLEVEL]
-# purges the current logfile
-# if LOGLEVEL = VERBOSE then show log on screen
+################################################################################
+# Purges the current logfile and resets message parameter to default message
+#
+# Parameters: [LOGLEVEL] if LOGLEVEL == VERBOSE then show log on screen
+################################################################################
 purgelogs() {
     local currentloglevel=$loglevel
     if [[ ! -z $1 ]]; then let "loglevel=loglevel|$1"; fi
@@ -193,6 +202,7 @@ purgelogs() {
         if !(($loglevel&$SEPARATELOGS)); then rm $logfile 1>/dev/null 2>&1; fi
     fi
     loglevel=$currentloglevel
+    message=$defaultmessage
 }
 
 # clears logfiles
@@ -206,28 +216,37 @@ endtool() {
     tool=$ERROR
 }
 
-# showstatus message [COLOR] [LOGFILE|NOLOGFILE|NONEWLINE]
-#                    COLOR: color of message
-#                    LOGFILE: only write contents to logfile
-#                    NOLOGFILE: don't log contents to logfile
-#                    NONEWLINE: don't echo new line character
+
+################################################################################
+# Shows a status message on the screen
+#
+# Parameters: message [COLOR] [LOGFILE|NOLOGFILE|NONEWLINE]
+#                     COLOR: color of message
+#                     LOGFILE: only write contents to logfile
+#                     NOLOGFILE: don't log contents to logfile
+#                     NONEWLINE: don't echo new line character, and save message
+################################################################################
 showstatus() {
     if [[ ! -z "$2" ]]; then
         case "$2" in
             $LOGFILE)
-                (($loglevel&$LOGFILE)) && echo "$1" >> $outputfile;;
+                (($loglevel&$LOGFILE)) && [[ $message -gt $INFO ]] && echo "${linebuffer}$1" >> $outputfile
+                linebuffer="";;
             $NOLOGFILE)
-                !(($loglevel&$QUIET)) && echo "$1";;
+                !(($loglevel&$QUIET)) && echo "$1"
+                linebuffer="";;
             $NONEWLINE)
+                linebuffer="$1"
                 !(($loglevel&$QUIET)) && echo -n "$1"
-                (($loglevel&$LOGFILE)) && echo -n "$1" >> $outputfile;;
-            (*) 
+                (($loglevel&$LOGFILE)) && [[ $message -gt $INFO ]] && echo -n "$1" >> $outputfile;;
+            (*)
                 prettyprint "$1" $2 $3
-                (($loglevel&$LOGFILE)) && echo "$1" >> $outputfile;;
+                (($loglevel&$LOGFILE)) && [[ $message -gt $INFO ]] && echo "${linebuffer}${1}" >> $outputfile
+                linebuffer="";;
         esac
     else
         !(($loglevel&$QUIET)) && echo "$1"
-        (($loglevel&$LOGFILE)) && echo "$1" >> $outputfile
+        (($loglevel&$LOGFILE)) && [[ $message -gt $INFO ]] && echo "$1" >> $outputfile
     fi
 }
 
@@ -284,6 +303,8 @@ do_update() {
 }
 
 startup() {
+    # always log the startup message
+    message=$OK
     flag=$OPEN
     trap cleanup EXIT
     showstatus "$NAME version $VERSION starting on $(date +%d-%m-%Y' at '%R)"
@@ -295,6 +316,8 @@ startup() {
         fi
     fi
     showstatus "scanparameters: $options" $LOGFILE
+    # set the default message status
+    message=$defaultmessage
     [[ -n "$workdir" ]] && pushd $workdir 1>/dev/null 2>&1
 }
 
@@ -329,8 +352,10 @@ do_dnstest() {
     dig google.com @$target 1>$logfile 2>&1 </dev/null
     grep -q "ANSWER SECTION" $logfile && status=$OPEN
     if (($status==$OPEN)); then
+        message=$WARNING
         showstatus "recursion allowed" $RED
     else
+        message=$OK
         showstatus "no recursion or answer detected" $GREEN
     fi
     endtool
@@ -348,6 +373,7 @@ do_fingerprint() {
                 whatweb -a3 --color never https://$target:$port --log-brief $logfile 1>/dev/null 2>&1
             fi
             if [[ -s $logfile ]]; then
+                message=$OK
                 showstatus "connected"  $GREEN
             else
                 showstatus "could not connect" $BLUE
@@ -367,6 +393,7 @@ do_fingerprint() {
                 curl -A "$NAME" -q --insecure -m 10 --dump-header $logfile https://$target:$port 1>/dev/null 2>&1
             fi
             if [[ -s $logfile ]]; then
+                message=$OK
                 showstatus "connected"  $GREEN
             else
                 showstatus "could not connect" $BLUE
@@ -383,8 +410,9 @@ do_nikto() {
     for port in ${webports//,/ }; do
         checkifportopen $port
         if (($portstatus==$ERROR)); then
-            showstatus "port $port closed" $GREEN
+            showstatus "port $port closed" $BLUE
         else
+            message=$OK
             showstatus "performing nikto webscan on port $port... "
             nikto -host $target:$port -Format txt -output $logfile 1>/dev/null 2>&1 </dev/null
         fi
@@ -397,16 +425,17 @@ do_portscan() {
     starttool "nmap"
     hoststatus=$UNKNOWN
     if (($portscan>=$ADVANCED)); then
-        showstatus "performing advanced nmap portscan (TCP, UDP, all ports)... " $NONEWLINE
+        showstatus "performing advanced nmap portscan on $target (TCP, UDP, all ports)... " $NONEWLINE
         nmap --open -p- -sS -sU -sV -sC -oN $logfile -oG $portselection $target 1>/dev/null 2>&1 </dev/null
     else
-        showstatus "performing nmap portscan... " $NONEWLINE
+        showstatus "performing nmap portscan on $target... " $NONEWLINE
         nmap --open -sV -sC -oN $logfile -oG $portselection $target 1>/dev/null 2>&1 </dev/null
     fi
     grep -q "0 hosts up" $portselection || hoststatus=$UP
     if (($hoststatus<$UP)); then
         showstatus "host down" $BLUE
     else
+        message=$OK
         showstatus "host is up" $BLUE
     fi
     purgelogs $VERBOSE
@@ -425,6 +454,7 @@ do_sshscan() {
             showstatus "port closed" $BLUE
             purgelogs
         else
+            message=$OK
             showstatus "port open" $BLUE
             purgelogs $VERBOSE
         fi
@@ -452,9 +482,14 @@ do_sslscan() {
                 failedstring="Certificate: UNTRUSTED,  bit,  signature"
                 grep -q "$failedstring" $logfile && portstatus=$ERROR
                 if ((portstatus!=$ERROR)); then
+                    message=$OK
                     showstatus "connected" $GREEN
                     awk '/^[0-9].*(ADH|RC4|IDEA|SSLv2|EXP|MD5|NULL| 40| 56)/{print $2,$3}' $logfile > $resultsfile
-                    [[ -s $resultsfile ]] && showstatus "$(cat $resultsfile)" $RED
+                    if [[ -s $resultsfile ]]; then
+                        message=$WARNING
+                        showstatus "Weak/insecure SSL/TLS ciphers supported:" $RED
+                        showstatus "$(cat $resultsfile)" $RED
+                    fi
                     parse_cert $target:$port
                 fi
             else
@@ -476,7 +511,12 @@ do_sslscan() {
         showstatus "performing nmap sslscan on $target ports $sslports..."
         nmap -p $sslports --script ssl-enum-ciphers --script ssl-heartbleed --open -oN $logfile $target 1>/dev/null 2>&1 </dev/null
         if [[ -s $logfile ]] ; then
-            showstatus "$(awk '/( - )(broken|weak|unknown)/{print $2}' $logfile)" $RED
+            awk '/( - )(broken|weak|unknown)/{print $2}' $logfile > $resultsfile
+            if [[ -s $resultsfile ]]; then
+                message=$WARNING
+                showstatus "Weak/insecure SSL/TLS ciphers supported:" $RED
+                showstatus "$(cat $resultsfile)" $RED
+            fi
         else
             showstatus "could not connect to $target ports $sslports" $BLUE
         fi
@@ -494,8 +534,10 @@ do_trace() {
         if [[ -s $logfile ]]; then
             status=$(awk 'NR==1 {print $2}' $logfile)
             if (($status==200)); then
+                message=$WARNING
                 showstatus "TRACE enabled on port $port" $RED
             else
+                message=$OK
                 showstatus "disabled (HTTP $status)" $GREEN
             fi
         else
@@ -507,18 +549,20 @@ do_trace() {
 
     if (($trace>=$ADVANCED)); then
         starttool "nmap"
-        showstatus "trying nmap TRACE method on ports $webports... "
+        showstatus "trying nmap TRACE method on $target ports $webports... "
         nmap -p$webports --open --script http-trace -oN $logfile $target 1>/dev/null 2>&1 </dev/null
 	if [[ -s $logfile ]]; then
             status="$(awk '{FS="/";a[++i]=$1}/TRACE is enabled/{print "TRACE enabled on port "a[NR-1]}' $logfile)"
             if [[ -z "$status" ]]; then
                 grep -q " open " $logfile && status=$OPEN
                 if [[ $OPEN -eq $status ]]; then
+                    messaage=$OK
                     showstatus "disabled"  $GREEN
                 else
                     showstatus "could not connect" $BLUE
                 fi
             else
+                message=$WARNING
                 showstatus "$status" $RED
             fi
         fi
@@ -538,7 +582,10 @@ do_webscan() {
                 curl -q -s -A "$NAME" -I -m 10 -o $logfile $prefix$target/$word </dev/null
                 if [[ -s $logfile ]]; then
                     status=$(awk 'NR==1 {print $2}' $logfile)
-                    (($status==200)) && showstatus "$target:$port/$word returns 200 OK" $RED
+                    if (($status==200)); then
+                        message=$WARNING
+                        showstatus "$target:$port/$word returns 200 OK" $RED
+                    fi
                 fi
                 purgelogs
             done < "$wordlist"
@@ -572,6 +619,7 @@ execute_all() {
             showstatus "$(awk '/Registrar( Technical Contacts)*:[ ]*$|(Domain )*[Nn]ameservers:[ ]*$|Technical:[ ]*$/{s=1}s; /^$/{s=0}' $logfile)"
             ip=$(host -c IN $target|awk '/address/{print $4}'|head -1)
             if [[ ! -n "$ip" ]]; then
+                message=$WARNING
                 showstatus "$target does not resolve to an IP address - aborting scans" $RED
                 purgelogs
                 return
@@ -584,8 +632,10 @@ execute_all() {
         showstatus "$(grep -iE '^(inetnum|netrange|netname|nettype|descr|orgname|orgid|originas|country|origin):(.*)[^ ]$' $logfile)"
         if [[ -n "$filter" ]]; then
             if grep -qiE "^(inetnum|netrange|netname|nettype|descr|orgname|orgid|originas|country|origin):.*($filter)" $logfile; then
+                message=$OK
                 showstatus "WHOIS info matches $filter - continuing scans" $GREEN
             else
+                message=$WARNING
                 showstatus "WHOIS info doesn't match $filter - aborting scans on $target" $RED
                 purgelogs
                 return
@@ -613,12 +663,12 @@ looptargets() {
         local counter=1
         while read target; do
             if [[ ! -z "$target" ]]; then
-               showstatus ""
-               showstatus "working on " $NONEWLINE
-               showstatus "$target" $BLUE $NONEWLINE
-               showstatus " ($counter of $total)"
-               let counter=$counter+1
-               execute_all
+                showstatus ""
+                showstatus "working on " $NONEWLINE
+                showstatus "$target" $BLUE $NONEWLINE
+                showstatus " ($counter of $total)"
+                let counter=$counter+1
+                execute_all
             fi
         done < "$inputfile"
     else
@@ -643,7 +693,8 @@ abortscan() {
 
 cleanup() {
     trap '' EXIT INT QUIT
-    if [[ ! -z $tool ]] && [[ "$ERROR" != "$tool" ]]; then 
+    if [[ ! -z $tool ]] && [[ "$ERROR" != "$tool" ]]; then
+        message=$WARNING
         showstatus "$tool interrupted..." $RED
         purgelogs
     fi
@@ -654,6 +705,8 @@ cleanup() {
     [[ -n "$workdir" ]] && popd 1>/dev/null
     [[ -e "$tmpfile" ]] && rm "$tmpfile"
     (($loglevel&$LOGFILE)) && showstatus "logged to $outputfile" $NOLOGFILE
+    # always log the end message
+    message=$OK
     showstatus "ended on $(date +%d-%m-%Y' at '%R)"
     exit
 }
@@ -672,6 +725,9 @@ timeoutstring() {
 #
 # Arguments: 1 target
 #            2 port
+#
+# GLOBAL message: OK      when certificate could be retrieved
+#                 WARNING when certificate could be retrieved but isn't valid
 ################################################################################
 parse_cert() {
     local target=$1
@@ -683,6 +739,7 @@ parse_cert() {
         certificate=$(mktemp -q $NAME.XXXXXXX)
         echo Q | $timeoutcmd $openssl s_client -connect $target:$port -servername $target 1>$certificate 2>/dev/null
         if [[ -s $certificate ]]; then
+            message=$OK
             showstatus "received" $GREEN
             showstatus "$($openssl x509 -noout -subject -nameopt multiline -in $certificate 2>/dev/null)"
             startdate=$($openssl x509 -noout -startdate -in $certificate 2>/dev/null|cut -d= -f 2)
@@ -692,9 +749,11 @@ parse_cert() {
             localizedstartdate=$(date --date="$startdate" +%d-%m-%Y)
             localizedenddate=$(date --date="$enddate" +%d-%m-%Y)
             if [[ $parsedstartdate -gt $(date +%Y%m%d) ]]; then
+                message=$WARNING
                 showstatus "certificate is not valid yet, valid from ${localizedstartdate} until ${localizedenddate}" $RED
             else
                 if [[ $parsedenddate -lt $(date +%Y%m%d) ]]; then
+                    message=$WARNING
                     showstatus "certificate has expired on ${localizedenddate}" $RED
                 else
                     showstatus "certificate is valid between ${localizedstartdate} and ${localizedenddate}" $GREEN
@@ -705,10 +764,8 @@ parse_cert() {
         fi
         rm -f $certificate 1>/dev/null
     fi
-    purgelogs
     endtool
 }
-
 
 which tput 1>/dev/null 2>&1 || nocolor=TRUE
 if ! options=$(getopt -o ad:fhi:lno:pqstuvwWy -l cipherscan:,dns,directory:,filter:,fingerprint,header,inputfile:,log,max,nikto,nocolor,openssl:,output:,ports,quiet,ssh,ssl,sslcert,sslports:,timeout:,trace,update,version,webports:,whois,wordlist: -- "$@") ; then
