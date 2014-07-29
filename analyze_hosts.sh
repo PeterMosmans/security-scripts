@@ -21,7 +21,6 @@
 #       - better output for issues (grepable)
 
 
-
 NAME="analyze_hosts"
 VERSION="0.87"
 
@@ -44,7 +43,9 @@ declare SEPARATELOGS=32
 # the global variable message keeps track of the current message type
 declare INFO=0
 declare OK=1
+declare OKTEXT="OK: "
 declare WARNING=2
+declare WARNINGTEXT="WARNING: "
 declare -i defaultmessage=$INFO
 
 # scantypes
@@ -741,7 +742,7 @@ parse_cert() {
         if [[ -s $certificate ]]; then
             message=$OK
             showstatus "received" $GREEN
-            showstatus "$($openssl x509 -noout -subject -nameopt multiline -in $certificate 2>/dev/null)"
+            showstatus "$($openssl x509 -noout -issuer -subject -nameopt multiline -in $certificate 2>/dev/null)"
             startdate=$($openssl x509 -noout -startdate -in $certificate 2>/dev/null|cut -d= -f 2)
             enddate=$($openssl x509 -noout -enddate -in $certificate 2>/dev/null|cut -d= -f 2)
             parsedstartdate=$(date --date="$startdate" +%Y%m%d)
@@ -750,14 +751,20 @@ parse_cert() {
             localizedenddate=$(date --date="$enddate" +%d-%m-%Y)
             if [[ $parsedstartdate -gt $(date +%Y%m%d) ]]; then
                 message=$WARNING
-                showstatus "certificate is not valid yet, valid from ${localizedstartdate} until ${localizedenddate}" $RED
+                showstatus "${WARNINGTEXT}certificate is not valid yet, valid from ${localizedstartdate} until ${localizedenddate}" $RED
             else
                 if [[ $parsedenddate -lt $(date +%Y%m%d) ]]; then
                     message=$WARNING
-                    showstatus "certificate has expired on ${localizedenddate}" $RED
+                    showstatus "${WARNINGTEXT}certificate has expired on ${localizedenddate}" $RED
                 else
-                    showstatus "certificate is valid between ${localizedstartdate} and ${localizedenddate}" $GREEN
+                    showstatus "${OKTEXT}certificate is valid between ${localizedstartdate} and ${localizedenddate}" $GREEN
                 fi
+            fi
+            # check if certificate is in any way authoritative
+            if openssl x509 -noout -purpose -in $certificate 2>/dev/null | grep -q " CA : Yes (WARNING"; then
+                message=$WARNING
+                showstatus "${WARNINGTEXT}self-signed certificate" $RED
+                showstatus "$($openssl x509 -noout -purpose -in $certificate 2>/dev/null|grep 'CA : Yes')" $RED
             fi
         else
             showstatus "failed" $BLUE
