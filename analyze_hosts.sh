@@ -758,10 +758,16 @@ parse_cert() {
                     showstatus "${OKTEXT}certificate is valid between ${localizedstartdate} and ${localizedenddate}" $GREEN
                 fi
             fi
+            # check if certificate is self-signed
+            if [[ "$(openssl x509 -noout -subject_hash -in $certificate 2>/dev/null)" == "$(openssl x509 -noout -issuer_hash -in $certificate 2>/dev/null)" ]]; then
+                    message=$WARNING
+                    showstatus "${WARNINGTEXT}self-signed certificate" $RED
+            fi
             # check if certificate is in any way authoritative
-            if openssl x509 -noout -purpose -in $certificate 2>/dev/null | grep -q " CA : Yes (WARNING"; then
+            # ignore any purpose CA flag, since it's always true
+            if openssl x509 -noout -purpose -in $certificate 2>/dev/null|grep -v '^Any Purpose'|grep -q ' CA : Yes'; then
                 message=$WARNING
-                showstatus "${WARNINGTEXT}self-signed certificate" $RED
+                showstatus "${WARNINGTEXT}certificate has Certificate Authority purposes set" $RED
                 showstatus "$($openssl x509 -noout -purpose -in $certificate 2>/dev/null|grep 'CA : Yes')" $RED
             fi
         else
