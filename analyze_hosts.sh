@@ -329,8 +329,6 @@ version() {
     echo ""
     nmap -V
     echo ""
-    sslscan --version|sed -r "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g"
-    echo ""
     prettyprint "$NAME version $VERSION" $BLUE
     prettyprint "      (c) 2013-2014 Peter Mosmans [Go Forward]" $LIGHTBLUE
     prettyprint "      Licensed under the Mozilla Public License 2.0" $LIGHTBLUE
@@ -488,7 +486,7 @@ do_sslscan() {
                     awk '/^[0-9].*(ADH|RC4|IDEA|SSLv2|EXP|MD5|NULL| 40| 56)/{print $2,$3}' $logfile > $resultsfile
                     if [[ -s $resultsfile ]]; then
                         message=$WARNING
-                        showstatus "Weak/insecure SSL/TLS ciphers supported:" $RED
+                        showstatus "${WARNINGTEXT}Weak/insecure SSL/TLS ciphers supported" $RED
                         showstatus "$(cat $resultsfile)" $RED
                     fi
                     parse_cert $target:$port
@@ -515,7 +513,7 @@ do_sslscan() {
             awk '/( - )(broken|weak|unknown)/{print $2}' $logfile > $resultsfile
             if [[ -s $resultsfile ]]; then
                 message=$WARNING
-                showstatus "Weak/insecure SSL/TLS ciphers supported:" $RED
+                showstatus "${WARNINGTEXT}Weak/insecure SSL/TLS ciphers supported" $RED
                 showstatus "$(cat $resultsfile)" $RED
             fi
         else
@@ -739,7 +737,7 @@ parse_cert() {
         showstatus "trying to retrieve SSL x.509 certificate on ${target}:${port}... " $NONEWLINE
         certificate=$(mktemp -q $NAME.XXXXXXX)
         echo Q | $timeoutcmd $openssl s_client -connect $target:$port -servername $target 1>$certificate 2>/dev/null
-        if [[ -s $certificate ]]; then
+        if [[ -s $certificate ]] && $openssl x509 -in $certificate -noout 1>/dev/null 2>&1; then
             message=$OK
             showstatus "received" $GREEN
             showstatus "$($openssl x509 -noout -issuer -subject -nameopt multiline -in $certificate 2>/dev/null)"
