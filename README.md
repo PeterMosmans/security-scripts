@@ -1,12 +1,10 @@
-security-scripts
-================
+# security-scripts
 
 A collection of security related Bash shell scripts.
 No fancy programming framework required, all that is needed is a Bash shell.
 
 
-analyze-hosts.sh
-----------------
+## analyze-hosts.sh
 A simple wrapper script around several open source security tools to simplify scanning of hosts for network vulnerabilities. The script lets you analyze one or several hosts for common misconfiguration vulnerabilities and weaknesses.
 The main objectives for the script is to make it as easy as possible to perform generic security tests, without any heavy prerequisites, make the output as informative as possible, and use open source tools....
 
@@ -15,6 +13,61 @@ The main objectives for the script is to make it as easy as possible to perform 
 * nmap
 * [openssl](https://github.com/PeterMosmans/openssl/tree/1.0.2-chacha/)
 * [whatweb](https://github.com/urbanadventurer/WhatWeb)
+
+
+### Examples
+#### SSL certificates
+./analyze_hosts.sh --sslcert www.google.com
+
+Shows details of a certificate, like the issuer and subject. It warns when certificate is expired or when the certificate is a certificate authority.
+
+Example output:
+
+$ ./analyze_hosts.sh --sslcert www.google.com
+
+trying to retrieve SSL x.509 certificate on www.google.com:443... received
+issuer=
+    countryName               = US
+    organizationName          = Google Inc
+    commonName                = Google Internet Authority G2
+subject=
+    countryName               = US
+    stateOrProvinceName       = California
+    localityName              = Mountain View
+    organizationName          = Google Inc
+    commonName                = www.google.com
+OK: certificate is valid between 16-07-2014 and 14-10-2014
+
+
+### SSL/TLS ciphers
+./analyze_hosts.sh --ssl --sslports 443 www.microsoft.com
+
+Checks which ciphers are allowed. It warns when insecure ciphers are being used.
+By default the ports 443, 465, 993, 995 and 3389 and are checked. You can specify the ports by using --sslports
+
+Example output:
+
+working on www.microsoft.com
+performing cipherscan on www.microsoft.com port 443... connected
+WARNING: Weak/insecure SSL/TLS ciphers supported
+RC4-MD5 SSLv3,TLSv1
+RC4-SHA SSLv3,TLSv1
+trying to retrieve SSL x.509 certificate on www.microsoft.com:443... received
+issuer=
+    domainComponent           = com
+    domainComponent           = microsoft
+    domainComponent           = corp
+    domainComponent           = redmond
+    commonName                = MSIT Machine Auth CA 2
+subject=
+    countryName               = US
+    stateOrProvinceName       = WA
+    localityName              = Redmond
+    organizationName          = Microsoft Corporation
+    organizationalUnitName    = MSCOM
+    commonName                = www.microsoft.com
+OK: certificate is valid between 12-01-2013 and 12-01-2015
+
 
 
 ```
@@ -75,3 +128,6 @@ Default programs:
 example: ./analyze_hosts.sh -sslcert www.google.com
 
 ```
+
+## history
+* 0.88 preliminary support for starttls xmpp
