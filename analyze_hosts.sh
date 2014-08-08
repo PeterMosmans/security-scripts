@@ -20,9 +20,11 @@
 #       - refactor: git part/version header info
 #       - better output for issues (grepable)
 
+# since 0.88: basic starttls xmpp support (port 5222)
+
 
 NAME="analyze_hosts"
-VERSION="0.87"
+VERSION="0.88"
 
 # statuses
 declare ERROR=-1
@@ -63,8 +65,8 @@ declare -i timeout=60
 # timeout for single requests
 declare -i requesttimeout=10
 declare webports=80,443,8080
-declare sslports=443,465,993,995,3389
-
+declare DEFAULTSSLPORTS=443,465,993,995,3389
+declare sslports=$DEFAULTSSLPORTS
 
 # statuses
 declare -i hoststatus=$UNKNOWN portstatus=$UNKNOWN
@@ -465,8 +467,15 @@ do_sslscan() {
     local portstatus=$UNKNOWN
     # check if only --sslcert is requested
     if (($sslscan==$ALTERNATIVE)); then
-        # if so, only check port 443
-        parse_cert $target 443
+        # did the user specify alternative sslports ?
+        if [[ "$sslports" == "$DEFAULTSSLPORTS" ]]; then
+            # if not, only check port 443
+            parse_cert $target 443
+        else
+            for port in ${sslports//,/ }; do
+                parse_cert $target $port
+            done
+        fi
         return
     fi
 
@@ -475,7 +484,14 @@ do_sslscan() {
         #TODO: needs to check for openssl as well
         for port in ${sslports//,/ }; do
             showstatus "performing cipherscan on $target port $port... " $NONEWLINE
-            $cipherscan -o $openssl $target:$port 1>$logfile 2>/dev/null || portstatus=$ERROR
+            # TODO refactor this
+            if [[ "$port" == "5222" ]]; then
+                extracmd="-starttls xmpp"
+            else
+                extracmd=""
+            fi
+            # -o $openssl
+            $cipherscan $extracmd $target:$port 1>$logfile 2>/dev/null || portstatus=$ERROR
             if [[ -s $logfile ]] ; then
                 # Check if cipherscan was able to connect to the server
                 failedstring="Certificate: UNTRUSTED,  bit,  signature"
@@ -489,7 +505,8 @@ do_sslscan() {
                         showstatus "${WARNINGTEXT}Weak/insecure SSL/TLS ciphers supported" $RED
                         showstatus "$(cat $resultsfile)" $RED
                     fi
-                    parse_cert $target:$port
+                    purgelogs
+                    parse_cert $target $port
                 fi
             else
                 portstatus=$ERROR
@@ -731,12 +748,18 @@ timeoutstring() {
 parse_cert() {
     local target=$1
     local port=$2
+    # TODO refactor this
+    if [[ "$port" == "5222" ]]; then
+        extracmd="-starttls xmpp"
+    else
+        extracmd=""
+    fi
     starttool $openssl
     if [[ "$tool" != "$ERROR" ]]; then
         timeoutcmd=$(timeoutstring $requesttimeout)
         showstatus "trying to retrieve SSL x.509 certificate on ${target}:${port}... " $NONEWLINE
         certificate=$(mktemp -q $NAME.XXXXXXX)
-        echo Q | $timeoutcmd $openssl s_client -connect $target:$port -servername $target 1>$certificate 2>/dev/null
+        echo Q | $timeoutcmd $openssl s_client ${extracmd} -connect $target:$port -servername $target 1>$certificate 2>/dev/null
         if [[ -s $certificate ]] && $openssl x509 -in $certificate -noout 1>/dev/null 2>&1; then
             message=$OK
             showstatus "received" $GREEN
