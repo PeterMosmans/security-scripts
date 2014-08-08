@@ -17,13 +17,13 @@ The main objectives for the script is to make it as easy as possible to perform 
 
 ### Examples
 #### SSL certificates
+```
 ./analyze_hosts.sh --sslcert www.google.com
+```
 
 Shows details of a certificate, like the issuer and subject. It warns when certificate is expired or when the certificate is a certificate authority.
 
 Example output:
-
-$ ./analyze_hosts.sh --sslcert www.google.com
 
 ```
 trying to retrieve SSL x.509 certificate on www.google.com:443... received
@@ -40,8 +40,10 @@ subject=
 OK: certificate is valid between 16-07-2014 and 14-10-2014
 ```
 
-### SSL/TLS ciphers
+#### SSL/TLS ciphers
+```
 ./analyze_hosts.sh --ssl --sslports 443 -v www.microsoft.com
+```
 
 Checks which ciphers are allowed. It warns when insecure ciphers are being used.
 By default the ports 443, 465, 993, 995 and 3389 and are checked. You can specify the ports by using --sslports
@@ -100,7 +102,7 @@ PORT    STATE SERVICE
 ```
 
 
-## usage
+### usage
 ```
 ./analyze_hosts.sh [OPTION]... [HOST]
 
@@ -156,9 +158,7 @@ Default programs:
  [HOST] can be a single (IP) address, an IP range, eg. 127.0.0.1-255
  or multiple comma-separated addressess
 
-example: ./analyze_hosts.sh -sslcert www.google.com
-
 ```
 
-## history
-* 0.88 preliminary support for starttls xmpp
+### history
+* since 0.88: preliminary support for starttls xmpp
