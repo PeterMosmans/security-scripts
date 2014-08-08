@@ -25,6 +25,7 @@ Example output:
 
 $ ./analyze_hosts.sh --sslcert www.google.com
 
+```
 trying to retrieve SSL x.509 certificate on www.google.com:443... received
 issuer=
     countryName               = US
@@ -37,21 +38,26 @@ subject=
     organizationName          = Google Inc
     commonName                = www.google.com
 OK: certificate is valid between 16-07-2014 and 14-10-2014
-
+```
 
 ### SSL/TLS ciphers
-./analyze_hosts.sh --ssl --sslports 443 www.microsoft.com
+./analyze_hosts.sh --ssl --sslports 443 -v www.microsoft.com
 
 Checks which ciphers are allowed. It warns when insecure ciphers are being used.
 By default the ports 443, 465, 993, 995 and 3389 and are checked. You can specify the ports by using --sslports
+The -v flag outputs all results, regardles of the message type.
 
 Example output:
 
-working on www.microsoft.com
-performing cipherscan on www.microsoft.com port 443... connected
-WARNING: Weak/insecure SSL/TLS ciphers supported
-RC4-MD5 SSLv3,TLSv1
-RC4-SHA SSLv3,TLSv1
+```
+prio  ciphersuite   protocols    pfs_keysize
+1     RC4-MD5       SSLv3,TLSv1
+2     RC4-SHA       SSLv3,TLSv1
+3     DES-CBC3-SHA  SSLv3,TLSv1
+4     AES256-SHA    TLSv1
+5     AES128-SHA    TLSv1
+
+Certificate: UNTRUSTED, 2048 bit, sha1WithRSAEncryption signature
 trying to retrieve SSL x.509 certificate on www.microsoft.com:443... received
 issuer=
     domainComponent           = com
@@ -68,10 +74,35 @@ subject=
     commonName                = www.microsoft.com
 OK: certificate is valid between 12-01-2013 and 12-01-2015
 
-
-
+performing nmap sslscan on www.microsoft.com ports 443...
+Nmap scan report for www.microsoft.com (134.170.184.133)
+Host is up (0.15s latency).
+PORT    STATE SERVICE
+443/tcp open  https
+| ssl-enum-ciphers:
+|   SSLv3:
+|     ciphers:
+|       TLS_RSA_WITH_3DES_EDE_CBC_SHA - strong
+|       TLS_RSA_WITH_RC4_128_MD5 - strong
+|       TLS_RSA_WITH_RC4_128_SHA - strong
+|     compressors:
+|       NULL
+|   TLSv1.0:
+|     ciphers:
+|       TLS_RSA_WITH_3DES_EDE_CBC_SHA - strong
+|       TLS_RSA_WITH_AES_128_CBC_SHA - strong
+|       TLS_RSA_WITH_AES_256_CBC_SHA - strong
+|       TLS_RSA_WITH_RC4_128_MD5 - strong
+|       TLS_RSA_WITH_RC4_128_SHA - strong
+|     compressors:
+|       NULL
+|_  least strength: strong
 ```
- usage: ./analyze_hosts.sh [OPTION]... [HOST]
+
+
+## usage
+```
+./analyze_hosts.sh [OPTION]... [HOST]
 
 Scanning options:
  -a, --all               perform all basic scans
