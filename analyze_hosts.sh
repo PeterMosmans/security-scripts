@@ -21,9 +21,10 @@
 
 # since 0.88: basic starttls xmpp support (port 5222)
 #       0.89: whois scan (-w) is default option if nothing is selected
+#       0.90: added SSLv3 to the list of dangerous protocols
 
 NAME="analyze_hosts"
-VERSION="0.89"
+VERSION="0.90"
 
 # statuses
 declare ERROR=-1
@@ -503,7 +504,7 @@ do_sslscan() {
                 if ((portstatus!=$ERROR)); then
                     message=$OK
                     showstatus "connected" $GREEN
-                    awk '/^[0-9].*(ADH|RC4|IDEA|SSLv2|EXP|MD5|NULL| 40| 56)/{print $2,$3}' $logfile > $resultsfile
+                    awk '/^[0-9].*(ADH|RC4|IDEA|SSLv2|SSLv3|EXP|MD5|NULL| 40| 56)/{print $2,$3}' $logfile > $resultsfile
                     if [[ -s $resultsfile ]]; then
                         message=$WARNING
                         showstatus "${WARNINGTEXT}Weak/insecure SSL/TLS ciphers supported" $RED
