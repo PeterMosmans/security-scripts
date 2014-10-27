@@ -10,7 +10,6 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 # TODO: - add: option to only list commands, don't execute them
-#       - change: use base options
 #       - add: make logging of output default
 #       - add: grep on errors of ssh script output
 #       - add: check installation (whether all tools are present)
@@ -21,10 +20,10 @@
 #       - better output for issues (grepable)
 
 # since 0.88: basic starttls xmpp support (port 5222)
-
+#       0.89: whois scan (-w) is default option if nothing is selected
 
 NAME="analyze_hosts"
-VERSION="0.88"
+VERSION="0.89"
 
 # statuses
 declare ERROR=-1
@@ -71,7 +70,7 @@ declare sslports=$DEFAULTSSLPORTS
 # statuses
 declare -i hoststatus=$UNKNOWN portstatus=$UNKNOWN
 datestring=$(date +%Y-%m-%d)
-workdir=/tmp
+#workdir=/tmp
 
 # colours
 declare BLUE='\E[1;49;96m' LIGHTBLUE='\E[2;49;96m'
@@ -175,6 +174,11 @@ starttool() {
     resultsfile=$workdir/${target}_${tool}_${datestring}_results.txt
 }
 
+################################################################################
+# Checks whether a program exists
+#
+# Parameters: tool
+################################################################################
 checkfortool() {
     if ! type $1 >/dev/null 2>&1; then
         showstatus "ERROR: The program $1 could not be found" $RED
@@ -811,6 +815,11 @@ eval set -- $options
 if [[ "$#" -le 1 ]]; then
     usage
     exit 1
+fi
+
+# set default option if only a target is specified
+if [[ "$#" -eq 2 ]] && ! [[ $2 =~ ^- ]]; then
+    whois=$BASIC
 fi
 
 while [[ $# -gt 0 ]]; do
