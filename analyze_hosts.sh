@@ -199,8 +199,8 @@ purgelogs() {
     if [[ ! -z "$$logfile" ]] && [[ -f "$logfile" ]]; then
         if (($loglevel&$VERBOSE)); then
             if [[ -s "$logfile" ]]; then
-                #                showstatus "$(grep -v '^#' $logfile)"
-                cat $logfile | grep -v '^#'
+                showstatus "$(grep -v '^#' $logfile)"
+#                cat $logfile | grep -v '^#'
 #                showstatus ""
             fi
         fi
@@ -254,7 +254,7 @@ showstatus() {
         esac
     else
         !(($loglevel&$QUIET)) && echo "$1"
-        (($loglevel&$LOGFILE)) && [[ $message -gt $INFO ]] && echo "$1" >> $outputfile
+        (($loglevel&$LOGFILE)) && echo "$1"|grep "." >> $outputfile
     fi
 }
 
@@ -368,7 +368,7 @@ do_dnstest() {
 }
 
 do_fingerprint() {
-    if (($fingerprint==$BASIC)) || (($fingerprint==$ADVANCED)); then
+    if (($fingerprint>=$BASIC)); then
         starttool "whatweb"
         for port in ${webports//,/ }; do
             starttool "whatweb"
@@ -389,7 +389,7 @@ do_fingerprint() {
         endtool
     fi
 
-    if (($fingerprint==$ADVANCED)) || (($fingerprint==$ALTERNATIVE)); then
+    if (($fingerprint>=$ADVANCED)); then
         starttool "curl"
         for port in ${webports//,/ }; do
             showstatus "retrieving headers from $target port $port... " $NONEWLINE
@@ -648,6 +648,7 @@ execute_all() {
                 showstatus "$target resolves to $ip"
             fi
         fi
+        purgelogs
         # not all versions of whois support -H (hide legal disclaimer)     
         whois -H $ip 1>$logfile 2>/dev/null
         showstatus "$(grep -iE '^(inetnum|netrange|netname|nettype|descr|orgname|orgid|originas|country|origin):(.*)[^ ]$' $logfile)"
@@ -818,7 +819,7 @@ if [[ "$#" -le 1 ]]; then
     exit 1
 fi
 
-# set default option if only a target is specified
+# set default option if only a target (or targetfile) is specified
 if [[ "$#" -eq 2 ]] && ! [[ $2 =~ ^- ]]; then
     whois=$BASIC
 fi
