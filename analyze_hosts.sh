@@ -18,6 +18,7 @@
 #       - change: make script Bash < 4 proof
 #       - refactor: git part/version header info
 #       - better output for issues (grepable)
+#       - first do some portlogic before executing tool
 
 # since 0.88: basic starttls xmpp support (port 5222)
 #       0.89: whois scan (-w) is default option if nothing is selected
@@ -369,11 +370,25 @@ do_dnstest() {
     showstatus "trying to retrieve version string... " $NONEWLINE
     dig version.bind txt chaos @$target 1>$logfile 2>&1 </dev/null
     awk '/\"/{print $5}' $logfile|grep -qv 'secured' && status=$OPEN
-        if (($status==$OPEN)); then
+    if (($status==$OPEN)); then
         showstatus "version string shown: $(awk '/\"/{print $5}' $logfile)" $RED
     else
         message=$OK
         showstatus "no version string shown" $GREEN
+    fi
+    endtool
+    starttool "nmap"
+    showstatus "trying to retrieve version string using nmap... " $NONEWLINE
+    nmap -sSU -p 53 --script dns-nsid -oN $logfile $target 1>/dev/null 2>&1 </dev/null
+    if [[ -s $logfile ]] ; then
+        awk '/bind.version/{print $3}' $logfile |grep -v 'secured'> $resultsfile
+        if [[ -s $resultsfile ]]; then
+            showstatus "version string shown: $(cat $resultsfile)" $RED
+        else
+            showstatus "no version string shown" $GREEN
+        fi
+    else
+            showstatus "no version string received"
     fi
     endtool
 }
