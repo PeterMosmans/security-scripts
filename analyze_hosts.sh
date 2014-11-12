@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # analyze_hosts - Scans one or more hosts on security vulnerabilities
 #
@@ -238,7 +238,7 @@ showstatus() {
     if [[ ! -z "$2" ]]; then
         case "$2" in
             $LOGFILE)
-                (($loglevel&$LOGFILE)) && [[ $message -gt $INFO ]] && echo "${linebuffer}$1" >> $outputfile
+                (($loglevel&$LOGFILE)) && [[ $1 -gt $INFO ]] && echo "${linebuffer}$1" >> $outputfile
                 linebuffer="";;
             $NOLOGFILE)
                 !(($loglevel&$QUIET)) && echo "$1"
@@ -246,10 +246,10 @@ showstatus() {
             $NONEWLINE)
                 linebuffer="$1"
                 !(($loglevel&$QUIET)) && echo -n "$1"
-                (($loglevel&$LOGFILE)) && [[ $message -gt $INFO ]] && echo -n "$1" >> $outputfile;;
+                (($loglevel&$LOGFILE)) && [[ $1 -gt $INFO ]] && echo -n "$1" >> $outputfile;;
             (*)
                 prettyprint "$1" $2 $3
-                (($loglevel&$LOGFILE)) && [[ $message -gt $INFO ]] && echo "${linebuffer}${1}" >> $outputfile
+                (($loglevel&$LOGFILE)) && [[ $1 -gt $INFO ]] && echo "${linebuffer}${1}" >> $outputfile
                 linebuffer="";;
         esac
     else
@@ -501,7 +501,7 @@ do_sslscan() {
                 extracmd=""
             fi
             # -o $openssl
-            $cipherscan $extracmd $target:$port 1>$logfile 2>/dev/null || portstatus=$ERROR
+            $cipherscan $extracmd $target:$port -servername $target 1>$logfile 2>/dev/null || portstatus=$ERROR
             if [[ -s $logfile ]] ; then
                 # Check if cipherscan was able to connect to the server
                 failedstring="Certificate: UNTRUSTED,  bit,  signature"
