@@ -56,7 +56,7 @@ declare -i portscan=$UNKNOWN sshscan=$UNKNOWN sslscan=$UNKNOWN
 declare -i trace=$UNKNOWN whois=$UNKNOWN webscan=$UNKNOWN
 
 # defaults
-declare cipherscan=/usr/local/bin/cipherscan/cipherscan
+declare cipherscan="cipherscan"
 declare openssl="openssl"
 declare gitsource=https://github.com/PeterMosmans/security-scripts.git
 declare -i loglevel=$STDOUT
@@ -501,7 +501,7 @@ do_sslscan() {
                 extracmd=""
             fi
             # -o $openssl
-            $cipherscan $extracmd $target:$port -servername $target 1>$logfile 2>/dev/null || portstatus=$ERROR
+            $cipherscan $extracmd -servername $target $target:$port 1>$logfile 2>/dev/null || portstatus=$ERROR
             if [[ -s $logfile ]] ; then
                 # Check if cipherscan was able to connect to the server
                 failedstring="Certificate: UNTRUSTED,  bit,  signature"
