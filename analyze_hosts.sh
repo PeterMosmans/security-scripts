@@ -241,7 +241,7 @@ showstatus() {
     if [[ ! -z "$2" ]]; then
         case "$2" in
             $LOGFILE)
-                (($loglevel&$LOGFILE)) && [[ $1 -gt $INFO ]] && echo "${linebuffer}$1" >> $outputfile
+                (($loglevel&$LOGFILE)) && echo "${linebuffer}$1" >> $outputfile
                 linebuffer="";;
             $NOLOGFILE)
                 !(($loglevel&$QUIET)) && echo "$1"
@@ -249,10 +249,10 @@ showstatus() {
             $NONEWLINE)
                 linebuffer="$1"
                 !(($loglevel&$QUIET)) && echo -n "$1"
-                (($loglevel&$LOGFILE)) && [[ $1 -gt $INFO ]] && echo -n "$1" >> $outputfile;;
+                (($loglevel&$LOGFILE)) && echo -n "$1" >> $outputfile;;
             (*)
                 prettyprint "$1" $2 $3
-                (($loglevel&$LOGFILE)) && [[ $1 -gt $INFO ]] && echo "${linebuffer}${1}" >> $outputfile
+                (($loglevel&$LOGFILE)) && echo "${linebuffer}${1}" >> $outputfile
                 linebuffer="";;
         esac
     else
