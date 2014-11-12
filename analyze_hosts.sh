@@ -412,7 +412,12 @@ do_fingerprint() {
 
 do_nikto() {
     starttool "nikto"
-    [[ $target =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]] && showstatus "FQDN preferred over IP address"
+    local parms="-Format txt -output $logfile 1>/dev/null 2>&1 </dev/null"
+    if [[ $target =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+        showstatus "FQDN preferred over IP address - not using HOST header"
+    else
+        parms="-vhost $target ${parms}"
+    fi
     for port in ${webports//,/ }; do
         checkifportopen $port
         if (($portstatus==$ERROR)); then
@@ -420,7 +425,7 @@ do_nikto() {
         else
             message=$OK
             showstatus "performing nikto webscan on port $port... "
-            nikto -host $target:$port -Format txt -output $logfile 1>/dev/null 2>&1 </dev/null
+            nikto -host $target:$port ${parms}
         fi
         purgelogs $VERBOSE
     done
