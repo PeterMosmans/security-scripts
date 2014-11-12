@@ -22,9 +22,10 @@
 # since 0.88: basic starttls xmpp support (port 5222)
 #       0.89: whois scan (-w) is default option if nothing is selected
 #       0.90: added SSLv3 to the list of dangerous protocols
+#       0.91: added check on DNS version string
 
 NAME="analyze_hosts"
-VERSION="0.90"
+VERSION="0.91"
 
 # statuses
 declare ERROR=-1
@@ -114,7 +115,7 @@ usage() {
     echo "     --max               perform all advanced scans (more thorough)" 
     echo " -b, --basic             perform basic scans (fingerprint, ssl, trace)" 
     echo "                         results of HOST matches regexp FILTER"
-    echo "     --dns               test for recursive query"
+    echo "     --dns               test for recursive query and version string"
     echo " -f                      perform web fingerprinting (all webports)"
     echo "     --fingerprint       perform all web fingerprinting methods"
     echo " -h, --header            show webserver headers (all webports)"
@@ -363,6 +364,16 @@ do_dnstest() {
     else
         message=$OK
         showstatus "no recursion or answer detected" $GREEN
+    fi
+    status=$UNKNOWN
+    showstatus "trying to retrieve version string... " $NONEWLINE
+    dig version.bind txt chaos @$target 1>$logfile 2>&1 </dev/null
+    awk '/\"/{print $5}' $logfile|grep -qv 'secured' && status=$OPEN
+        if (($status==$OPEN)); then
+        showstatus "version string shown: $(awk '/\"/{print $5}' $logfile)" $RED
+    else
+        message=$OK
+        showstatus "no version string shown" $GREEN
     fi
     endtool
 }
