@@ -27,7 +27,7 @@
 #       0.92: added AECDH to the list of dangerous ciphers
 
 NAME="analyze_hosts"
-VERSION="0.91"
+VERSION="0.92"
 
 # statuses
 declare ERROR=-1
@@ -330,6 +330,11 @@ startup() {
     # set the default message status
     message=$defaultmessage
     [[ -n "$workdir" ]] && pushd $workdir 1>/dev/null 2>&1
+    if ! [ -w $(pwd) ]; then
+        showstatus "ERROR: cannot write to directory $(pwd)" $RED
+        showstatus "       please specify writable directory using -d"
+        exit
+    fi
 }
 
 version() {
@@ -602,14 +607,13 @@ do_trace() {
 
     if (($trace>=$ADVANCED)); then
         starttool "nmap"
-        showstatus "trying nmap TRACE method on $target ports $webports... "
+        showstatus "trying nmap TRACE method on $target ports $webports... " $NONEWLINE
         nmap -p$webports --open --script http-trace -oN $logfile $target 1>/dev/null 2>&1 </dev/null
 	if [[ -s $logfile ]]; then
             status="$(awk '{FS="/";a[++i]=$1}/TRACE is enabled/{print "TRACE enabled on port "a[NR-1]}' $logfile)"
             if [[ -z "$status" ]]; then
                 grep -q " open " $logfile && status=$OPEN
                 if [[ $OPEN -eq $status ]]; then
-                    messaage=$OK
                     showstatus "disabled"  $GREEN
                 else
                     showstatus "could not connect" $BLUE
@@ -666,10 +670,12 @@ execute_all() {
             fi
         else
             whois ${target#*.} > $logfile
-            grep -q "No match for" $logfile && whois ${target%%*.} > $logfile
-            # not all whois servers use the same formatting
-            showstatus "$(grep -iE '^(registra|date|admin |tech|name server)(.*):(.*)[^ ]$' $logfile)"
-            showstatus "$(awk '/Registrar( Technical Contacts)*:[ ]*$|(Domain )*[Nn]ameservers:[ ]*$|Technical:[ ]*$/{s=1}s; /^$/{s=0}' $logfile)"
+            if [ -z $logfile ]; then
+                grep -q "No match for" $logfile && whois ${target%%*.} > $logfile
+                # not all whois servers use the same formatting
+                showstatus "$(grep -iE '^(registra|date|admin |tech|name server)(.*):(.*)[^ ]$' $logfile)"
+                showstatus "$(awk '/Registrar( Technical Contacts)*:[ ]*$|(Domain )*[Nn]ameservers:[ ]*$|Technical:[ ]*$/{s=1}s; /^$/{s=0}' $logfile)"
+            fi
             ip=$(host -c IN $target|awk '/address/{print $4}'|head -1)
             if [[ ! -n "$ip" ]]; then
                 message=$WARNING
