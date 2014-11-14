@@ -74,7 +74,7 @@ declare sslports=$DEFAULTSSLPORTS
 # statuses
 declare -i hoststatus=$UNKNOWN portstatus=$UNKNOWN
 datestring=$(date +%Y-%m-%d)
-#workdir=/tmp
+workdir=.
 
 # colours
 declare BLUE='\E[1;49;96m' LIGHTBLUE='\E[2;49;96m'
