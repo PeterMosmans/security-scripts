@@ -442,10 +442,11 @@ do_fingerprint() {
 
         starttool "nmap"
         # get a combination of open and closed ports for best results
-        ports=1,21,22,80,443,8080,8374
+        # currently top 15 open TCP ports plus bottom 3 ports
+        ports=80,23,443,21,22,25,3389,110,445,139,143,53,135,3306,8080,117,116,108
         showstatus "performing nmap OSfingerprinting using ports ${ports}... "
         nmap -Pn -O -p$ports --open --script banner.nse,sshv1.nse,ssh-hostkey.nse,ssh2-enum-algos.nse -oN $logfile $target 1>/dev/null 2>&1 </dev/null
-        if grep -Eq "^(Too many fingerprints match this host|No exact OS matches for host|OSScan results may be unreliable)" $logfile; then
+        if grep -Eq "^(Too many fingerprints match this host|No exact OS matches for host|Warning:)" $logfile; then
             showstatus "Could not reliably fingerprint operating system" $RED
         fi
         showstatus "$(grep -E '^(Device type|Running|OS details):' $logfile)" $GREEN
