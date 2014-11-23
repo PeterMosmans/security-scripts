@@ -80,6 +80,7 @@ workdir=.
 declare BLUE='\E[1;49;96m' LIGHTBLUE='\E[2;49;96m'
 declare RED='\E[1;49;31m' LIGHTRED='\E[2;49;31m'
 declare GREEN='\E[1;49;32m' LIGHTGREEN='\E[2;49;32m'
+declare RESETSCREEN='\E[0m'
 
 trap abortscan INT
 trap cleanup QUIT
@@ -93,7 +94,7 @@ prettyprint() {
     else
         echo "$1"
     fi
-    [[ -z $nocolor ]] && tput sgr0
+    [[ -z $nocolor ]] && echo -ne ${RESETSCREEN}
 }
 
 usage() {
@@ -544,8 +545,8 @@ do_sslscan() {
             else
                 extracmd=""
             fi
-            # -o $openssl
-            $cipherscan $extracmd -servername $target $target:$port 1>$logfile 2>/dev/null || portstatus=$ERROR
+            # cipherscan wants (kn)own options first, openssl options last
+            $cipherscan -o ${openssl} ${extracmd} -servername ${target} ${target}:${port} 1>${logfile} 2>/dev/null || portstatus=${ERROR}
             if [[ -s $logfile ]] ; then
                 # Check if cipherscan was able to connect to the server
                 failedstring="Certificate: UNTRUSTED,  bit,  signature"
@@ -857,7 +858,6 @@ parse_cert() {
     endtool
 }
 
-which tput 1>/dev/null 2>&1 || nocolor=TRUE
 if ! options=$(getopt -o ad:fhi:lno:pqstuvwWy -l cipherscan:,dns,directory:,filter:,fingerprint,header,inputfile:,log,max,nikto,nocolor,openssl:,output:,ports,quiet,ssh,ssl,sslcert,sslports:,timeout:,trace,update,version,webports:,whois,wordlist: -- "$@") ; then
     usage
     exit 1
