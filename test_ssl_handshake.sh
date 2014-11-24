@@ -195,8 +195,6 @@ test_connection() {
 bug_big_cipherlist() {
 }
 
-bug_
-
 usage() {
     echo "      (c) 2014 Peter Mosmans [Go Forward]" $LIGHTBLUE
     echo "      Licensed under the GPL 3.0" $LIGHTBLUE
