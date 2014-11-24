@@ -21,7 +21,7 @@ NAME="test_ssl_handshake"
 
 
 
-BUGSTRING='(ssl handshake failure|sslv3 alert unexpected message:sslv3 alert illegal parameter)'
+BUGSTRING='(ssl handshake failure|sslv3 alert unexpected message|sslv3 alert illegal parameter)'
 #NOBUGSTRING='(certificate verify failed|no ciphers available|verify error)'
 DEFAULTSTART=125
 # verify error:num=20:unable to get local issuer certificate
@@ -30,17 +30,21 @@ DEFAULTSTART=125
 # use all ciphers, except preshared keys or secure remote password
 cipherfile=
 cipherlist=
-cipherstring="ALL:!PSK:!SRP"
+DEFAULTSTRING="ALL:!PSK:!SRP"
+DEFAULTPROTOCOL="-ssl2 -ssl3 -tls1"
 EXTRAPARMS="-quiet -verify 0 -connect"
 # temporary files
 ALLCIPHERS=${TMP}/allciphers
-STATUSREPORT=${TMP}//status
+STATUSREPORT=${TMP}/status
 faultyciphers=
 force=false
 iterate=false
 cipherlist=
 defaultoption=true
 verbose=false
+
+bug128=false
+bugrsa=false
 
 ERR_PREREQUISITES=100
 ERR_NOTDETECTED=101
@@ -51,7 +55,7 @@ ERR_NOTDETECTED=101
 # first the bugs...
 # Cisco: bug presents itself with 128 or more ciphers
 bug_128_cipherlimit() {
-    local ciphers=$1
+    load_ciphers "-tls1"
     echo "testing for 128 cipherlimit"
     local bug=128
     local protocol="-tls1_2"
@@ -68,15 +72,49 @@ bug_128_cipherlimit() {
         echo "bug not present"
         return ${ERR_NOTDETECTED}
     fi
-    # swap order
-    echo "swapping order of ciphers"
+    echo "shuffling order of ciphers"
+    cipherlist=$(echo ${cipherlist} | tr ':' '\n'| shuf | tr '\n' ':'| sed -e 's/:$//' 1>/dev/stdout)
     add_ciphers ${start} ${cipherlist} ${protocol} ${end}
     if [[ $? -ne ${bug} ]]; then
         echo "bug not present"
         return ${ERR_NOTDETECTED}
     fi
+    echo "128 cipherlimit detected"
     return 0
 }
+
+# order of aRSA matters
+bug_rsa_order() {
+    load_ciphers "" 'ALL'
+    local protocol="-ssl3"
+    echo "testing for RSA order sensitivity - using cipherstring ALL"
+    echo Q | $openssl s_client ${protocol} -cipher ${cipherlist} ${EXTRAPARMS} ${host} 1>/dev/null 2>${STATUSREPORT}
+    parse_status ${STATUSREPORT}
+    if [[ $? -ne 0 ]]; then
+        echo "bug not present: SSL failure detected"
+        return ${ERR_NOTDETECTED}
+    fi
+    load_ciphers "" 'ALL:+aRSA'
+    echo "testing for RSA order sensitivity - using cipherstring ALL:+aRSA"
+    echo Q | $openssl s_client ${protocol} -cipher ${cipherlist} ${EXTRAPARMS} ${host} 1>/dev/null 2>${STATUSREPORT}
+    parse_status ${STATUSREPORT}
+    if [[ $? -eq 0 ]]; then
+        echo "bug not present: correct result (success)"
+        return ${ERR_NOTDETECTED}
+    fi
+    load_ciphers "" 'ALL:aRSA'
+    echo Q | $openssl s_client ${protocol} -cipher ${cipherlist} ${EXTRAPARMS} ${host} 1>/dev/null 2>${STATUSREPORT}
+    parse_status ${STATUSREPORT}
+    if [[ $? -ne 0 ]]; then
+        echo 'bug not present: still failure when testing cipherstring ALL:aRSA'
+        return ${ERR_NOTDETECTED}
+    fi
+    echo "RSA order sensitivity detected"
+    return 0
+}
+
+# without parms fails, tls1_1 fails, tls1 succeeds
+#bug_version_intolerant() { }
 
 
 # ...then the general functions
@@ -115,8 +153,8 @@ iterate_ciphers() {
         local cipher=$(cut --delimiter=":" -f${c} ${cipherlist})
         [[ $c -gt $start ]] && echo "testing cipher ${c} - ${cipher}"
         rm -f ${STATUSREPORT} 1>/dev/null
-        ${verbose} && echo "$openssl s_client -cipher ${cipher} ${PARMS} ${host}"
-        echo Q | $openssl s_client -cipher ${cipher} ${PARMS} ${host} 1>/dev/null 2>${STATUSREPORT}
+        ${verbose} && echo "$openssl s_client -cipher ${cipher} ${EXTRAPARMS} ${host}"
+        echo Q | $openssl s_client -cipher ${cipher} ${EXTRAPARMS} ${host} 1>/dev/null 2>${STATUSREPORT}
         parse_status ${STATUSREPORT}
         if [[ $? -ne 0 ]]; then
             [[ ${counter} == ${bug} ]] && return ${counter}
@@ -130,6 +168,8 @@ iterate_ciphers() {
 }
 
 load_ciphers() {
+    local protocol={$1:-$DEFAULTPROTOCOL}
+    local cipherstring=${2:-$DEFAULTSTRING}
     if [[ ! -z ${cipherfile} ]] && [[ -f ${cipherfile} ]]; then
         # ALLCIPHERS expects : as delimiters, check if they're present..
         if grep -vq ":" ${cipherfile}; then
@@ -145,7 +185,7 @@ load_ciphers() {
         fi
     else
         echo "reading cipherlist from ${openssl} and cipherstring ${cipherstring}"
-        cipherlist=$(${openssl} ciphers -l ${cipherstring})
+        cipherlist=$(${openssl} ciphers ${protocol} -l ${cipherstring})
     fi
     totalciphers=$(echo ${cipherlist} | tr ':' ' ' | wc -w)
     echo "Loaded ${totalciphers} ciphers"
@@ -157,13 +197,15 @@ main() {
     test_connection ${cipherlist} ${protocol}
     if ${defaultoption}; then
         bug_128_cipherlimit
-        [[ $? -eq 0 ]] && echo "128 cipherlimit detected"
+        bug_rsa_order
     else
-        if [ ${iterate} ]; then
-            iterate_ciphers
-        else
-            add_ciphers
-        fi
+        ${bug128} && bug_128_cipherlimit
+        ${bugrsa} && bug_rsa_order
+#        if [ ${iterate} ]; then
+#            iterate_ciphers
+#        else
+#            add_ciphers
+#        fi
     fi
 }
 
@@ -191,13 +233,13 @@ parse_status() {
 
 show_statusreport() {
     echo "status report from server:"
-    grep -iv "loading" $1|awk '{FS=":";print $6}'
+    grep -iv "loading" $1|awk 'FS=":"{print $6}'
     grep -iv "loading" $1
 }
 
 startup() {
     trap cleanup EXIT QUIT
-    if ! options=$(getopt -o :fv -l ciphers:,cipherstring:,force,iterate,openssl:,verbose -- "$@") ; then
+    if ! options=$(getopt -o :fv -l 128,ciphers:,cipherstring:,force,iterate,openssl:,rsa,verbose -- "$@") ; then
         usage
         exit 1
     fi
@@ -209,6 +251,8 @@ startup() {
     fi
     while [[ $# -gt 0 ]]; do
         case $1 in
+            --128)
+                bug128=true;;
             --ciphers)
                 cipherfile=$2
                 shift;;
@@ -222,6 +266,8 @@ startup() {
             --openssl)
                 openssl=$2
                 shift;;
+            --rsa)
+                bugrsa=true;;
             -v|--verbose)
                 verbose=true
                 ;;            
@@ -249,8 +295,7 @@ startup() {
     else
         host=$1:443
     fi
-    start=${2:-$DEFAULTSTART}
-    ${iterate} && defaultoption=false
+    [[ ${iterate} || ${bugrsa} || ${bug128} ]] && defaultoption=false
 }
 
 test_connection() {
@@ -284,6 +329,10 @@ usage() {
     echo "     --iterate          iterate through all the ciphers instead of adding"
     echo "     --openssl=FILE     location of openssl (default ${openssl})"
     echo "     -v | --verbose     be more verbose, please"
+    echo ""
+    echo " tests:"
+    echo "     --128              test for 128 cipherlimit"
+    echo "     --rsa              test for RSA order sensitivity"
     echo ""
     echo "     by default, all tests will be performed"
 }
