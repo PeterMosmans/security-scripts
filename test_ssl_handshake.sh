@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# test_ssl_handshake - Tests SSL/TLS handshake
+# test_ssl_handshake - Tests SSL/TLS handshakes
 #
 # Copyright (C) 2014 Peter Mosmans <support@go-forward.net>
 #
@@ -20,27 +20,66 @@
 NAME="test_ssl_handshake"
 
 
-# bug presents itself with 128 or more ciphers
-BUG=128
-BUGSTRING='(ssl handshake failure|sslv3 alert)'
+
+BUGSTRING='(ssl handshake failure|sslv3 alert unexpected message:sslv3 alert illegal parameter)'
 #NOBUGSTRING='(certificate verify failed|no ciphers available|verify error)'
 DEFAULTSTART=125
 # verify error:num=20:unable to get local issuer certificate
 # 2348672:error:14090086:SSL routines:SSL3_GET_SERVER_CERTIFICATE:certificate verify failed:s3_clnt.c:1180:
 #2348672:error:140830B5:SSL routines:SSL3_CLIENT_HELLO:no ciphers available:s3_clnt.c:755:
 # use all ciphers, except preshared keys or secure remote password
+cipherfile=
+cipherlist=
 cipherstring="ALL:!PSK:!SRP"
-PARMS="-ssl3 -quiet -verify 0 -connect"
+EXTRAPARMS="-quiet -verify 0 -connect"
 # temporary files
 ALLCIPHERS=${TMP}/allciphers
 STATUSREPORT=${TMP}//status
-faultyciphers=""
+faultyciphers=
 force=false
 iterate=false
+cipherlist=
+defaultoption=true
 verbose=false
+
+ERR_PREREQUISITES=100
+ERR_NOTDETECTED=101
 
 
 # define functions
+
+# first the bugs...
+# Cisco: bug presents itself with 128 or more ciphers
+bug_128_cipherlimit() {
+    local ciphers=$1
+    echo "testing for 128 cipherlimit"
+    local bug=128
+    local protocol="-tls1_2"
+    local start=126
+    local try=10
+    let end=$(echo ${cipherlist} | tr ':' ' ' | wc -w)
+    [[ ${end} -gt $((start+try)) ]] && let end=$((start+try))
+    if [[ ${end} -le ${bug} ]]; then
+        echo "sorry... need at least ${bug} ciphersuites to test"
+        return ${ERR_PREREQUISITES}
+    fi
+    add_ciphers ${start} ${cipherlist} ${protocol} ${end}
+    if [[ $? -ne ${bug} ]]; then
+        echo "bug not present"
+        return ${ERR_NOTDETECTED}
+    fi
+    # swap order
+    echo "swapping order of ciphers"
+    add_ciphers ${start} ${cipherlist} ${protocol} ${end}
+    if [[ $? -ne ${bug} ]]; then
+        echo "bug not present"
+        return ${ERR_NOTDETECTED}
+    fi
+    return 0
+}
+
+
+# ...then the general functions
 cleanup() {
 #    rm -f ${STATUSREPORT} 1>/dev/null
     rm -f ${ALLCIPHERS} 1>/dev/null
@@ -50,54 +89,82 @@ cleanup() {
     fi
 }
 
+# returns number of succesful ciphers
 add_ciphers() {
-    echo "Adding from ${start} to ${finish} ciphersuites"
+    local start=$1
+    local cipherlist=$2
+    local protocol=$3
+    local finish=${4:-$(echo ${cipherlist} | tr ':' ' ' | wc -w)}
+
+    echo "Adding ${start} to ${finish} ciphersuites"
     for ((c=${start}; c<=${finish}; c++ )); do
-        touch 
-        [[ $c -gt $start ]] && echo "total number of ciphers ${c} - cipher added: $(cut --delimiter=":" -f$c ${ALLCIPHERS})"
-        ${verbose} && echo "$openssl s_client -cipher $(cut --delimiter=":" -f1-$c ${ALLCIPHERS}) ${PARMS} ${host}"
-        echo Q | $openssl s_client -cipher $(cut --delimiter=":" -f1-$c ${ALLCIPHERS}) ${PARMS} ${host} 1>/dev/null 2>${STATUSREPORT}
+        [[ $c -gt $start ]] && echo "total number of ciphers ${c} - cipher added: $(echo ${cipherlist} | cut --delimiter=":" -f$c)"
+        ${verbose} && echo "${openssl} s_client -cipher $(echo ${cipherlist} | cut --delimiter=":" -f1-$c) ${protocol} ${EXTRAPARMS} ${host}"
+        echo Q | $openssl s_client -cipher $(echo ${cipherlist} | cut --delimiter=":" -f1-$c) ${protocol} ${EXTRAPARMS} ${host} 1>/dev/null 2>${STATUSREPORT}
         parse_status ${STATUSREPORT}
+        [[ $? -ne 0 ]] && return $c
     done
+    return $((c-1))
 }
 
+# returns number of succesful ciphers
 iterate_ciphers() {
-    echo "starting..."
+    local start=$1
+    local cipherlist=$2
     for ((c=${start}; c<=${finish}; c++ )); do
-        local cipher=$(cut --delimiter=":" -f${c} ${ALLCIPHERS})
+        local cipher=$(cut --delimiter=":" -f${c} ${cipherlist})
         [[ $c -gt $start ]] && echo "testing cipher ${c} - ${cipher}"
         rm -f ${STATUSREPORT} 1>/dev/null
         ${verbose} && echo "$openssl s_client -cipher ${cipher} ${PARMS} ${host}"
         echo Q | $openssl s_client -cipher ${cipher} ${PARMS} ${host} 1>/dev/null 2>${STATUSREPORT}
         parse_status ${STATUSREPORT}
         if [[ $? -ne 0 ]]; then
+            [[ ${counter} == ${bug} ]] && return ${counter}
+            [[ ! ${force} ]] && return ${counter}
             echo "adding ${cipher} to the list of faulty ciphers"
-            faultyciphers="${faultyciphers} ${cipher}"
+            [[ ! -z ${faultyciphers} ]] && faultyciphers="${faultyciphers}:"
+            faultyciphers="${faultyciphers}${cipher}"
         fi
+        return ${counter}
     done
 }
 
 load_ciphers() {
-    ${openssl} ciphers -l ${cipherstring} > ${ALLCIPHERS}
-    totalciphers=$(cat ${ALLCIPHERS} | tr ':' ' ' | wc -w)
-    echo "Loaded ${totalciphers} ciphers using ${openssl} and cipherstring ${cipherstring}"
-    finish=${totalciphers}
-    if [[ ${totalciphers} -lt ${finish} ]] || [[ ${totalciphers} -lt ${start} ]]; then
-        echo "not enough ciphersuites to test from ${start}... exiting"
-        exit 1
+    if [[ ! -z ${cipherfile} ]] && [[ -f ${cipherfile} ]]; then
+        # ALLCIPHERS expects : as delimiters, check if they're present..
+        if grep -vq ":" ${cipherfile}; then
+            # is it a full list ? if so, only use first column
+            if grep -q "=" ${cipherfile}; then
+                cipherlist=$(awk '{print $1}' ${cipherfile} | tr '\n' ':' | sed -e 's/:$//' 1>/dev/stdout)
+            else
+                # replace newline characters with :
+                cipherlist=$(tr '\n' ':' < ${cipherfile} | sed -e 's/:$//')
+            fi
+        else
+            cipherlist=$(cat ${cipherfile})
+        fi
+    else
+        echo "reading cipherlist from ${openssl} and cipherstring ${cipherstring}"
+        cipherlist=$(${openssl} ciphers -l ${cipherstring})
     fi
+    totalciphers=$(echo ${cipherlist} | tr ':' ' ' | wc -w)
+    echo "Loaded ${totalciphers} ciphers"
 }
 
 main() {
     startup "$@"
     load_ciphers
-    test_connection
-    if [ ${iterate} ]; then
-        iterate_ciphers
+    test_connection ${cipherlist} ${protocol}
+    if ${defaultoption}; then
+        bug_128_cipherlimit
+        [[ $? -eq 0 ]] && echo "128 cipherlimit detected"
     else
-        add_ciphers
+        if [ ${iterate} ]; then
+            iterate_ciphers
+        else
+            add_ciphers
+        fi
     fi
-    echo "BUG not detected... ${totalciphers} ciphers are supported"
 }
 
 parse_status() {
@@ -106,9 +173,13 @@ parse_status() {
         echo "cipher not supported by server"
         return 0
     fi
+    if grep -qiE "no cipher match" $1; then
+        echo "cipher locally not supported by ${openssl}"
+        return 0
+    fi
     if grep -qiE "ssl handshake failure" $1; then
         echo "SSL handshake error detected"
-        show_statusreport $1
+        ${verbose} && show_statusreport $1
         return 1
     fi
     if grep -qiE "${BUGSTRING}" $1; then
@@ -126,7 +197,7 @@ show_statusreport() {
 
 startup() {
     trap cleanup EXIT QUIT
-    if ! options=$(getopt -o :c:fv -l cipherstring:,force,iterate,openssl:,verbose -- "$@") ; then
+    if ! options=$(getopt -o :fv -l ciphers:,cipherstring:,force,iterate,openssl:,verbose -- "$@") ; then
         usage
         exit 1
     fi
@@ -138,7 +209,10 @@ startup() {
     fi
     while [[ $# -gt 0 ]]; do
         case $1 in
-            -c|--cipherstring)
+            --ciphers)
+                cipherfile=$2
+                shift;;
+            --cipherstring)
                 cipherstring=$2
                 shift;;
             -f|--force)
@@ -176,40 +250,42 @@ startup() {
         host=$1:443
     fi
     start=${2:-$DEFAULTSTART}
+    ${iterate} && defaultoption=false
 }
 
 test_connection() {
+    local cipherlist=$1
+    local protocol=$2
     echo "first trying to connect to ${host} using ${totalciphers} ciphers..."
-    echo Q | ${openssl} s_client -cipher $(cat ${ALLCIPHERS}) ${PARMS} ${host} 1>/dev/null 2>${STATUSREPORT}
-    if grep -qiE "(connect:errno|ssl handhake failure)" ${STATUSREPORT}; then
-        echo "could not connect to ${host}... exiting"
+    echo Q | ${openssl} s_client -cipher ${cipherlist} ${protocol} ${EXTRAPARMS} ${host} 1>/dev/null 2>${STATUSREPORT}
+    if grep -qiE "(connect:errno|ssl handhake failure|no cipher match)" ${STATUSREPORT}; then
+        echo "could not connect to ${host} with all ciphers... exiting"
         exit 1
     fi
     parse_status ${STATUSREPORT}
-    if [[ $? -ne 0 ]]; then
-        echo "no issues detected..."
-        ${force} || exit 0
+    if [[ $? -eq 0 ]]; then
+        echo "no issues detected"
     fi
-}
-
-bug_big_cipherlist() {
 }
 
 usage() {
     echo "      (c) 2014 Peter Mosmans [Go Forward]" $LIGHTBLUE
     echo "      Licensed under the GPL 3.0" $LIGHTBLUE
     echo ""
-    echo "tests whether SSL handshake bug is present, when proposing ${BUG} ciphers"
+    echo "tests SSL/TLS handshakes (for known bugs)"
     echo ""
     echo "usage: $0 target[:port] [start]"
     echo ""
-    echo "     [start]         the number of ciphers to start with (default ${DEFAULTSTART})"
-    echo "     -c | --cipherstring=CIPHERSTRING"
-    echo "                     cipherstring (default ${cipherstring})"
-    echo "     -f | --force    continue even though the error has been detected"
-    echo "     --iterate       iterate through all the ciphers instead of adding"
-    echo "     --openssl=FILE  location of openssl (default ${openssl})"
-    echo "     -v | --verbose  be more verbose, please"
+    echo "     [start]            number of ciphers to start with (default ${DEFAULTSTART})"
+    echo "     --ciphers=FILE     a file containing a list which ciphers to use"
+    echo "     --cipherstring=CIPHERSTRING"
+    echo "                        cipherstring (default ${cipherstring})"
+    echo "     -f | --force       continue even though the error has been detected"
+    echo "     --iterate          iterate through all the ciphers instead of adding"
+    echo "     --openssl=FILE     location of openssl (default ${openssl})"
+    echo "     -v | --verbose     be more verbose, please"
+    echo ""
+    echo "     by default, all tests will be performed"
 }
 
 main "$@"
