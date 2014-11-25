@@ -103,7 +103,7 @@ usage() {
         pushd $realpath 1>/dev/null 2>&1
         local branch=$(git rev-parse --abbrev-ref HEAD)
         local commit=$(git log|head -1|awk '{print $2}'|cut -c -10)
-        popd
+        popd 1>/dev/null
         prettyprint "$NAME (git) from ${branch} branch commit ${commit}" $BLUE
     else
         prettyprint "$NAME version $VERSION" $BLUE

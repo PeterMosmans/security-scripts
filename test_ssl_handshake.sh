@@ -60,6 +60,8 @@ faultyciphers=
 force=false
 iterate=false
 loglevel=0
+start=0
+total=0
 
 # bug tests
 bug128=false
@@ -72,7 +74,7 @@ bugintolerant=false
 # but is successful with tls1_2 and 127 or less ciphers
 bug_128_cipherlimit() {
     load_ciphers "-tls1" ""
-    echo "testing for 128 cipherlimit"
+    prettyprint "testing for 128 cipherlimit" $BLUE
     local bug=128
     local protocol="-tls1_2"
     local start=126
@@ -85,14 +87,14 @@ bug_128_cipherlimit() {
     fi
     add_ciphers ${start} ${cipherlist} ${protocol} ${end}
     if [[ $? -ne ${bug} ]]; then
-        prettyprint "FAILED TEST: successfully tried ?{$} ciphers" $GREEN
+        prettyprint "FAILED TEST: successfully tried ${end} ciphers" $GREEN
         return ${ERR_NOTDETECTED}
     fi
     echo "shuffling order of ciphers"
     cipherlist=$(echo ${cipherlist} | tr ':' '\n'| shuf | tr '\n' ':'| sed -e 's/:$//' 1>/dev/stdout)
     add_ciphers ${start} ${cipherlist} ${protocol} ${end}
     if [[ $? -ne ${bug} ]]; then
-        prettyprint "FAILED TEST: successfully tried ?{$} ciphers" $GREEN
+        prettyprint "FAILED TEST: successfully tried ${end} ciphers" $GREEN
         return ${ERR_NOTDETECTED}
     fi
     prettyprint "SUCCESS: 128 cipherlimit detected" $RED
@@ -103,7 +105,9 @@ bug_128_cipherlimit() {
 bug_rsa_order() {
     load_ciphers "" 'ALL'
     local protocol="-ssl3"
-    echo "testing for RSA order sensitivity - using cipherstring ALL"
+    local tests=3
+    prettyprint "testing for RSA order sensitivity" $BLUE
+    echo  "test 1 of ${tests} - using cipherstring ALL"
     echo Q | $openssl s_client ${protocol} -cipher ${cipherlist} ${EXTRAPARMS} ${host} 1>/dev/null 2>${STATUSREPORT}
     parse_status ${STATUSREPORT}
     if [[ $? -ne ${SUCCESS} ]]; then
@@ -111,7 +115,7 @@ bug_rsa_order() {
         return ${ERR_NOTDETECTED}
     fi
     load_ciphers "" 'ALL:+aRSA'
-    echo "testing for RSA order sensitivity - using cipherstring ALL:+aRSA"
+    echo  "test 2 of ${tests} - using cipherstring ALL:+aRSA"
     echo Q | $openssl s_client ${protocol} -cipher ${cipherlist} ${EXTRAPARMS} ${host} 1>/dev/null 2>${STATUSREPORT}
     parse_status ${STATUSREPORT}
     if [[ $? -eq ${SUCCESS} ]]; then
@@ -119,6 +123,7 @@ bug_rsa_order() {
         return ${ERR_NOTDETECTED}
     fi
     load_ciphers "" 'ALL:aRSA'
+    echo  "test 3 of ${tests} - using cipherstring ALL:aRSA"
     echo Q | $openssl s_client ${protocol} -cipher ${cipherlist} ${EXTRAPARMS} ${host} 1>/dev/null 2>${STATUSREPORT}
     parse_status ${STATUSREPORT}
     if [[ $? -ne ${SUCCESS} ]]; then
@@ -135,13 +140,14 @@ bug_intolerant() {
     local protocols="-tls1_2 -tls1_1 -tls1 -ssl3 -ssl2"
     local succeeded=""
     local counter=1
-    local total=$(($(echo ${protocols}|wc -w)+1))
-    echo "testing for version intolerant server (using previously loaded cipherstring)"
-    echo -n "test ${counter} of ${total} - connect without a protocol specified "
+    local tests=$(($(echo ${protocols}|wc -w)+1))
+    prettyprint "testing for version intolerant server (using previously loaded cipherstring)" $BLUE
+    echo -n "test ${counter} of ${tests} - connect without a protocol specified "
     # check if default connection fails
     echo Q | $openssl s_client ${protocol} -cipher ${cipherlist} ${EXTRAPARMS} ${host} 1>/dev/null 2>${STATUSREPORT}
     _=$(parse_status ${STATUSREPORT})
     if [[ $? -eq ${SUCCESS} ]]; then
+        echo ""
         prettyprint "FAILED TEST: handshake successful" $GREEN
         return ${ERR_NOTDETECTED}
     fi
@@ -149,7 +155,7 @@ bug_intolerant() {
     # check if connection is successful with one of the protocols
     for protocol in ${protocols}; do
         let counter=${counter}+1
-        echo -n "test ${counter} of ${total} - connect with ${protocol} "
+        echo -n "test ${counter} of ${tests} - connect with ${protocol} "
         echo Q | $openssl s_client ${protocol} -cipher ${cipherlist} ${EXTRAPARMS} ${host} 1>/dev/null 2>${STATUSREPORT}
         _=$(parse_status ${STATUSREPORT})
         if [[ $? -eq ${SUCCESS} ]]; then
@@ -195,31 +201,37 @@ add_ciphers() {
 
 # returns number of successful ciphers
 iterate_ciphers() {
+
     local start=$1
     local cipherlist=$2
-    for ((c=${start}; c<=${finish}; c++ )); do
-        local cipher=$(cut --delimiter=":" -f${c} ${cipherlist})
-        [[ $c -gt $start ]] && echo "testing cipher ${c} - ${cipher}"
+    local total=$(echo ${cipherlist} | tr ':' ' ' | wc -w)
+    echo "${start} ${cipherlist} ${total}"
+    for ((c=${start}; c<=${total}; c++ )); do
+        local cipher=$(echo ${cipherlist} | cut --delimiter=":" -f$c)
+        echo -n "testing cipher ${c} - ${cipher} "
         rm -f ${STATUSREPORT} 1>/dev/null
         (($loglevel&$VERBOSE)) && echo "$openssl s_client -cipher ${cipher} ${EXTRAPARMS} ${host}"
         echo Q | $openssl s_client -cipher ${cipher} ${EXTRAPARMS} ${host} 1>/dev/null 2>${STATUSREPORT}
         parse_status ${STATUSREPORT}
-        if [[ $? -ne 0 ]]; then
+        if [[ $? -ne ${SUCCESS} ]]; then
             [[ ${counter} == ${bug} ]] && return ${counter}
             [[ ! ${force} ]] && return ${counter}
-            echo "adding ${cipher} to the list of faulty ciphers"
+            prettyprint "handshake failed" $RED $NONEWLINE
+            echo ", adding ${cipher} to the list of faulty ciphers"
             [[ ! -z ${faultyciphers} ]] && faultyciphers="${faultyciphers}:"
             faultyciphers="${faultyciphers}${cipher}"
+        else
+            prettyprint "handshake successful" $GREEN
         fi
-        return ${counter}
     done
+    return $((c-1))
 }
 
 load_ciphers() {
     local protocol={$1:-$DEFAULTPROTOCOL}
     local cipherstring=${2:-$DEFAULTSTRING}
     if [[ ! -z $2 ]]; then
-        echo "loading custom cipherstring ${2}"
+        (($loglevel&$VERBOSE)) && echo "loading custom cipherstring ${2}"
     fi
     if [[ ! -z ${cipherfile} ]] && [[ -f ${cipherfile} ]]; then
         # cipherstring expects : as delimiters, check if they're present..
@@ -246,12 +258,13 @@ main() {
     startup "$@"
     load_ciphers "${protocol}" "${cipherstring}"
     test_connection ${cipherlist} ${protocol}
-
     ${bugintolerant} && bug_intolerant
     ${bug128} && bug_128_cipherlimit
     ${bugrsa} && bug_rsa_order
-#        if [ ${iterate} ]; then
-#            iterate_ciphers
+    if ${iterate}; then
+        iterate_ciphers "${start}" "${cipherlist}"
+        echo ${faultyciphers}
+    fi
 #        else
 #            add_ciphers
 #        fi
@@ -298,8 +311,10 @@ show_statusreport() {
 }
 
 startup() {
+    prettyprint "$NAME starting on $(date +%d-%m-%Y' at '%R)" $BLUE
+    prettyprint "BETA VERSION - bugs are present and not all features are correctly implemented" $RED
     trap cleanup EXIT QUIT
-    if ! options=$(getopt -o :fv -l 128,ciphers:,cipherstring:,force,intolerant,iterate,openssl:,rsa,verbose -- "$@") ; then
+    if ! options=$(getopt -o :fv -l 128,ciphers:,cipherstring:,force,intolerant,iterate,openssl:,rsa,start:,verbose -- "$@") ; then
         usage
         exit 1
     fi
@@ -334,6 +349,9 @@ startup() {
             --rsa)
                 bugrsa=true
                 defaultoption=false;;
+            --start)
+                start=$2
+                shift;;
             -v|--verbose)
                 let "loglevel=loglevel|$VERBOSE";;
             (--) shift; 
@@ -400,13 +418,14 @@ usage() {
     echo ""
     echo "tests SSL/TLS handshakes (for known bugs)"
     echo ""
-    echo "usage: $0 target[:port] [start]"
+    echo "usage: $0 target[:port]"
     echo ""
-    echo "     [start]            number of ciphers to start with (default ${DEFAULTSTART})"
+    echo "     --start=NUMBER     number of ciphers to start with"
     echo "     --ciphers=FILE     a file containing a list which ciphers to use"
     echo "     --cipherstring=CIPHERSTRING"
     echo "                        cipherstring (default ${cipherstring})"
     echo "     -f | --force       continue even though the error has been detected"
+    echo "     --total=NUMBER     number of ciphers to test"
     echo "     --iterate          iterate through all the ciphers instead of adding"
     echo "     --openssl=FILE     location of openssl (default ${openssl})"
     echo "     -v | --verbose     be more verbose, please"
@@ -417,6 +436,8 @@ usage() {
     echo "     --rsa              test for RSA order sensitivity"
     echo ""
     echo "     by default, all tests will be performed"
+    echo ""
+    echo "BETA VERSION - bugs are present and not all features are correctly implemented"
 }
 
 main "$@"
