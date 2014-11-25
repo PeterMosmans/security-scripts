@@ -162,3 +162,35 @@ Default programs:
 
 ### history
 * since 0.88: preliminary support for starttls xmpp
+
+## test_ssl_handhake.sh
+A script to test TLS/SSL handshakes with. Several bugtests are included:
+- 128 cipherlimit when using tls1_2 protocol
+- aRSA cipher order
+- version intolerant server
+
+$ ./test_ssl_handshake.sh
+```
+      (c) 2014 Peter Mosmans [Go Forward]
+      Licensed under the GPL 3.0
+
+tests SSL/TLS handshakes (for known bugs)
+
+usage: ./test_ssl_handshake.sh target[:port] [start]
+
+     [start]            number of ciphers to start with (default 125)
+     --ciphers=FILE     a file containing a list which ciphers to use
+     --cipherstring=CIPHERSTRING
+                        cipherstring (default )
+     -f | --force       continue even though the error has been detected
+     --iterate          iterate through all the ciphers instead of adding
+     --openssl=FILE     location of openssl (default )
+     -v | --verbose     be more verbose, please
+
+ tests:
+     --128              test for 128 cipherlimit
+     --intolerant       test for version intolerant server
+     --rsa              test for RSA order sensitivity
+
+     by default, all tests will be performed
+```

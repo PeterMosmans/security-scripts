@@ -384,8 +384,19 @@ test_connection() {
 }
 
 usage() {
-    echo "      (c) 2014 Peter Mosmans [Go Forward]" $LIGHTBLUE
-    echo "      Licensed under the GPL 3.0" $LIGHTBLUE
+    local realpath=$(dirname $(readlink -f $0))
+    if [[ -d $realpath/.git ]]; then
+        pushd $realpath 1>/dev/null 2>&1
+        local branch=$(git rev-parse --abbrev-ref HEAD)
+        local commit=$(git log|head -1|awk '{print $2}'|cut -c -10)
+        popd 1>/dev/null
+        prettyprint "$NAME (git)" $BLUE $NONEWLINE
+        echo " from ${branch} branch commit ${commit}"
+    else
+        prettyprint "$NAME version $VERSION" $BLUE
+    fi
+    prettyprint "      (c) 2014 Peter Mosmans [Go Forward]" $LIGHTBLUE
+    prettyprint "      Licensed under the GPL 3.0" $LIGHTBLUE
     echo ""
     echo "tests SSL/TLS handshakes (for known bugs)"
     echo ""
