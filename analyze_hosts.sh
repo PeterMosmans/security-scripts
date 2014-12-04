@@ -382,7 +382,7 @@ do_dnstest() {
     status=$UNKNOWN
     showstatus "trying to retrieve version string using dig... " $NONEWLINE
     dig version.bind txt chaos @$target 1>$logfile 2>&1 </dev/null
-    awk '/(^version.bind)(.*)(TXT)/{print $5}' $logfile|sed -e 's/\"//g'|grep -v 'secured' > $resultsfile
+    awk '/(^version.bind)(.*)(TXT)/{printf $5}' $logfile|sed -e 's/\"//g'|grep -v 'secured' > $resultsfile
     if [[ -s $resultsfile ]] ; then
         showstatus "version string shown: $(cat $resultsfile)" $RED
     else
@@ -393,7 +393,7 @@ do_dnstest() {
     showstatus "trying to retrieve version string using nmap... " $NONEWLINE
     nmap -sSU -p 53 --script dns-nsid -oN $logfile $target 1>/dev/null 2>&1 </dev/null
     if [[ -s $logfile ]] ; then
-        awk '/bind.version/{print $3}' $logfile |grep -v 'secured' > $resultsfile
+        awk '/bind.version/{printf $3}' $logfile |grep -v 'secured' > $resultsfile
         if [[ -s $resultsfile ]]; then
             showstatus "version string shown: $(cat $resultsfile)" $RED
         else
