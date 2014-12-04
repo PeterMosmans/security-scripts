@@ -13,18 +13,23 @@
 #       - add: make logging of output default
 #       - add: grep on errors of ssh script output
 #       - add: check installation (whether all tools are present)
+#       - add: generic set tool check
+#       - change: first do some portlogic before executing tool
 #       - change: refactor looping of ports
 #       - change: iterate --ssl commands per port instead of per tool
-#       - change: make script Bash < 4 proof
+#       - change: better output for issues (grepable)
+#       - change: move issues to issue tracker
+#       - change: move changelog to real changelog
 #       - refactor: git part/version header info
-#       - better output for issues (grepable)
-#       - first do some portlogic before executing tool
+
 
 # since 0.88: basic starttls xmpp support (port 5222)
 #       0.89: whois scan (-w) is default option if nothing is selected
 #       0.90: added SSLv3 to the list of dangerous protocols
 #       0.91: added check on DNS version string
 #       0.92: added AECDH to the list of dangerous ciphers
+
+unset CDPATH
 
 NAME="analyze_hosts"
 VERSION="0.92"
@@ -185,7 +190,7 @@ starttool() {
 # Parameters: tool
 ################################################################################
 checkfortool() {
-    if ! type $1 >/dev/null 2>&1; then
+    if [[ ! $(which ${1}) ]] && [[! -r "${1}" ]] ; then
         showstatus "ERROR: The program $1 could not be found" $RED
         tool=$ERROR
         exit
@@ -374,13 +379,12 @@ do_dnstest() {
         showstatus "no recursion or answer detected" $GREEN
     fi
     status=$UNKNOWN
-    showstatus "trying to retrieve version string... " $NONEWLINE
+    showstatus "trying to retrieve version string using dig... " $NONEWLINE
     dig version.bind txt chaos @$target 1>$logfile 2>&1 </dev/null
-    awk '/\"/{print $5}' $logfile|grep -qv 'secured' && status=$OPEN
-    if (($status==$OPEN)); then
-        showstatus "version string shown: $(awk '/\"/{print $5}' $logfile)" $RED
+    awk '/(^version.bind)(.*)(TXT)/{print $5}' $logfile|sed -e 's/\"//g'|grep -v 'secured' > $resultsfile
+    if [[ -s $resultsfile ]] ; then
+        showstatus "version string shown: $(cat $resultsfile)" $RED
     else
-        message=$OK
         showstatus "no version string shown" $GREEN
     fi
     endtool
@@ -388,7 +392,7 @@ do_dnstest() {
     showstatus "trying to retrieve version string using nmap... " $NONEWLINE
     nmap -sSU -p 53 --script dns-nsid -oN $logfile $target 1>/dev/null 2>&1 </dev/null
     if [[ -s $logfile ]] ; then
-        awk '/bind.version/{print $3}' $logfile |grep -v 'secured'> $resultsfile
+        awk '/bind.version/{print $3}' $logfile |grep -v 'secured' > $resultsfile
         if [[ -s $resultsfile ]]; then
             showstatus "version string shown: $(cat $resultsfile)" $RED
         else
@@ -535,7 +539,7 @@ do_sslscan() {
     fi
 
     if (($sslscan>=$BASIC)); then
-        starttool $cipherscan
+        starttool "${cipherscan}"
         #TODO: needs to check for openssl as well
         for port in ${sslports//,/ }; do
             showstatus "performing cipherscan on $target port $port... " $NONEWLINE
@@ -546,7 +550,7 @@ do_sslscan() {
                 extracmd=""
             fi
             # cipherscan wants (kn)own options first, openssl options last
-            $cipherscan -o ${openssl} ${extracmd} -servername ${target} ${target}:${port} 1>${logfile} 2>/dev/null || portstatus=${ERROR}
+            "${cipherscan}" -o "${openssl}" ${extracmd} -servername ${target} ${target}:${port} 1>${logfile}
             if [[ -s $logfile ]] ; then
                 # Check if cipherscan was able to connect to the server
                 failedstring="Certificate: UNTRUSTED,  bit,  signature"
@@ -858,6 +862,8 @@ parse_cert() {
     endtool
 }
 
+#   if [ -x /usr/bin/tput ] && tput setaf 1 >&/dev/null; then
+
 if ! options=$(getopt -o ad:fhi:lno:pqstuvwWy -l cipherscan:,dns,directory:,filter:,fingerprint,header,inputfile:,log,max,nikto,nocolor,openssl:,output:,ports,quiet,ssh,ssl,sslcert,sslports:,timeout:,trace,update,version,webports:,whois,wordlist: -- "$@") ; then
     usage
     exit 1
@@ -888,6 +894,11 @@ while [[ $# -gt 0 ]]; do
         --allports) portscan=$ADVANCED;;
         --cipherscan)
             cipherscan=$2
+            [[ ! $cipherscan =~ ^/ ]] && cipherscan="$(pwd)/$cipherscan"
+            if [[ ! -s "$cipherscan" ]]; then
+                echo "error: cannot find $cipherscan"
+                exit 1
+            fi
             shift;;
         --dns) dnstest=$ADVANCED;;
         -f) fingerprint=$BASIC;;
@@ -901,9 +912,9 @@ while [[ $# -gt 0 ]]; do
         -i|--inputfile) inputfile="$2"
             [[ ! $inputfile =~ ^/ ]] && inputfile=$(pwd)/$inputfile
             if [[ ! -s "$inputfile" ]]; then
-                echo "error: cannot find $inputfile" 
+                echo "error: cannot find $inputfile"
                 exit 1
-            fi           
+            fi
             shift ;;
         -l) log="TRUE";;
         --max)             
@@ -966,8 +977,8 @@ done
 #    exit
 #fi
 
-if [[ ! -s "$inputfile" ]]; then
-    if [[ ! -n "$1" ]]; then
+if [[ ! -r "$inputfile" ]]; then
+    if [[ -z "$1" ]]; then
         echo "Nothing to do... no target specified"
         exit
     fi

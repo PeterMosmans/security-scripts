@@ -86,15 +86,17 @@ bug_128_cipherlimit() {
         return ${ERR_PREREQUISITES}
     fi
     add_ciphers ${start} ${cipherlist} ${protocol} ${end}
-    if [[ $? -ne ${bug} ]]; then
-        prettyprint "FAILED TEST: successfully tried ${end} ciphers" $GREEN
+    successful=$?
+    if [[ ${successful} -ne ${bug} ]]; then
+        prettyprint "FAILED TEST: tried ${successful} ciphers" $GREEN
         return ${ERR_NOTDETECTED}
     fi
     echo "shuffling order of ciphers"
     cipherlist=$(echo ${cipherlist} | tr ':' '\n'| shuf | tr '\n' ':'| sed -e 's/:$//' 1>/dev/stdout)
     add_ciphers ${start} ${cipherlist} ${protocol} ${end}
-    if [[ $? -ne ${bug} ]]; then
-        prettyprint "FAILED TEST: successfully tried ${end} ciphers" $GREEN
+    successful=$?
+    if [[ ${successful} -ne ${bug} ]]; then
+        prettyprint "FAILED TEST: tried ${successful} ciphers" $GREEN
         return ${ERR_NOTDETECTED}
     fi
     prettyprint "SUCCESS: 128 cipherlimit detected" $RED
