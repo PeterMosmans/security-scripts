@@ -216,10 +216,11 @@ purgelogs() {
         if (($loglevel&$RAWLOGS)); then
             grep -v '^[#%]' $logfile >> $outputfile
         fi
-        if !(($loglevel&$SEPARATELOGS)); then rm $logfile 1>/dev/null 2>&1; fi
+        if !(($loglevel&$SEPARATELOGS)); then rm -f $logfile 1>/dev/null 2>&1; fi
     fi
     loglevel=$currentloglevel
     message=$defaultmessage
+    rm -f $resultsfile
 }
 
 # clears logfiles
