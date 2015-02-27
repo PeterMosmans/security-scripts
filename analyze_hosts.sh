@@ -585,7 +585,7 @@ do_sslscan() {
     if (($sslscan>=$ADVANCED)); then
         starttool "nmap"
         showstatus "performing nmap sslscan on $target ports $sslports..."
-        nmap -p $sslports --script ssl-enum-ciphers --script ssl-heartbleed --open -oN $logfile $target 1>/dev/null 2>&1 </dev/null
+        nmap -p $sslports --script ssl-enum-ciphers,ssl-heartbleed,rdp-enum-encryption --open -oN $logfile $target 1>/dev/null 2>&1 </dev/null
         if [[ -s $logfile ]] ; then
             awk '/( - )(broken|weak|unknown)/{print $2}' $logfile > $resultsfile
             if [[ -s $resultsfile ]]; then
