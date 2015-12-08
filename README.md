@@ -111,13 +111,14 @@ Scanning options:
      --max               perform all advanced scans (more thorough)
  -b, --basic             perform basic scans (fingerprint, ssl, trace)
                          results of HOST matches regexp FILTER
-     --dns               test for recursive query
+     --dns               test for recursive query and version string
  -f                      perform web fingerprinting (all webports)
      --fingerprint       perform all web fingerprinting methods
  -h, --header            show webserver headers (all webports)
  -n, --nikto             nikto webscan (all webports)
- -p                      nmap portscan (top 1000 ports)
-     --ports             nmap portscan (all ports)
+ -p                      nmap portscan (top 1000 TCP ports)
+     --ports             nmap portscan (all ports, TCP and UDP)
+     --redirect          test for open secure redirect
  -s                      check SSL configuration
      --ssl               perform all SSL configuration checks
      --sslcert           show details of SSL certificate
@@ -139,25 +140,24 @@ Logging and input file:
  -i, --inputfile=FILE    use a file containing hostnames
  -l, --log               log each scan in a separate logfile
      --nocolor           don't use fancy colors in screen output
- -o, --output=FILE       concatenate all results into FILE
+ -o, --output=FILE       concatenate all OK and WARNING messages into FILE
  -q, --quiet             quiet
  -v, --verbose           show server responses
 
 Default programs:
-     --cipherscan=FILE   location of cipherscan (default /usr/local/bin/cipherscan/cipherscan)
-     --openssl=FILE      location of openssl (default /usr/bin/openssl)
+     --cipherscan=FILE   location of cipherscan (default cipherscan)
+     --openssl=FILE      location of openssl (default openssl)
 
  -u                      update this script (if it's a cloned repository)
      --update            force update (overwrite all local modifications)
      --version           print version information and exit
 
-                         BLUE: status messages
-                         GREEN: secure settings
-                         RED: possible vulnerabilities
+                         BLUE: INFO, status messages
+                         GREEN: OK, secure settings
+                         RED: WARNING, possible vulnerabilities
 
  [HOST] can be a single (IP) address, an IP range, eg. 127.0.0.1-255
  or multiple comma-separated addressess
-
 ```
 
 ### history
