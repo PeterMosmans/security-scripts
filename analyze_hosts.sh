@@ -29,10 +29,11 @@
 #       0.91: added check on DNS version string
 #       0.92: added AECDH to the list of dangerous ciphers
 
+
 unset CDPATH
 
 NAME="analyze_hosts"
-VERSION="0.92"
+VERSION="0.93"
 
 # statuses
 declare ERROR=-1
@@ -113,7 +114,7 @@ usage() {
     else
         prettyprint "$NAME version $VERSION" $BLUE
     fi
-    prettyprint "      (c) 2012-2014 Peter Mosmans [Go Forward]" $LIGHTBLUE
+    prettyprint "      (c) 2012-2015 Peter Mosmans [Go Forward]" $LIGHTBLUE
     prettyprint "      Licensed under the Mozilla Public License 2.0" $LIGHTBLUE
     echo ""
     echo " usage: $0 [OPTION]... [HOST]"
@@ -190,7 +191,7 @@ starttool() {
 # Parameters: tool
 ################################################################################
 checkfortool() {
-    if [[ ! $(which ${1}) ]] && [[! -r "${1}" ]] ; then
+    if [ ! $(which ${1} 2>/dev/null) ] && [[ ! -r "${1}" ]] ; then
         showstatus "ERROR: The program $1 could not be found" $RED
         tool=$ERROR
         exit
