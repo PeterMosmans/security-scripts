@@ -28,6 +28,7 @@
 #       0.90: added SSLv3 to the list of dangerous protocols
 #       0.91: added check on DNS version string
 #       0.92: added AECDH to the list of dangerous ciphers
+#       0.93: check for open secure redirect
 
 
 unset CDPATH
@@ -62,6 +63,7 @@ declare -i defaultmessage=$INFO
 # scantypes
 declare -i dnstest=$UNKNOWN fingerprint=$UNKNOWN nikto=$UNKNOWN
 declare -i portscan=$UNKNOWN sshscan=$UNKNOWN sslscan=$UNKNOWN
+declare -i redirect=$UNKNOWN
 declare -i trace=$UNKNOWN whois=$UNKNOWN webscan=$UNKNOWN
 
 # defaults
@@ -131,6 +133,7 @@ usage() {
     echo " -n, --nikto             nikto webscan (all webports)"
     echo " -p                      nmap portscan (top 1000 TCP ports)"
     echo "     --ports             nmap portscan (all ports, TCP and UDP)"
+    echo "     --redirect          test for open secure redirect"
     echo " -s                      check SSL configuration"
     echo "     --ssl               perform all SSL configuration checks"
     echo "     --sslcert           show details of SSL certificate"
@@ -191,7 +194,7 @@ starttool() {
 # Parameters: tool
 ################################################################################
 checkfortool() {
-    if [ ! $(which ${1} 2>/dev/null) ] && [[ ! -r "${1}" ]] ; then
+    if [ ! $(which $1 2>/dev/null) ] && [[ ! ("$1 --version") ]] ; then
         showstatus "ERROR: The program $1 could not be found" $RED
         tool=$ERROR
         exit
@@ -353,7 +356,7 @@ version() {
     nmap -V
     echo ""
     prettyprint "$NAME version $VERSION" $BLUE
-    prettyprint "      (c) 2013-2014 Peter Mosmans [Go Forward]" $LIGHTBLUE
+    prettyprint "      (c) 2013-2015 Peter Mosmans [Go Forward]" $LIGHTBLUE
     prettyprint "      Licensed under the Mozilla Public License 2.0" $LIGHTBLUE
     echo ""
 }
@@ -366,6 +369,23 @@ checkifportopen() {
     fi
 }
 
+
+do_redirect() {
+    starttool "curl"
+    status=$UNKNOWN
+    showstatus "trying open secure redirect... " $NONEWLINE
+    curl -sIH "Host: vuln" http://$target/|grep -q "Location: https\?://vuln/" && status=$OPEN
+    if (($status==$OPEN)); then
+        message=$WARNING
+        showstatus "open secure redirect" $RED
+    else
+        message=$OK
+        showstatus "no open secure redirect" $GREEN
+    fi
+    endtool
+}
+
+    
 do_dnstest() {
     starttool "dig"
     local status=$UNKNOWN
@@ -727,6 +747,7 @@ execute_all() {
     fi
 
     (($portscan>=$BASIC)) && do_portscan
+    (($redirect>=$BASIC)) && do_redirect
     (($dnstest>=$BASIC)) && do_dnstest
     (($fingerprint>=$BASIC)) && do_fingerprint
     (($nikto>=$BASIC)) && do_nikto
@@ -866,7 +887,7 @@ parse_cert() {
 
 #   if [ -x /usr/bin/tput ] && tput setaf 1 >&/dev/null; then
 
-if ! options=$(getopt -o ad:fhi:lno:pqstuvwWy -l cipherscan:,dns,directory:,filter:,fingerprint,header,inputfile:,log,max,nikto,nocolor,openssl:,output:,ports,quiet,ssh,ssl,sslcert,sslports:,timeout:,trace,update,version,webports:,whois,wordlist: -- "$@") ; then
+if ! options=$(getopt -o ad:fhi:lno:pqstuvwWy -l cipherscan:,dns,directory:,filter:,fingerprint,header,inputfile:,log,max,nikto,nocolor,openssl:,output:,ports,quiet,redirect,ssh,ssl,sslcert,sslports:,timeout:,trace,update,version,webports:,whois,wordlist: -- "$@") ; then
     usage
     exit 1
 fi 
@@ -889,6 +910,7 @@ while [[ $# -gt 0 ]]; do
             fingerprint=$BASIC
             nikto=$BASIC
             portscan=$BASIC
+            redirect=$BASIC
             sshscan=$BASIC
             sslscan=$BASIC
             trace=$BASIC
@@ -924,6 +946,7 @@ while [[ $# -gt 0 ]]; do
             fingerprint=$ADVANCED
             nikto=$ADVANCED
             portscan=$ADVANCED
+            redirect=$ADVANCED
             sshscan=$ADVANCED
             sslscan=$ADVANCED
             trace=$ADVANCED
@@ -947,6 +970,7 @@ while [[ $# -gt 0 ]]; do
         --sslports) sslports=$2
             shift ;;
         -q|--quiet) let "loglevel=loglevel|$QUIET";;
+        --redirect) redirect=$BASIC;;
         -s) let "sslscan=sslscan|$BASIC";;
          --ssh) sshscan=$BASIC;;
         --ssl) let "sslscan=sslscan|$ADVANCED";;
