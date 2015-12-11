@@ -108,6 +108,8 @@ def do_portscan(host, options, output_file):
     open_ports = []
     scanner = nmap.PortScanner()
     arguments = '-A -oN ' + output_file
+    #-p1-65535
+    #--script=(default or discovery or version) and not broadcast and not external and not intrusive and not http-email-harvest and not http-grep and not ipidseq and not path-mtu and not qscan) 
     print_status('starting nmap scan')
     scanner.scan(hosts=host, arguments=arguments)
     print_status('Finished succesfully')
@@ -117,6 +119,7 @@ def do_portscan(host, options, output_file):
                 for port in scanner[ip][protocol].keys():
                     if scanner[ip][protocol][port]['state'] == "open":
                         open_ports.append(port)
+    print_status('Found open ports {0}'.format(open_ports))
     return open_ports
 
 
@@ -165,6 +168,7 @@ def remove_from_queue(host, queue):
     
     return 'analyze'
 
+
 def port_open(port, open_ports):
     """
     Checks whether a port has been flagged as open
@@ -176,6 +180,7 @@ def port_open(port, open_ports):
     """
     return (UNKNOWN in open_ports) or (port in open_ports)
 
+
 def loop_hosts(options, queue):
     """
     """
@@ -183,7 +188,6 @@ def loop_hosts(options, queue):
         output_file = '{0}.analyze_hosts'.format(host)
         perform_recon(host, options, output_file)
         open_ports = do_portscan(host, options, output_file)
-        print_status('Found open ports ' + open_ports)
         for port in [80, 443, 8080]:
             if port_open(port, open_ports):
                 do_nikto(host, port, options, output_file)
@@ -239,7 +243,6 @@ def main():
     """
     options = parse_arguments()
     queue = []
-    print(options)
     if not options.force:
         preflight_checks(options)
     if not options.inputfile:
