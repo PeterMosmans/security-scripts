@@ -128,7 +128,7 @@ def do_portscan(host, options, output_file):
         print_status('starting nmap scan', options)
         scanner = nmap.PortScanner()
         scanner.scan(hosts=host, arguments=arguments)
-        print_status('Finished succesfully')
+        print_status('Finished succesfully', options)
         for ip in scanner.all_hosts():
             if scanner[ip] and scanner[ip].state() == 'up':
                 for protocol in scanner[ip].all_protocols():
@@ -140,11 +140,10 @@ def do_portscan(host, options, output_file):
         return [UNKNOWN]
     return open_ports
 
+
 # All checks
 
-
-
-def append_logs(output_file, stdout, stderr):
+def append_logs(output_file, stdout, stderr=None):
     if stdout:
         with open(output_file, "a") as open_file:
             open_file.write(stdout)
@@ -158,6 +157,7 @@ def reverse_lookup(ip):
     Resolves an IP address to a hostname
     """
     return socket.gethostbyaddr(ip)
+
 
 # tool-specific commands
 
@@ -186,7 +186,7 @@ def do_nikto(host, port, options, output_file):
         options:
         output_file:
     """
-    command = ['nikto', '-display', 'P', '-u', '{0}:{1}'.format(host, port)]
+    command = ['nikto', '-host', '{0}:{1}'.format(host, port)]
     if port == 443:
         command.append('-ssl')
     result, stdout, stderr = execute_command(command, options)
@@ -258,12 +258,17 @@ def use_tool(tool, host, port, options, output_file):
         do_testssl(host, port, options, output_file)
 
 
-
 def loop_hosts(options, queue):
     """
     """
+    if not options['output']:
+        output_file = 'analyze_hosts.output'
+    else:
+        output_file = options['output']
     for host in queue:
-        output_file = '{0}.analyze_hosts'.format(host)
+        status = 'Working on {0}'.format(host)
+        print_status(status, options)
+        append_logs(output_file, status + '\n')
         perform_recon(host, options, output_file)
         open_ports = do_portscan(host, options, output_file)
         for port in [80, 443, 8080]:
@@ -273,9 +278,28 @@ def loop_hosts(options, queue):
                 if port == 443:
                     for tool in ['testssl.sh']:
                         use_tool(tool, host, port, options, output_file)
-#        if port_open(53, open_ports):
-#            recursive_dig(host, options, host_data, output_file)
         remove_from_queue(host, queue)
+
+
+def read_queue(filename):
+    """
+    
+    A docstring should give enough information to write a call to the function without reading the function's code.
+    A docstring should describe the function's calling syntax and its semantics, not its implementation.
+    The description should mention required type(s) and the meaning of the argument. 
+    
+    Returns:
+    
+    Arguments:
+        filename: 
+    """
+    queue = []
+    try:
+        with open(filename, 'r') as queuefile:
+         queue = queuefile.read().splitlines()
+    except IOError:
+        print('dude')
+    return queue
 
 
 def parse_arguments():
@@ -298,6 +322,8 @@ the Free Software Foundation, either version 3 of the License, or
                         help='only show commands, don\'t actually run anything')
     parser.add_argument('-i', '--inputfile', action='store', type=str,
                         help='a file containing multiple targets, one per line')
+    parser.add_argument('-o', '--output', action='store', type=str,
+                        help='output file containing all scanresults')
     parser.add_argument('-f', '--force', action='store_true',
                         help='don\'t perform preflight checks, go ahead anyway')
     parser.add_argument('--nikto', action='store_true',
@@ -333,11 +359,12 @@ def main():
     Main program loop.
     """
     options = parse_arguments()
-    queue = []
+    if options['inputfile']:
+        queue = read_queue(options['inputfile'])
+    else:
+        queue = [options['target']]
     if not options['force']:
         preflight_checks(options)
-    if not options['inputfile']:
-        queue.append(options['target'])
     loop_hosts(options, queue)
 
 
