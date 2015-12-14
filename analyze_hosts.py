@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-analyze_hosts -scans one or more hosts for security misconfigurations
+analyze_hosts - scans one or more hosts for security misconfigurations
 
 Copyright (C) 2015 Peter Mosmans [Go Forward]
 This program is free software: you can redistribute it and/or modify
@@ -14,6 +14,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import argparse
+import os
 import signal
 import subprocess
 import sys
@@ -126,37 +127,37 @@ def do_portscan(host, options, output_file):
         options: dictionary with options
         output_file: raw output file
     """
+    arguments = '-A'
     if not options['nmap']:
-        # even if nmap is not selected, use it to try to scan open ports first
         return [UNKNOWN]
     open_ports = []
+    if options['allports']:
+        arguments += ' -p1-65535 --script=(default or discovery or version) and not broadcast and not external and not intrusive and not http-email-harvest and not http-grep and not ipidseq and not path-mtu and not qscan)'
+    if options['trace']:
+        arguments += ' --script http-trace'
+    if options['dryrun']:
+        print_status('nmap ' + arguments, options)
+        return [UNKNOWN]
+    print_status('starting nmap scan', options)
     try:
-        temp_file = tempfile._get_default_tempdir() + '/' + next(tempfile._get_candidate_names())
-        arguments = '-A -oN ' + temp_file
-        if options['allports']:
-            arguments += ' -p1-65535 --script=(default or discovery or version) and not broadcast and not external and not intrusive and not http-email-harvest and not http-grep and not ipidseq and not path-mtu and not qscan)'
-        if options['trace']:
-            arguments += ' --script http-trace'
-        if options['dryrun']:
-            print_status('nmap ' + arguments, options)
-            return [UNKNOWN]
-        print_status('starting nmap scan', options)
+        temp_file = tempfile.NamedTemporaryFile()
+        arguments = '-oN ' + temp_file.name
         scanner = nmap.PortScanner()
         scanner.scan(hosts=host, arguments=arguments)
         print_status('Finished succesfully', options)
         for ip in scanner.all_hosts():
             if scanner[ip] and scanner[ip].state() == 'up':
-                for protocol in scanner[ip].all_protocols():
-                    for port in scanner[ip][protocol].keys():
-                        if scanner[ip][protocol][port]['state'] == "open":
-                            open_ports.append(port)
+                for port in scanner[ip].all_tcp():
+                    if scanner[ip]['tcp'][port]['state'] == "open":
+                        open_ports.append(port)
         print_status('Found open ports {0}'.format(open_ports), options)
-        with open(temp_file, 'r') as read_file:
+        with open(temp_file.name, 'r') as read_file:
             result = read_file.read()
-        os.remove(temp_file)
         append_logs(output_file, options, result)
     except nmap.PortScannerError:
-        return [UNKNOWN]
+        open_ports = [UNKNOWN]
+    finally:
+        temp_file.close()
     return open_ports
 
 
@@ -304,8 +305,7 @@ def loop_hosts(options, queue):
 
 
 def read_queue(filename):
-    """
-    
+    """   
     A docstring should give enough information to write a call to the function without reading the function's code.
     A docstring should describe the function's calling syntax and its semantics, not its implementation.
     The description should mention required type(s) and the meaning of the argument. 
@@ -331,7 +331,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser(
             formatter_class=argparse.RawDescriptionHelpFormatter,
             description=textwrap.dedent('''\
-analyze_hosts
+analyze_hosts - scans one or more hosts for security misconfigurations
 
 Copyright (C) 2015 Peter Mosmans [Go Forward]
 This program is free software: you can redistribute it and/or modify
