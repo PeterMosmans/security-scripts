@@ -14,8 +14,10 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import argparse
+import signal
 import subprocess
 import sys
+import tempfile
 import textwrap
 
 
@@ -23,6 +25,20 @@ import nmap
 
 
 UNKNOWN = -1
+
+
+def exit_gracefully(signum, frame):
+    # restore the original signal handler as otherwise evil things will happen
+    # in raw_input when CTRL+C is pressed, and our signal handler is not re-entrant
+    signal.signal(signal.SIGINT, original_sigint)
+    try:
+        if raw_input("\nReally quit? (y/n)> ").lower().startswith('y'):
+            sys.exit(1)
+    except KeyboardInterrupt:
+        print("Ok ok, quitting")
+        sys.exit(1)
+    # restore the exit gracefully handler here    
+    signal.signal(signal.SIGINT, exit_gracefully)
 
 
 def print_error(text, options, result):
@@ -59,8 +75,6 @@ def preflight_checks(options):
             if not result:
                 print_error('FAILED: Could not execute {0}, disabling checks'.format(tool), options, False)
                 options[tool] = False
-            else:
-                print_status('OK', options)
 
 
 def execute_command(cmd, options):
@@ -117,7 +131,8 @@ def do_portscan(host, options, output_file):
         return [UNKNOWN]
     open_ports = []
     try:
-        arguments = '-A -oN ' + output_file
+        temp_file = tempfile._get_default_tempdir() + '/' + next(tempfile._get_candidate_names())
+        arguments = '-A -oN ' + temp_file
         if options['allports']:
             arguments += ' -p1-65535 --script=(default or discovery or version) and not broadcast and not external and not intrusive and not http-email-harvest and not http-grep and not ipidseq and not path-mtu and not qscan)'
         if options['trace']:
@@ -136,6 +151,10 @@ def do_portscan(host, options, output_file):
                         if scanner[ip][protocol][port]['state'] == "open":
                             open_ports.append(port)
         print_status('Found open ports {0}'.format(open_ports), options)
+        with open(temp_file, 'r') as read_file:
+            result = read_file.read()
+        os.remove(temp_file)
+        append_logs(output_file, options, result)
     except nmap.PortScannerError:
         return [UNKNOWN]
     return open_ports
@@ -143,13 +162,16 @@ def do_portscan(host, options, output_file):
 
 # All checks
 
-def append_logs(output_file, stdout, stderr=None):
-    if stdout:
-        with open(output_file, "a") as open_file:
-            open_file.write(stdout)
-    if stderr:
-        with open(output_file, "a") as open_file:
-            open_file.write(stderr)
+def append_logs(output_file, options, stdout, stderr=None):
+    try:
+        if stdout:
+            with open(output_file, 'a') as open_file:
+                open_file.write(stdout)
+        if stderr:
+            with open(output_file, 'a') as open_file:
+                open_file.write(stderr)
+    except IOError:
+        print_error('FAILED: Could not write to {0}'.format(output_file), options, -1)
 
 
 def reverse_lookup(ip):
@@ -175,7 +197,7 @@ def do_curl(host, port, options, output_file):
     if options['trace']:
         command = ['curl', '-qsIA', "'{0}'".format(options['header']), '--connect-timeout', str(options['timeout']), '-X', 'TRACE', '{0}:{1}'.format(host, port)]
         result, stdout, stderr = execute_command(command, options)
-        append_logs(output_file, stdout, stderr)
+        append_logs(output_file, options, stdout, stderr)
 
 
 def do_nikto(host, port, options, output_file):
@@ -190,7 +212,7 @@ def do_nikto(host, port, options, output_file):
     if port == 443:
         command.append('-ssl')
     result, stdout, stderr = execute_command(command, options)
-    append_logs(output_file, stdout, stderr)
+    append_logs(output_file, options, stdout, stderr)
 
 
 def do_testssl(host, port, options, output_file):
@@ -206,7 +228,7 @@ def do_testssl(host, port, options, output_file):
     """
     command = ['testssl.sh', '--color', '0', '{0}:{1}'.format(host, port)]
     result, stdout, stderr = execute_command(command, options)
-    append_logs(output_file, stdout, stderr)
+    append_logs(output_file, options, stdout, stderr)
 
 
 def interrogate_DNS(ip):
@@ -259,7 +281,7 @@ def use_tool(tool, host, port, options, output_file):
 
 
 def loop_hosts(options, queue):
-    """
+    """Main loop, iterates all hosts in queue.
     """
     if not options['output']:
         output_file = 'analyze_hosts.output'
@@ -268,7 +290,7 @@ def loop_hosts(options, queue):
     for host in queue:
         status = 'Working on {0}'.format(host)
         print_status(status, options)
-        append_logs(output_file, status + '\n')
+        append_logs(output_file,options, status + '\n')
         perform_recon(host, options, output_file)
         open_ports = do_portscan(host, options, output_file)
         for port in [80, 443, 8080]:
@@ -369,5 +391,7 @@ def main():
 
 
 if __name__ == "__main__":
+    original_sigint = signal.getsignal(signal.SIGINT)
+    signal.signal(signal.SIGINT, exit_gracefully)
     main()
 
