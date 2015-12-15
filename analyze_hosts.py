@@ -29,24 +29,24 @@ UNKNOWN = -1
 
 
 def exit_gracefully(signum, frame):
-    # restore the original signal handler as otherwise evil things will happen
-    # in raw_input when CTRL+C is pressed, and our signal handler is not re-entrant
+    global child
     signal.signal(signal.SIGINT, original_sigint)
     try:
-        if raw_input("\nReally quit? (y/n)> ").lower().startswith('y'):
-            sys.exit(1)
+        if len(child):
+            if raw_input('\nKill running process {0} ? (y/n) '.format(child[1])).lower().startswith('y'):
+                os.kill(child[0], signal.SIGHUP)
+        if raw_input("\nQuit analyze_hosts ? (y/n) ").lower().startswith('y'):
+            print_error('Quitting...', [], -1)
     except KeyboardInterrupt:
-        print("Ok ok, quitting")
-        sys.exit(1)
-    # restore the exit gracefully handler here    
-    signal.signal(signal.SIGINT, exit_gracefully)
+        print_error('Quitting...', -1)
+    signal.signal(signal.SIGINT, [], exit_gracefully)
 
 
-def print_error(text, options, result):
+def print_error(text, options, result=False):
     """
     Prints error message and exits with result code result if not 0.
     """
-    if not options['quiet']:
+    if not len(options) or not options['quiet']:
         print('[-] ' + text, file=sys.stderr)
         sys.stdout.flush()
         sys.stderr.flush()
@@ -71,7 +71,7 @@ def preflight_checks(options):
     tools = []
     for tool in ['nmap', 'nikto', 'testssl.sh', 'curl']:
         if options[tool]:
-            print_status('Checking {0}... '.format(tool), options)
+            print_status('Checking whether {0} is present... '.format(tool), options)
             result, _stdout, _stderr = execute_command([tool, '--version'], options)
             if not result:
                 print_error('FAILED: Could not execute {0}, disabling checks'.format(tool), options, False)
@@ -86,21 +86,21 @@ def execute_command(cmd, options):
     stdout = ''
     stderr = ''
     result = False
+    global child
+    child = []
     if options['dryrun']:
         print_status(' '.join(cmd), options)
         return True, stdout, stderr
     try:
-
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE)
+        child.append(process.pid)
+        child.append(cmd[0])
         stdout, stderr = process.communicate()
         result = not process.returncode
     except OSError as exception:
         pass
-#        print('could not execute {0}'.format(cmd))
-#        print('[-] {0}'.format(exception.strerror), file=sys.stderr)
-#    if not result:
-#        print_error('FAILED', options, False)
+    child = []
     return result, stdout, stderr
 
 
@@ -111,7 +111,6 @@ def perform_recon(host, options, output_file):
     """
     if options['whois']:
         do_whois(host, options, host_data)
-# show output
 
 
 def do_portscan(host, options, output_file):
@@ -132,28 +131,28 @@ def do_portscan(host, options, output_file):
         return [UNKNOWN]
     open_ports = []
     if options['allports']:
-        arguments += ' -p1-65535 --script=(default or discovery or version) and not broadcast and not external and not intrusive and not http-email-harvest and not http-grep and not ipidseq and not path-mtu and not qscan)'
+        arguments += ' -p1-65535 --script="((default or discovery or version) and not broadcast and not external and not intrusive and not http-email-harvest and not http-grep and not ipidseq and not path-mtu and not qscan)"'
     if options['trace']:
         arguments += ' --script http-trace'
     if options['dryrun']:
-        print_status('nmap ' + arguments, options)
+        print_status('nmap {0} {1}'.format(arguments, host), options)
         return [UNKNOWN]
-    print_status('starting nmap scan', options)
+    print_status('Starting nmap scan', options)
     try:
         temp_file = tempfile.NamedTemporaryFile()
-        arguments = '-oN ' + temp_file.name
+        arguments = '{0} -oN {1}'.format(arguments, temp_file.name)
         scanner = nmap.PortScanner()
         scanner.scan(hosts=host, arguments=arguments)
-        print_status('Finished succesfully', options)
         for ip in scanner.all_hosts():
             if scanner[ip] and scanner[ip].state() == 'up':
                 for port in scanner[ip].all_tcp():
                     if scanner[ip]['tcp'][port]['state'] == "open":
                         open_ports.append(port)
-        print_status('Found open ports {0}'.format(open_ports), options)
-        with open(temp_file.name, 'r') as read_file:
-            result = read_file.read()
-        append_logs(output_file, options, result)
+        if len(open_ports):
+            print_status('Found open ports {0}'.format(open_ports), options)
+        else:
+            print_status('Did not detect any open ports', options)
+        append_file(output_file, options, temp_file.name)
     except nmap.PortScannerError:
         open_ports = [UNKNOWN]
     finally:
@@ -173,6 +172,15 @@ def append_logs(output_file, options, stdout, stderr=None):
                 open_file.write(stderr)
     except IOError:
         print_error('FAILED: Could not write to {0}'.format(output_file), options, -1)
+
+
+def append_file(output_file, options, input_file):
+    try:
+        with open(input_file, 'r') as read_file:
+            result = read_file.read()
+        append_logs(output_file, options, result)
+    except IOError:
+        print_error('FAILED: Could not read {0}'.format(input_file), options, -1)
 
 
 def reverse_lookup(ip):
@@ -209,7 +217,9 @@ def do_nikto(host, port, options, output_file):
         options:
         output_file:
     """
-    command = ['nikto', '-host', '{0}:{1}'.format(host, port)]
+    command = ['nikto', '-vhost', '{0}'.format(host), '-maxtime',
+               '{0}m'.format(options['maxtime']), '-host',
+               '{0}:{1}'.format(host, port)]
     if port == 443:
         command.append('-ssl')
     result, stdout, stderr = execute_command(command, options)
@@ -227,7 +237,8 @@ def do_testssl(host, port, options, output_file):
         options: 
         output_file: 
     """
-    command = ['testssl.sh', '--color', '0', '{0}:{1}'.format(host, port)]
+    command = ['testssl.sh', '--quiet', '--warnings', 'off', '--color', '0',
+               '{0}:{1}'.format(host, port)]
     result, stdout, stderr = execute_command(command, options)
     append_logs(output_file, options, stdout, stderr)
 
@@ -272,7 +283,7 @@ def port_open(port, open_ports):
 def use_tool(tool, host, port, options, output_file):
     if not options[tool]:
         return
-#    print_status('using tool {0}'.format(tool), options)
+    print_status('starting {0} scan on {1}:{2}'.format(tool, host, port), options)
     if tool == 'nikto':
         do_nikto(host, port, options, output_file)
     if tool == 'curl':
@@ -288,8 +299,9 @@ def loop_hosts(options, queue):
         output_file = 'analyze_hosts.output'
     else:
         output_file = options['output']
+    counter = 1
     for host in queue:
-        status = 'Working on {0}'.format(host)
+        status = 'Working on {0} ({1} of {2})'.format(host, counter, len(queue))
         print_status(status, options)
         append_logs(output_file,options, status + '\n')
         perform_recon(host, options, output_file)
@@ -302,6 +314,8 @@ def loop_hosts(options, queue):
                     for tool in ['testssl.sh']:
                         use_tool(tool, host, port, options, output_file)
         remove_from_queue(host, queue)
+        counter += 1
+    print_status('Output saved to {0}'.format(output_file), options)
 
 
 def read_queue(filename):
@@ -362,6 +376,8 @@ the Free Software Foundation, either version 3 of the License, or
                         help='perform a whois lookup')
     parser.add_argument('--header', action='store', default='analyze_hosts',
                         help='custom header to use for scantools (default analyze_hosts)')
+    parser.add_argument('--maxtime', action='store', default='10', type=int,
+                        help='timeout for scans in minutes (default 10)')
     parser.add_argument('--timeout', action='store', default='10', type=int,
                         help='timeout for requests in seconds (default 10)')
     parser.add_argument('--quiet', action='store_true', 
