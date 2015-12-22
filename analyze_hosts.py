@@ -126,7 +126,7 @@ def do_portscan(host, options, output_file):
         options: dictionary with options
         output_file: raw output file
     """
-    arguments = '-A'
+    arguments = '-Av'
     if not options['nmap']:
         return [UNKNOWN]
     open_ports = []
@@ -134,6 +134,8 @@ def do_portscan(host, options, output_file):
         arguments += ' -p1-65535 --script="((default or discovery or version) and not broadcast and not external and not intrusive and not http-email-harvest and not http-grep and not ipidseq and not path-mtu and not qscan)"'
     if options['trace']:
         arguments += ' --script http-trace'
+    if options['smtp']:
+        arguments += ' --script smtp-open-relay'
     if options['dryrun']:
         print_status('nmap {0} {1}'.format(arguments, host), options)
         return [UNKNOWN]
@@ -370,6 +372,8 @@ the Free Software Foundation, either version 3 of the License, or
                         help='run a ssl scan')    
     parser.add_argument('--allports', action='store_true',
                         help='run a full-blown nmap scan on all ports')
+    parser.add_argument('--smtp', action='store_true',
+                        help='check mailserver for open relay')
     parser.add_argument('-t', '--trace', action='store_true',
                         help='check webserver for HTTP TRACE method')
     parser.add_argument('-w', '--whois', action='store_true',
@@ -386,7 +390,7 @@ the Free Software Foundation, either version 3 of the License, or
     if not (args.inputfile or args.target):
         parser.error('Specify either a target or input file')
     options = vars(parser.parse_args())
-    options['nmap'] = (args.allports | args.nmap)
+    options['nmap'] = (args.allports | args.nmap | args.trace | args.smtp)
     options['testssl.sh'] = args.ssl
     options['curl'] = args.trace
     return options
