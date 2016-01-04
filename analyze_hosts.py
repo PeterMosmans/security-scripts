@@ -126,7 +126,7 @@ def do_portscan(host, options, output_file):
         options: dictionary with options
         output_file: raw output file
     """
-    arguments = '-Av'
+    arguments = '-A -v'
     if not options['nmap']:
         return [UNKNOWN]
     open_ports = []
@@ -134,8 +134,10 @@ def do_portscan(host, options, output_file):
         arguments += ' -p1-65535 --script="((default or discovery or version) and not broadcast and not external and not intrusive and not http-email-harvest and not http-grep and not ipidseq and not path-mtu and not qscan)"'
     if options['trace']:
         arguments += ' --script http-trace'
+        # fail string: http-trace: TRACE is enabled
     if options['smtp']:
         arguments += ' --script smtp-open-relay'
+        # fail string: smtp-open-relay: Server is an open relay
     if options['dryrun']:
         print_status('nmap {0} {1}'.format(arguments, host), options)
         return [UNKNOWN]
@@ -148,14 +150,15 @@ def do_portscan(host, options, output_file):
         for ip in scanner.all_hosts():
             if scanner[ip] and scanner[ip].state() == 'up':
                 for port in scanner[ip].all_tcp():
-                    if scanner[ip]['tcp'][port]['state'] == "open":
+                    if scanner[ip]['tcp'][port]['state'] == 'open':
                         open_ports.append(port)
         if len(open_ports):
             print_status('Found open ports {0}'.format(open_ports), options)
         else:
             print_status('Did not detect any open ports', options)
         append_file(output_file, options, temp_file.name)
-    except nmap.PortScannerError:
+    except nmap.PortScannerError as exception:
+        print_error('issue while running nmap ({0})'.format(exception), options)
         open_ports = [UNKNOWN]
     finally:
         temp_file.close()
@@ -167,10 +170,10 @@ def do_portscan(host, options, output_file):
 def append_logs(output_file, options, stdout, stderr=None):
     try:
         if stdout:
-            with open(output_file, 'a') as open_file:
+            with open(output_file, 'a+') as open_file:
                 open_file.write(stdout)
         if stderr:
-            with open(output_file, 'a') as open_file:
+            with open(output_file, 'a+') as open_file:
                 open_file.write(stderr)
     except IOError:
         print_error('FAILED: Could not write to {0}'.format(output_file), options, -1)
