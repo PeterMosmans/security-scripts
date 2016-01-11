@@ -3,7 +3,7 @@
 """
 analyze_hosts - scans one or more hosts for security misconfigurations
 
-Copyright (C) 2015 Peter Mosmans [Go Forward]
+Copyright (C) 2015-2016 Peter Mosmans [Go Forward]
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
@@ -365,7 +365,7 @@ def parse_arguments():
             description=textwrap.dedent('''\
 analyze_hosts - scans one or more hosts for security misconfigurations
 
-Copyright (C) 2015 Peter Mosmans [Go Forward]
+Copyright (C) 2015-2016  Peter Mosmans [Go Forward]
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
@@ -424,7 +424,7 @@ def main():
     if not options['force']:
         preflight_checks(options)
     if not options['inputfile']:
-        if not options['resume']:
+        if options['resume']:
             options['inputfile'] = options['queuefile']
         else:
             options['inputfile'] = prepare_queue(options['target'])
