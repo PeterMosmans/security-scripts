@@ -29,6 +29,9 @@ UNKNOWN = -1
 
 
 def exit_gracefully(signum, frame):
+    """
+    Handle interrupts gracefully.
+    """
     global child
     signal.signal(signal.SIGINT, original_sigint)
     try:
@@ -68,7 +71,6 @@ def preflight_checks(options):
     """
     Checks if all tools are there, and disables tools automatically
     """
-    tools = []
     for tool in ['nmap', 'nikto', 'testssl.sh', 'curl']:
         if options[tool]:
             print_status('Checking whether {0} is present... '.format(tool), options)
@@ -76,6 +78,9 @@ def preflight_checks(options):
             if not result:
                 print_error('FAILED: Could not execute {0}, disabling checks'.format(tool), options, False)
                 options[tool] = False
+    if os.path.isfile(options['queuefile']):
+        if os.stat(options['queuefile']).st_size and not options['resume']:
+            print_error('WARNING: Queuefile {0} already exists. Use --resume to resume, or delete file manually'.format(options['queuefile']), options, True)
 
 
 def execute_command(cmd, options):
@@ -165,8 +170,6 @@ def do_portscan(host, options, output_file):
     return open_ports
 
 
-# All checks
-
 def append_logs(output_file, options, stdout, stderr=None):
     try:
         if stdout:
@@ -181,11 +184,13 @@ def append_logs(output_file, options, stdout, stderr=None):
 
 def append_file(output_file, options, input_file):
     try:
-        with open(input_file, 'r') as read_file:
-            result = read_file.read()
-        append_logs(output_file, options, result)
-    except IOError:
-        print_error('FAILED: Could not read {0}'.format(input_file), options, -1)
+        if os.path.isfile(input_file) and os.stat(input_file).st_size:
+            with open(input_file, 'r') as read_file:
+                result = read_file.read()
+            append_logs(output_file, options, result)
+    except IOError as exception:
+        print_error('FAILED: Could not read {0} ({1}'.
+                    format(input_file, exception), options, -1)
 
 
 def reverse_lookup(ip):
@@ -258,19 +263,34 @@ def interrogate_DNS(ip):
     print(reverse)
 
     
-def prepare_queue(options):
-    """Prepares a queue file which holds all hosts to scan.
+def prepare_queue(hosts):
     """
-    return
+    Prepares a queue file which holds all hosts to scan.
+    """
+    queuefile = 'analyze_hosts.queue'
+    arguments = '-nsL'
+    scanner = nmap.PortScanner()
+    scanner.scan(hosts='{0}'.format(hosts), arguments=arguments)
+#    hosts_list = [(x, scanner[x]['status']['state']) for x in scanner.all_hosts()]
+    with open(queuefile, 'a') as f:
+        for host in scanner.all_hosts():
+            f.write(host + '\n')
+    return queuefile
 
 
-def remove_from_queue(host, queue):
+def remove_from_queue(host, options):
     """
     Removes a host from the queue file.
     """
-    queuefile = 'analyze_hosts.queue'
-    
-    return 'analyze'
+    with open(options['queuefile'], 'r+') as f:
+        hosts = f.read().splitlines()
+        f.seek(0)
+        for i in hosts:
+            if i != host:
+                f.write(i + '\n')
+        f.truncate()
+    if not os.stat(options['queuefile']).st_size:
+        os.remove(options['queuefile'])
 
 
 def port_open(port, open_ports):
@@ -318,28 +338,21 @@ def loop_hosts(options, queue):
                 if port == 443:
                     for tool in ['testssl.sh']:
                         use_tool(tool, host, port, options, output_file)
-        remove_from_queue(host, queue)
+        remove_from_queue(host, options)
         counter += 1
     print_status('Output saved to {0}'.format(output_file), options)
 
 
 def read_queue(filename):
     """   
-    A docstring should give enough information to write a call to the function without reading the function's code.
-    A docstring should describe the function's calling syntax and its semantics, not its implementation.
-    The description should mention required type(s) and the meaning of the argument. 
-    
-    Returns:
-    
-    Arguments:
-        filename: 
+    Returns a list of targets
     """
     queue = []
     try:
         with open(filename, 'r') as queuefile:
          queue = queuefile.read().splitlines()
     except IOError:
-        print('dude')
+        print('[-] could not read {0}'.format(filename))
     return queue
 
 
@@ -371,8 +384,12 @@ the Free Software Foundation, either version 3 of the License, or
                         help='run a nikto scan')
     parser.add_argument('-p', '--nmap', action='store_true',
                         help='run a nmap scan')
+    parser.add_argument('--queuefile', action='store',
+                        default='analyze_hosts.queue', help='the queuefile')
+    parser.add_argument('--resume', action='store_true',
+                        help='resume working on the queue')
     parser.add_argument('--ssl', action='store_true',
-                        help='run a ssl scan')    
+                        help='run a ssl scan')
     parser.add_argument('--allports', action='store_true',
                         help='run a full-blown nmap scan on all ports')
     parser.add_argument('--smtp', action='store_true',
@@ -387,13 +404,13 @@ the Free Software Foundation, either version 3 of the License, or
                         help='timeout for scans in minutes (default 10)')
     parser.add_argument('--timeout', action='store', default='10', type=int,
                         help='timeout for requests in seconds (default 10)')
-    parser.add_argument('--quiet', action='store_true', 
+    parser.add_argument('--quiet', action='store_true',
                         help='Don\'t output status messages')
     args = parser.parse_args()
-    if not (args.inputfile or args.target):
+    if not (args.inputfile or args.target or args.resume):
         parser.error('Specify either a target or input file')
     options = vars(parser.parse_args())
-    options['nmap'] = (args.allports | args.nmap | args.trace | args.smtp)
+    options['nmap'] = (args.allports | args.nmap | args.trace | args.smtp | (not args.target))
     options['testssl.sh'] = args.ssl
     options['curl'] = args.trace
     return options
@@ -404,12 +421,14 @@ def main():
     Main program loop.
     """
     options = parse_arguments()
-    if options['inputfile']:
-        queue = read_queue(options['inputfile'])
-    else:
-        queue = [options['target']]
     if not options['force']:
         preflight_checks(options)
+    if not options['inputfile']:
+        if not options['resume']:
+            options['inputfile'] = options['queuefile']
+        else:
+            options['inputfile'] = prepare_queue(options['target'])
+    queue = read_queue(options['inputfile'])
     loop_hosts(options, queue)
 
 
