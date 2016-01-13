@@ -73,7 +73,7 @@ def preflight_checks(options):
     Checks if all tools are there, and disables tools automatically
     """
     if options['resume']:
-        if not os.path.isfile(options['queuefile']) or os.stat(options['queuefile']).st_size:
+        if not os.path.isfile(options['queuefile']) or not os.stat(options['queuefile']).st_size:
             print_error('Cannot resume - queuefile {0} is empty'.format(options['queuefile']), options, True)
     else:
         if os.path.isfile(options['queuefile']) and os.stat(options['queuefile']).st_size:
@@ -149,9 +149,11 @@ def do_portscan(host, options):
         return [UNKNOWN]
     open_ports = []
     if options['allports']:
-        arguments += ' -p1-65535 --script="((default or discovery or version) and not broadcast and not external and not intrusive and not http-email-harvest and not http-grep and not ipidseq and not path-mtu and not qscan)"'
+        arguments += ' -p1-65535'
+        # --script=ssh2-enum-algos
+        # --script="((default or discovery or version) and not broadcast and not external and not intrusive and not http-email-harvest and not http-grep and not ipidseq and not path-mtu and not qscan)"
     if options['trace']:
-        arguments += ' --script http-trace'
+#        arguments += ' --script=http-title,http-trace,imap-ntlm-info,smb-os-discovery'
         # fail string: http-trace: TRACE is enabled
     if options['smtp']:
         arguments += ' --script smtp-open-relay'
@@ -256,7 +258,7 @@ def do_testssl(host, port, options):
     command = ['testssl.sh', '--quiet', '--warnings', 'off', '--color', '0',
                '-p', '-f', '-U', '-S']
     if options['timeout']:
-        command = ['timeout', timeout] + command
+        command = ['timeout', str(timeout)] + command
     if port == 25:
         command += ['--starttls', 'smtp']
     result, stdout, stderr = execute_command(command +
@@ -271,19 +273,23 @@ def interrogate_DNS(ip):
     reverse = dns.reversename.from_address(ip)
     print(reverse)
 
-    
-def prepare_queue(hosts):
+
+def prepare_queue(options):
     """
     Prepares a queue file which holds all hosts to scan.
     """
-    queuefile = 'analyze_hosts.queue'
-    arguments = '-nsL'
-    scanner = nmap.PortScanner()
-    scanner.scan(hosts='{0}'.format(hosts), arguments=arguments)
-#    hosts_list = [(x, scanner[x]['status']['state']) for x in scanner.all_hosts()]
-    with open(queuefile, 'a') as f:
-        for host in scanner.all_hosts():
-            f.write(host + '\n')
+    if options['target'] in ['/', '-', ',']:
+        if not options['nmap']:
+            print_error('nmap is necessary for IP ranges', options, True)
+        arguments = '-nsL'
+        scanner = nmap.PortScanner()
+        scanner.scan(hosts='{0}'.format(options['target']), arguments=arguments)
+        hosts = scanner.all_hosts()
+    else:
+        hosts = [options['target']]
+    with open(options['queuefile'], 'a') as queuefile:
+        for host in hosts:
+            queuefile.write(host + '\n')
     return queuefile
 
 
@@ -357,7 +363,7 @@ def read_queue(filename):
     queue = []
     try:
         with open(filename, 'r') as queuefile:
-         queue = queuefile.read().splitlines()
+            queue = queuefile.read().splitlines()
     except IOError:
         print('[-] could not read {0}'.format(filename))
     return queue
@@ -438,8 +444,8 @@ def main():
         if options['resume']:
             options['inputfile'] = options['queuefile']
         else:
-            options['inputfile'] = prepare_queue(options['target'])
-    queue = read_queue(options['inputfile'])
+            options['inputfile'] = prepare_queue(options)
+    queue = read_queue(options['queuefile'])
     loop_hosts(options, queue)
 
 
