@@ -16,6 +16,7 @@ from __future__ import print_function
 import argparse
 import os
 import signal
+import ssl
 import subprocess
 import sys
 import tempfile
@@ -71,16 +72,22 @@ def preflight_checks(options):
     """
     Checks if all tools are there, and disables tools automatically
     """
-    for tool in ['nmap', 'nikto', 'testssl.sh', 'curl']:
+    if options['resume']:
+        if not os.path.isfile(options['queuefile']) or os.stat(options['queuefile']).st_size:
+            print_error('Cannot resume - queuefile {0} is empty'.format(options['queuefile']), options, True)
+    else:
+        if os.path.isfile(options['queuefile']) and os.stat(options['queuefile']).st_size:
+            print_error('WARNING: Queuefile {0} already exists. Use --resume to resume, or delete file manually'.format(options['queuefile']), options, True)
+    for basic in ['nmap', 'timeout']:
+        options[basic] = True
+    for tool in ['curl', 'nmap', 'nikto', 'testssl.sh', 'timeout']:
         if options[tool]:
             print_status('Checking whether {0} is present... '.format(tool), options)
             result, _stdout, _stderr = execute_command([tool, '--version'], options)
             if not result:
                 print_error('FAILED: Could not execute {0}, disabling checks'.format(tool), options, False)
                 options[tool] = False
-    if os.path.isfile(options['queuefile']):
-        if os.stat(options['queuefile']).st_size and not options['resume']:
-            print_error('WARNING: Queuefile {0} already exists. Use --resume to resume, or delete file manually'.format(options['queuefile']), options, True)
+
 
 
 def execute_command(cmd, options):
@@ -109,16 +116,23 @@ def execute_command(cmd, options):
     return result, stdout, stderr
 
 
-def perform_recon(host, options, output_file):
+def perform_recon(host, options):
     """
     Performs all recon actions on @host when specified in @options.
-    Writes output to @output_file.
     """
     if options['whois']:
         do_whois(host, options, host_data)
 
 
-def do_portscan(host, options, output_file):
+def download_cert(host, port, options):
+    """
+    Downloads and outputs a SSL certificate.
+    """
+    cert = ssl.get_server_certificate((host, port))
+    append_logs(options, cert)
+
+
+def do_portscan(host, options):
     """
     Performs a portscan.
 
@@ -129,10 +143,9 @@ def do_portscan(host, options, output_file):
     Arguments:
         host: target host in string
         options: dictionary with options
-        output_file: raw output file
     """
     arguments = '-A -v'
-    if not options['nmap']:
+    if not options['nmap'] or options['noportscan']:
         return [UNKNOWN]
     open_ports = []
     if options['allports']:
@@ -161,7 +174,7 @@ def do_portscan(host, options, output_file):
             print_status('Found open ports {0}'.format(open_ports), options)
         else:
             print_status('Did not detect any open ports', options)
-        append_file(output_file, options, temp_file.name)
+        append_file(options, temp_file.name)
     except nmap.PortScannerError as exception:
         print_error('issue while running nmap ({0})'.format(exception), options)
         open_ports = [UNKNOWN]
@@ -170,24 +183,25 @@ def do_portscan(host, options, output_file):
     return open_ports
 
 
-def append_logs(output_file, options, stdout, stderr=None):
+def append_logs(options, stdout, stderr=None):
     try:
         if stdout:
-            with open(output_file, 'a+') as open_file:
+            with open(options['output_file'], 'a+') as open_file:
                 open_file.write(stdout)
         if stderr:
-            with open(output_file, 'a+') as open_file:
+            with open(options['output_file'], 'a+') as open_file:
                 open_file.write(stderr)
     except IOError:
-        print_error('FAILED: Could not write to {0}'.format(output_file), options, -1)
+        print_error('FAILED: Could not write to {0}'.
+                    format(options['output_file']), options, -1)
 
 
-def append_file(output_file, options, input_file):
+def append_file(options, input_file):
     try:
         if os.path.isfile(input_file) and os.stat(input_file).st_size:
             with open(input_file, 'r') as read_file:
                 result = read_file.read()
-            append_logs(output_file, options, result)
+            append_logs(options, result)
     except IOError as exception:
         print_error('FAILED: Could not read {0} ({1}'.
                     format(input_file, exception), options, -1)
@@ -202,7 +216,7 @@ def reverse_lookup(ip):
 
 # tool-specific commands
 
-def do_curl(host, port, options, output_file):
+def do_curl(host, port, options):
     """Checks for HTTP TRACE method
     
     Returns:
@@ -211,53 +225,48 @@ def do_curl(host, port, options, output_file):
         host: 
         port: port that needs to be scanned
         options: 
-        output_file: 
     """
     if options['trace']:
         command = ['curl', '-qsIA', "'{0}'".format(options['header']), '--connect-timeout', str(options['timeout']), '-X', 'TRACE', '{0}:{1}'.format(host, port)]
         result, stdout, stderr = execute_command(command, options)
-        append_logs(output_file, options, stdout, stderr)
+        append_logs(options, stdout, stderr)
 
 
-def do_nikto(host, port, options, output_file):
+def do_nikto(host, port, options):
     """Performs a nikto scan.
 
     Arguments:
         host:
         options:
-        output_file:
     """
     command = ['nikto', '-vhost', '{0}'.format(host), '-maxtime',
-               '{0}m'.format(options['maxtime']), '-host',
+               '{0}s'.format(options['maxtime']), '-host',
                '{0}:{1}'.format(host, port)]
     if port == 443:
         command.append('-ssl')
     result, stdout, stderr = execute_command(command, options)
-    append_logs(output_file, options, stdout, stderr)
+    append_logs(options, stdout, stderr)
 
 
-def do_testssl(host, port, options, output_file):
-    """Checks for SSL/TLS configuration
-    
-    Returns:
-    
-    Arguments:
-        host: 
-        port: port that needs to be scanned
-        options: 
-        output_file: 
+def do_testssl(host, port, options):
     """
+    Checks SSL/TLS configuration and vulnerabilities.
+    """
+    timeout = 100 # hardcoded for now
     command = ['testssl.sh', '--quiet', '--warnings', 'off', '--color', '0',
-               '{0}:{1}'.format(host, port)]
-    result, stdout, stderr = execute_command(command, options)
-    append_logs(output_file, options, stdout, stderr)
+               '-p', '-f', '-U', '-S']
+    if options['timeout']:
+        command = ['timeout', timeout] + command
+    if port == 25:
+        command += ['--starttls', 'smtp']
+    result, stdout, stderr = execute_command(command +
+            ['{0}:{1}'.format(host, port)], options)
+    append_logs(options, stdout, stderr)
 
 
 def interrogate_DNS(ip):
-    """Performs deeper DNS inspection.
-
-    Arguments:
-        ip: ip address
+    """
+    Performs deeper DNS inspection.
     """
     reverse = dns.reversename.from_address(ip)
     print(reverse)
@@ -305,47 +314,45 @@ def port_open(port, open_ports):
     return (UNKNOWN in open_ports) or (port in open_ports)
 
 
-def use_tool(tool, host, port, options, output_file):
+def use_tool(tool, host, port, options):
     if not options[tool]:
         return
     print_status('starting {0} scan on {1}:{2}'.format(tool, host, port), options)
     if tool == 'nikto':
-        do_nikto(host, port, options, output_file)
+        do_nikto(host, port, options)
     if tool == 'curl':
-        do_curl(host, port, options, output_file)
+        do_curl(host, port, options)
     if tool == 'testssl.sh':
-        do_testssl(host, port, options, output_file)
+        do_testssl(host, port, options)
 
 
 def loop_hosts(options, queue):
-    """Main loop, iterates all hosts in queue.
     """
-    if not options['output']:
-        output_file = 'analyze_hosts.output'
-    else:
-        output_file = options['output']
+    Main loop, iterates all hosts in queue.
+    """
     counter = 1
     for host in queue:
         status = 'Working on {0} ({1} of {2})'.format(host, counter, len(queue))
         print_status(status, options)
-        append_logs(output_file,options, status + '\n')
-        perform_recon(host, options, output_file)
-        open_ports = do_portscan(host, options, output_file)
+        append_logs(options, status + '\n')
+        perform_recon(host, options)
+        open_ports = do_portscan(host, options)
         for port in [80, 443, 8080]:
             if port_open(port, open_ports):
                 for tool in ['curl', 'nikto']:
-                    use_tool(tool, host, port, options, output_file)
-                if port == 443:
+                    use_tool(tool, host, port, options)
+                if port in [25, 443, 465, 993, 995]:
                     for tool in ['testssl.sh']:
-                        use_tool(tool, host, port, options, output_file)
+                        use_tool(tool, host, port, options)
+                    download_cert(host, port, options)
         remove_from_queue(host, options)
         counter += 1
-    print_status('Output saved to {0}'.format(output_file), options)
+    print_status('Output saved to {0}'.format(options['output_file']), options)
 
 
 def read_queue(filename):
-    """   
-    Returns a list of targets
+    """
+    Returns a list of targets.
     """
     queue = []
     try:
@@ -376,12 +383,15 @@ the Free Software Foundation, either version 3 of the License, or
                         help='only show commands, don\'t actually run anything')
     parser.add_argument('-i', '--inputfile', action='store', type=str,
                         help='a file containing multiple targets, one per line')
-    parser.add_argument('-o', '--output', action='store', type=str,
-                        help='output file containing all scanresults')
+    parser.add_argument('-o', '--output_file', action='store', type=str,
+                        default = 'analyze_hosts.output',
+                        help='output file containing all scanresults (default analyze_hosts.output')
     parser.add_argument('-f', '--force', action='store_true',
                         help='don\'t perform preflight checks, go ahead anyway')
     parser.add_argument('--nikto', action='store_true',
                         help='run a nikto scan')
+    parser.add_argument('-n', '--noportscan', action='store_true',
+                        help='do NOT run a nmap portscan')
     parser.add_argument('-p', '--nmap', action='store_true',
                         help='run a nmap scan')
     parser.add_argument('--queuefile', action='store',
@@ -390,6 +400,8 @@ the Free Software Foundation, either version 3 of the License, or
                         help='resume working on the queue')
     parser.add_argument('--ssl', action='store_true',
                         help='run a ssl scan')
+    parser.add_argument('--sslcert', action='store_true',
+                        help='download SSL certificate')
     parser.add_argument('--allports', action='store_true',
                         help='run a full-blown nmap scan on all ports')
     parser.add_argument('--smtp', action='store_true',
@@ -400,8 +412,8 @@ the Free Software Foundation, either version 3 of the License, or
                         help='perform a whois lookup')
     parser.add_argument('--header', action='store', default='analyze_hosts',
                         help='custom header to use for scantools (default analyze_hosts)')
-    parser.add_argument('--maxtime', action='store', default='10', type=int,
-                        help='timeout for scans in minutes (default 10)')
+    parser.add_argument('--maxtime', action='store', default='600', type=int,
+                        help='timeout for scans in seconds (default 600)')
     parser.add_argument('--timeout', action='store', default='10', type=int,
                         help='timeout for requests in seconds (default 10)')
     parser.add_argument('--quiet', action='store_true',
@@ -410,7 +422,6 @@ the Free Software Foundation, either version 3 of the License, or
     if not (args.inputfile or args.target or args.resume):
         parser.error('Specify either a target or input file')
     options = vars(parser.parse_args())
-    options['nmap'] = (args.allports | args.nmap | args.trace | args.smtp | (not args.target))
     options['testssl.sh'] = args.ssl
     options['curl'] = args.trace
     return options
