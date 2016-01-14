@@ -128,8 +128,9 @@ def download_cert(host, port, options):
     """
     Downloads and outputs a SSL certificate.
     """
-    cert = ssl.get_server_certificate((host, port))
-    append_logs(options, cert)
+    if options['sslcert']:
+        cert = ssl.get_server_certificate((host, port))
+        append_logs(options, cert)
 
 
 def do_portscan(host, options):
