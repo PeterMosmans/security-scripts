@@ -77,7 +77,8 @@ def preflight_checks(options):
             print_error('Cannot resume - queuefile {0} is empty'.format(options['queuefile']), options, True)
     else:
         if os.path.isfile(options['queuefile']) and os.stat(options['queuefile']).st_size:
-            print_error('WARNING: Queuefile {0} already exists.\nUse --resume to resume with previous targets, or delete file manually'.format(options['queuefile']), options, True)
+            print_error('WARNING: Queuefile {0} already exists.\n' +
+                        '    Use --resume to resume with previous targets, or delete file manually'.format(options['queuefile']), options, True)
     for basic in ['nmap', 'timeout']:
         options[basic] = True
     for tool in ['curl', 'nmap', 'nikto', 'testssl.sh', 'timeout']:
@@ -126,11 +127,14 @@ def perform_recon(host, options):
 
 def download_cert(host, port, options):
     """
-    Downloads and outputs a SSL certificate.
+    Downloads an SSL certificate and appends it to the logfile.
     """
     if options['sslcert']:
-        cert = ssl.get_server_certificate((host, port))
-        append_logs(options, cert)
+        try:
+            cert = ssl.get_server_certificate((host, port))
+            append_logs(options, cert)
+        except ssl.SSLError:
+            continue
 
 
 def do_portscan(host, options):
