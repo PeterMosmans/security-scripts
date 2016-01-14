@@ -144,21 +144,24 @@ def do_portscan(host, options):
         host: target host in string
         options: dictionary with options
     """
-    arguments = '-A -v --script=ssh2-enum-algos,http-title,http-trace,imap-ntlm-info,nbstat ,smb-os-discovery,smtp-open-relay'
+    arguments = '-sS -sS -v --script= --script=dns-nsid,dns-recursion,http-title,http-trace,ntp-info,ntp-monlist,nbstat,smb-os-discovery,smtp-open-relay,ssh2-enum-algos'
     if options['port']:
-        arguments += '-p' + options['port']
+        arguments += ' -p' + options['port']
     if options['allports']:
         arguments += ' -p1-65535'
     if not options['nmap'] or options['noportscan']:
         return [UNKNOWN]
     open_ports = []
-        # --script="((default or discovery or version) and not broadcast and not external and not intrusive and not http-email-harvest and not http-grep and not ipidseq and not path-mtu and not qscan)"        
 #    if options['trace']:
 #        arguments += ' --script=http-trace'
-        # fail string: http-trace: TRACE is enabled
+
 #    if options['smtp']:
 #        arguments += ' --script=smtp-open-relay'
-        # fail string: smtp-open-relay: Server is an open relay
+# output matches:
+#    bind.version: [secured]
+#    dns-recursion: Recursion appears to be enabled
+#    smtp-open-relay: Server is an open relay (x/y tests)
+#    http-trace: TRACE is enabled
     if options['dryrun']:
         print_status('nmap {0} {1}'.format(arguments, host), options)
         return [UNKNOWN]
@@ -373,6 +376,9 @@ def parse_arguments():
             description=textwrap.dedent('''\
 analyze_hosts - scans one or more hosts for security misconfigurations
 
+Please note that this is NOT a stealthy scan tool: By default, a TCP and UDP
+portscan will be launched, using some of nmap's interrogation scripts.
+
 Copyright (C) 2015-2016  Peter Mosmans [Go Forward]
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -393,7 +399,7 @@ the Free Software Foundation, either version 3 of the License, or
                         help='run a nikto scan')
     parser.add_argument('-n', '--noportscan', action='store_true',
                         help='do NOT run a nmap portscan')
-    parser.add_argument('-p', action='store',
+    parser.add_argument('-p', '--port', action='store',
                         help='specific port(s) to scan')
     parser.add_argument('--queuefile', action='store',
                         default='analyze_hosts.queue', help='the queuefile')
