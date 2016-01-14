@@ -89,11 +89,11 @@ def preflight_checks(options):
                 options[tool] = False
 
 
-
 def execute_command(cmd, options):
     """
     Executes command.
-    Returns True if command succeeded
+
+    Returns result, stdout, stderr
     """
     stdout = ''
     stderr = ''
@@ -144,19 +144,14 @@ def do_portscan(host, options):
         host: target host in string
         options: dictionary with options
     """
+    if not options['nmap'] or options['noportscan']:
+        return [UNKNOWN]
+    open_ports = []
     arguments = '-sS -sS -v --script=dns-nsid,dns-recursion,http-title,http-trace,ntp-info,ntp-monlist,nbstat,smb-os-discovery,smtp-open-relay,ssh2-enum-algos'
     if options['port']:
         arguments += ' -p' + options['port']
     if options['allports']:
         arguments += ' -p1-65535'
-    if not options['nmap'] or options['noportscan']:
-        return [UNKNOWN]
-    open_ports = []
-#    if options['trace']:
-#        arguments += ' --script=http-trace'
-
-#    if options['smtp']:
-#        arguments += ' --script=smtp-open-relay'
 # output matches:
 #    bind.version: [secured]
 #    dns-recursion: Recursion appears to be enabled
@@ -213,13 +208,6 @@ def append_file(options, input_file):
                     format(input_file, exception), options, -1)
 
 
-def reverse_lookup(ip):
-    """
-    Resolves an IP address to a hostname
-    """
-    return socket.gethostbyaddr(ip)
-
-
 # tool-specific commands
 
 def do_curl(host, port, options):
@@ -259,14 +247,6 @@ def do_testssl(host, port, options):
     result, stdout, stderr = execute_command(command +
             ['{0}:{1}'.format(host, port)], options)
     append_logs(options, stdout, stderr)
-
-
-def interrogate_DNS(ip):
-    """
-    Performs deeper DNS inspection.
-    """
-    reverse = dns.reversename.from_address(ip)
-    print(reverse)
 
 
 def prepare_queue(options):
@@ -334,23 +314,21 @@ def loop_hosts(options, queue):
     """
     Main loop, iterates all hosts in queue.
     """
-    counter = 1
-    for host in queue:
+    for counter, host in enumerate(queue):
         status = 'Working on {0} ({1} of {2})'.format(host, counter, len(queue))
         print_status(status, options)
         append_logs(options, status + '\n')
         perform_recon(host, options)
         open_ports = do_portscan(host, options)
-        for port in [80, 443, 8080]:
-            if port_open(port, open_ports):
+        for port in open_ports:
+            if port in [80, 443, 8080]:
                 for tool in ['curl', 'nikto']:
                     use_tool(tool, host, port, options)
-                if port in [25, 443, 465, 993, 995]:
-                    for tool in ['testssl.sh']:
-                        use_tool(tool, host, port, options)
+            if port in [25, 443, 465, 993, 995]:
+                for tool in ['testssl.sh']:
+                    use_tool(tool, host, port, options)
                     download_cert(host, port, options)
         remove_from_queue(host, options)
-        counter += 1
     print_status('Output saved to {0}'.format(options['output_file']), options)
 
 
