@@ -21,13 +21,22 @@ import subprocess
 import sys
 import tempfile
 import textwrap
+import time
 
 
 import nmap
 
 
+# manually changed per feature change
+VERSION = '0.1'
 UNKNOWN = -1
 
+
+def timestamp():
+    """
+    Returns timestamp.
+    """
+    return time.strftime("%H:%M:%S %d-%m-%Y")
 
 def exit_gracefully(signum, frame):
     """
@@ -50,7 +59,7 @@ def print_error(text, options, result=False):
     """
     Prints error message and exits with result code result if not 0.
     """
-    if not len(options) or not options['quiet']:
+    if not len(options):
         print('[-] ' + text, file=sys.stderr)
         sys.stdout.flush()
         sys.stderr.flush()
@@ -62,7 +71,7 @@ def print_status(text, options):
     """
     Prints status message.
     """
-    if not options['quiet']:
+    if options['verbose']:
         print('[*] ' + text)
         sys.stdout.flush()
         sys.stderr.flush()
@@ -79,8 +88,9 @@ def preflight_checks(options):
         if os.path.isfile(options['queuefile']) and os.stat(options['queuefile']).st_size:
             print_error('WARNING: Queuefile {0} already exists.\n' +
                         '    Use --resume to resume with previous targets, or delete file manually'.format(options['queuefile']), options, True)
-    for basic in ['nmap', 'timeout']:
+    for basic in ['nmap']:
         options[basic] = True
+    options['timeout'] = options['testssl.sh']
     for tool in ['curl', 'nmap', 'nikto', 'testssl.sh', 'timeout']:
         if options[tool]:
             print_status('Checking whether {0} is present... '.format(tool), options)
@@ -102,7 +112,7 @@ def execute_command(cmd, options):
     global child
     child = []
     if options['dryrun']:
-        print_status(' '.join(cmd), options)
+        print(' '.join(cmd))
         return True, stdout, stderr
     try:
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE,
@@ -115,14 +125,6 @@ def execute_command(cmd, options):
         pass
     child = []
     return result, stdout, stderr
-
-
-def perform_recon(host, options):
-    """
-    Performs all recon actions on @host when specified in @options.
-    """
-    if options['whois']:
-        do_whois(host, options, host_data)
 
 
 def download_cert(host, port, options):
@@ -162,7 +164,7 @@ def do_portscan(host, options):
 #    smtp-open-relay: Server is an open relay (x/y tests)
 #    http-trace: TRACE is enabled
     if options['dryrun']:
-        print_status('nmap {0} {1}'.format(arguments, host), options)
+        print('nmap {0} {1}'.format(arguments, host))
         return [UNKNOWN]
     print_status('Starting nmap scan', options)
     try:
@@ -176,7 +178,7 @@ def do_portscan(host, options):
                     if scanner[ip]['tcp'][port]['state'] == 'open':
                         open_ports.append(port)
         if len(open_ports):
-            print_status('Found open ports {0}'.format(open_ports), options)
+            print('Found open ports {0}'.format(open_ports))
         else:
             print_status('Did not detect any open ports', options)
         append_file(options, temp_file.name)
@@ -319,8 +321,8 @@ def loop_hosts(options, queue):
     Main loop, iterates all hosts in queue.
     """
     for counter, host in enumerate(queue, 1):
-        status = 'Working on {0} ({1} of {2})'.format(host, counter, len(queue))
-        print_status(status, options)
+        status = '[+] ' + timestamp() + ' - Working on {0} ({1} of {2})'.format(host, counter, len(queue))
+        print(status)
         append_logs(options, status + '\n')
         perform_recon(host, options)
         open_ports = do_portscan(host, options)
@@ -333,7 +335,7 @@ def loop_hosts(options, queue):
                     use_tool(tool, host, port, options)
                     download_cert(host, port, options)
         remove_from_queue(host, options)
-    print_status('Output saved to {0}'.format(options['output_file']), options)
+    print('Output saved to {0}'.format(options['output_file']))
 
 
 def read_queue(filename):
@@ -349,14 +351,14 @@ def read_queue(filename):
     return queue
 
 
-def parse_arguments():
+def parse_arguments(banner):
     """
     Parses command line arguments.
     """
     parser = argparse.ArgumentParser(
             formatter_class=argparse.RawDescriptionHelpFormatter,
-            description=textwrap.dedent('''\
-analyze_hosts - scans one or more hosts for security misconfigurations
+            description=textwrap.dedent(banner + '''\
+ - scans one or more hosts for security misconfigurations
 
 Please note that this is NOT a stealthy scan tool: By default, a TCP and UDP
 portscan will be launched, using some of nmap's interrogation scripts.
@@ -405,8 +407,8 @@ the Free Software Foundation, either version 3 of the License, or
                         help='timeout for scans in seconds (default 600)')
     parser.add_argument('--timeout', action='store', default='10', type=int,
                         help='timeout for requests in seconds (default 10)')
-    parser.add_argument('--quiet', action='store_true',
-                        help='Don\'t output status messages')
+    parser.add_argument('-v', '--verbose', action='store_true',
+                        help='Be more verbose')
     args = parser.parse_args()
     if not (args.inputfile or args.target or args.resume):
         parser.error('Specify either a target or input file')
@@ -420,7 +422,9 @@ def main():
     """
     Main program loop.
     """
-    options = parse_arguments()
+    banner = 'analyze_hosts.py version {0}'.format(VERSION)
+    options = parse_arguments(banner)
+    print(banner + ' - starting at ' + timestamp())
     if not options['force']:
         preflight_checks(options)
     if not options['inputfile']:
