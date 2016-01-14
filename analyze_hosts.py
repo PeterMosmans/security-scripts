@@ -134,8 +134,7 @@ def download_cert(host, port, options):
             cert = ssl.get_server_certificate((host, port))
             append_logs(options, cert)
         except ssl.SSLError:
-            continue
-
+            pass
 
 def do_portscan(host, options):
     """
