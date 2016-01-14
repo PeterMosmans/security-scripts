@@ -77,7 +77,7 @@ def preflight_checks(options):
             print_error('Cannot resume - queuefile {0} is empty'.format(options['queuefile']), options, True)
     else:
         if os.path.isfile(options['queuefile']) and os.stat(options['queuefile']).st_size:
-            print_error('WARNING: Queuefile {0} already exists. Use --resume to resume, or delete file manually'.format(options['queuefile']), options, True)
+            print_error('WARNING: Queuefile {0} already exists.\nUse --resume to resume with previous targets, or delete file manually'.format(options['queuefile']), options, True)
     for basic in ['nmap', 'timeout']:
         options[basic] = True
     for tool in ['curl', 'nmap', 'nikto', 'testssl.sh', 'timeout']:
@@ -144,19 +144,20 @@ def do_portscan(host, options):
         host: target host in string
         options: dictionary with options
     """
-    arguments = '-A -v'
+    arguments = '-A -v --script=ssh2-enum-algos,http-title,http-trace,imap-ntlm-info,nbstat ,smb-os-discovery,smtp-open-relay'
+    if options['port']:
+        arguments += '-p' + options['port']
+    if options['allports']:
+        arguments += ' -p1-65535'
     if not options['nmap'] or options['noportscan']:
         return [UNKNOWN]
     open_ports = []
-    if options['allports']:
-        arguments += ' -p1-65535'
-        # --script=ssh2-enum-algos
-        # --script="((default or discovery or version) and not broadcast and not external and not intrusive and not http-email-harvest and not http-grep and not ipidseq and not path-mtu and not qscan)"
-    if options['trace']:
-#        arguments += ' --script=http-title,http-trace,imap-ntlm-info,smb-os-discovery'
+        # --script="((default or discovery or version) and not broadcast and not external and not intrusive and not http-email-harvest and not http-grep and not ipidseq and not path-mtu and not qscan)"        
+#    if options['trace']:
+#        arguments += ' --script=http-trace'
         # fail string: http-trace: TRACE is enabled
-    if options['smtp']:
-        arguments += ' --script smtp-open-relay'
+#    if options['smtp']:
+#        arguments += ' --script=smtp-open-relay'
         # fail string: smtp-open-relay: Server is an open relay
     if options['dryrun']:
         print_status('nmap {0} {1}'.format(arguments, host), options)
@@ -219,14 +220,8 @@ def reverse_lookup(ip):
 # tool-specific commands
 
 def do_curl(host, port, options):
-    """Checks for HTTP TRACE method
-    
-    Returns:
-    
-    Arguments:
-        host: 
-        port: port that needs to be scanned
-        options: 
+    """
+    Checks for HTTP TRACE method.
     """
     if options['trace']:
         command = ['curl', '-qsIA', "'{0}'".format(options['header']), '--connect-timeout', str(options['timeout']), '-X', 'TRACE', '{0}:{1}'.format(host, port)]
@@ -235,11 +230,8 @@ def do_curl(host, port, options):
 
 
 def do_nikto(host, port, options):
-    """Performs a nikto scan.
-
-    Arguments:
-        host:
-        options:
+    """
+    Performs a nikto scan.
     """
     command = ['nikto', '-vhost', '{0}'.format(host), '-maxtime',
                '{0}s'.format(options['maxtime']), '-host',
@@ -257,8 +249,8 @@ def do_testssl(host, port, options):
     timeout = 100 # hardcoded for now
     command = ['testssl.sh', '--quiet', '--warnings', 'off', '--color', '0',
                '-p', '-f', '-U', '-S']
-    if options['timeout']:
-        command = ['timeout', str(timeout)] + command
+#    if options['timeout']:
+#        command = ['timeout', str(timeout)] + command
     if port == 25:
         command += ['--starttls', 'smtp']
     result, stdout, stderr = execute_command(command +
@@ -321,6 +313,9 @@ def port_open(port, open_ports):
 
 
 def use_tool(tool, host, port, options):
+    """
+    Wrapper to see if tool is available, and to tart correct tool.
+    """
     if not options[tool]:
         return
     print_status('starting {0} scan on {1}:{2}'.format(tool, host, port), options)
@@ -398,8 +393,8 @@ the Free Software Foundation, either version 3 of the License, or
                         help='run a nikto scan')
     parser.add_argument('-n', '--noportscan', action='store_true',
                         help='do NOT run a nmap portscan')
-    parser.add_argument('-p', '--nmap', action='store_true',
-                        help='run a nmap scan')
+    parser.add_argument('-p', action='store',
+                        help='specific port(s) to scan')
     parser.add_argument('--queuefile', action='store',
                         default='analyze_hosts.queue', help='the queuefile')
     parser.add_argument('--resume', action='store_true',
@@ -410,8 +405,8 @@ the Free Software Foundation, either version 3 of the License, or
                         help='download SSL certificate')
     parser.add_argument('--allports', action='store_true',
                         help='run a full-blown nmap scan on all ports')
-    parser.add_argument('--smtp', action='store_true',
-                        help='check mailserver for open relay')
+#    parser.add_argument('--smtp', action='store_true',
+#                        help='check mailserver for open relay')
     parser.add_argument('-t', '--trace', action='store_true',
                         help='check webserver for HTTP TRACE method')
     parser.add_argument('-w', '--whois', action='store_true',
