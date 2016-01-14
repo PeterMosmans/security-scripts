@@ -144,7 +144,7 @@ def do_portscan(host, options):
         host: target host in string
         options: dictionary with options
     """
-    arguments = '-sS -sS -v --script= --script=dns-nsid,dns-recursion,http-title,http-trace,ntp-info,ntp-monlist,nbstat,smb-os-discovery,smtp-open-relay,ssh2-enum-algos'
+    arguments = '-sS -sS -v --script=dns-nsid,dns-recursion,http-title,http-trace,ntp-info,ntp-monlist,nbstat,smb-os-discovery,smtp-open-relay,ssh2-enum-algos'
     if options['port']:
         arguments += ' -p' + options['port']
     if options['allports']:
