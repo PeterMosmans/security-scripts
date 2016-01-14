@@ -314,7 +314,7 @@ def loop_hosts(options, queue):
     """
     Main loop, iterates all hosts in queue.
     """
-    for counter, host in enumerate(queue):
+    for counter, host in enumerate(queue, 1):
         status = 'Working on {0} ({1} of {2})'.format(host, counter, len(queue))
         print_status(status, options)
         append_logs(options, status + '\n')
