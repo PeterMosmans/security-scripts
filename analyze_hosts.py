@@ -375,7 +375,7 @@ the Free Software Foundation, either version 3 of the License, or
     parser.add_argument('-i', '--inputfile', action='store', type=str,
                         help='a file containing multiple targets, one per line')
     parser.add_argument('-o', '--output_file', action='store', type=str,
-                        default = 'analyze_hosts.output',
+                        default='analyze_hosts.output',
                         help='output file containing all scanresults (default analyze_hosts.output')
     parser.add_argument('-f', '--force', action='store_true',
                         help='don\'t perform preflight checks, go ahead anyway')
@@ -395,8 +395,6 @@ the Free Software Foundation, either version 3 of the License, or
                         help='download SSL certificate')
     parser.add_argument('--allports', action='store_true',
                         help='run a full-blown nmap scan on all ports')
-#    parser.add_argument('--smtp', action='store_true',
-#                        help='check mailserver for open relay')
     parser.add_argument('-t', '--trace', action='store_true',
                         help='check webserver for HTTP TRACE method')
     parser.add_argument('-w', '--whois', action='store_true',
@@ -434,6 +432,7 @@ def main():
             options['inputfile'] = prepare_queue(options)
     queue = read_queue(options['queuefile'])
     loop_hosts(options, queue)
+    print('[+] Ended at ' + timestamp())
 
 
 if __name__ == "__main__":
