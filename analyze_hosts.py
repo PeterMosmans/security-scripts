@@ -242,11 +242,11 @@ def do_testssl(host, port, options):
     """
     Checks SSL/TLS configuration and vulnerabilities.
     """
-    timeout = 100 # hardcoded for now
+    timeout = 60 # hardcoded for now
     command = ['testssl.sh', '--quiet', '--warnings', 'off', '--color', '0',
                '-p', '-f', '-U', '-S']
-#    if options['timeout']:
-#        command = ['timeout', str(timeout)] + command
+    if options['timeout']:
+        command = ['timeout', str(timeout)] + command
     if port == 25:
         command += ['--starttls', 'smtp']
     result, stdout, stderr = execute_command(command +
