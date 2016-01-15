@@ -29,6 +29,7 @@ import nmap
 
 # manually changed per feature change
 VERSION = '0.1'
+SCRIPTS = 'dns-nsid,dns-recursion,http-title,http-trace,ntp-info,ntp-monlist,nbstat,smb-os-discovery,smtp-open-relay,ssh2-enum-algos'
 UNKNOWN = -1
 
 
@@ -154,7 +155,7 @@ def do_portscan(host, options):
     if not options['nmap'] or options['noportscan']:
         return [UNKNOWN]
     open_ports = []
-    arguments = '-sS -sS -v --script=dns-nsid,dns-recursion,http-title,http-trace,ntp-info,ntp-monlist,nbstat,smb-os-discovery,smtp-open-relay,ssh2-enum-algos'
+    arguments = '-sS -sS -v --script=' + SCRIPTS
     if options['port']:
         arguments += ' -p' + options['port']
     if options['allports']:
@@ -260,7 +261,7 @@ def prepare_queue(options):
     """
     Prepares a queue file which holds all hosts to scan.
     """
-    if options['target'] in ['/', '-', ',']:
+    if ('/' in options['target']) or ('-' in options['target']):
         if not options['nmap']:
             print_error('nmap is necessary for IP ranges', options, True)
         arguments = '-nsL'
