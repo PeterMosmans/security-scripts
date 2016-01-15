@@ -46,7 +46,8 @@ def exit_gracefully(signum, frame):
     signal.signal(signal.SIGINT, original_sigint)
     try:
         if len(child):
-            if raw_input('\nKill running process {0} ? (y/n) '.format(child[1])).lower().startswith('y'):
+            if raw_input('\nKill running process {0} ? (y/n) '.
+                         format(child[1])).lower().startswith('y'):
                 os.kill(child[0], signal.SIGHUP)
         if raw_input("\nQuit analyze_hosts ? (y/n) ").lower().startswith('y'):
             print_error('Quitting...', [], -1)
@@ -324,7 +325,6 @@ def loop_hosts(options, queue):
         status = '[+] ' + timestamp() + ' - Working on {0} ({1} of {2})'.format(host, counter, len(queue))
         print(status)
         append_logs(options, status + '\n')
-        perform_recon(host, options)
         open_ports = do_portscan(host, options)
         for port in open_ports:
             if port in [80, 443, 8080]:
