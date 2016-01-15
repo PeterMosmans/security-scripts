@@ -29,6 +29,7 @@ import nmap
 
 # manually changed per feature change
 VERSION = '0.1'
+ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
 SCRIPTS = 'dns-nsid,dns-recursion,http-title,http-trace,ntp-info,ntp-monlist,nbstat,smb-os-discovery,smtp-open-relay,ssh2-enum-algos'
 UNKNOWN = -1
 
@@ -153,7 +154,7 @@ def do_portscan(host, options):
         options: dictionary with options
     """
     if not options['nmap'] or options['noportscan']:
-        return [UNKNOWN]
+        return ALLPORTS
     open_ports = []
     arguments = '-sS -sS -v --script=' + SCRIPTS
     if options['port']:
@@ -167,7 +168,7 @@ def do_portscan(host, options):
 #    http-trace: TRACE is enabled
     if options['dryrun']:
         print('nmap {0} {1}'.format(arguments, host))
-        return [UNKNOWN]
+        return ALLPORTS
     print_status('Starting nmap scan', options)
     try:
         temp_file = tempfile.NamedTemporaryFile()
@@ -180,7 +181,7 @@ def do_portscan(host, options):
                     if scanner[ip]['tcp'][port]['state'] == 'open':
                         open_ports.append(port)
         if len(open_ports):
-            print('Found open ports {0}'.format(open_ports))
+            print('    Found open ports {0}'.format(open_ports))
         else:
             print_status('Did not detect any open ports', options)
         append_file(options, temp_file.name)
@@ -193,6 +194,9 @@ def do_portscan(host, options):
 
 
 def append_logs(options, stdout, stderr=None):
+    """
+    Append text strings to logfile.
+    """
     try:
         if stdout:
             with open(options['output_file'], 'a+') as open_file:
@@ -206,6 +210,9 @@ def append_logs(options, stdout, stderr=None):
 
 
 def append_file(options, input_file):
+    """
+    Append file to logfile.
+    """
     try:
         if os.path.isfile(input_file) and os.stat(input_file).st_size:
             with open(input_file, 'r') as read_file:
