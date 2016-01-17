@@ -30,7 +30,7 @@ import nmap
 # manually changed per feature change
 VERSION = '0.1'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
-SCRIPTS = 'dns-nsid,dns-recursion,http-title,http-trace,ntp-info,ntp-monlist,nbstat,smb-os-discovery,smtp-open-relay,ssh2-enum-algos'
+SCRIPTS = 'banner,dns-nsid,dns-recursion,http-title,http-trace,ntp-info,ntp-monlist,nbstat,smb-os-discovery,smtp-open-relay,ssh2-enum-algos'
 UNKNOWN = -1
 
 
@@ -39,6 +39,7 @@ def timestamp():
     Returns timestamp.
     """
     return time.strftime("%H:%M:%S %d-%m-%Y")
+
 
 def exit_gracefully(signum, frame):
     """
@@ -141,6 +142,7 @@ def download_cert(host, port, options):
         except ssl.SSLError:
             pass
 
+
 def do_portscan(host, options):
     """
     Performs a portscan.
@@ -156,11 +158,13 @@ def do_portscan(host, options):
     if not options['nmap'] or options['noportscan']:
         return ALLPORTS
     open_ports = []
-    arguments = '-sS -sS -v --script=' + SCRIPTS
+    arguments = '-sS -sV -v --script=' + SCRIPTS
     if options['port']:
         arguments += ' -p' + options['port']
     if options['allports']:
         arguments += ' -p1-65535'
+    else:
+        arguments += ' -sU'
 # output matches:
 #    bind.version: [secured]
 #    dns-recursion: Recursion appears to be enabled
@@ -230,8 +234,10 @@ def do_curl(host, port, options):
     Checks for HTTP TRACE method.
     """
     if options['trace']:
-        command = ['curl', '-qsIA', "'{0}'".format(options['header']), '--connect-timeout', str(options['timeout']), '-X', 'TRACE', '{0}:{1}'.format(host, port)]
-        result, stdout, stderr = execute_command(command, options)
+        command = ['curl', '-qsIA', "'{0}'".format(options['header']),
+                   '--connect-timeout', str(options['timeout']), '-X', 'TRACE',
+                   '{0}:{1}'.format(host, port)]
+        _result, stdout, stderr = execute_command(command, options)
         append_logs(options, stdout, stderr)
 
 
@@ -252,7 +258,7 @@ def do_testssl(host, port, options):
     """
     Checks SSL/TLS configuration and vulnerabilities.
     """
-    timeout = 60 # hardcoded for now
+    timeout = 60  # hardcoded for now
     command = ['testssl.sh', '--quiet', '--warnings', 'off', '--color', '0',
                '-p', '-f', '-U', '-S']
     if options['timeout']:
@@ -260,7 +266,8 @@ def do_testssl(host, port, options):
     if port == 25:
         command += ['--starttls', 'smtp']
     result, stdout, stderr = execute_command(command +
-            ['{0}:{1}'.format(host, port)], options)
+                                             ['{0}:{1}'.format(host, port)],
+                                             options)
     append_logs(options, stdout, stderr)
 
 
@@ -273,7 +280,8 @@ def prepare_queue(options):
             print_error('nmap is necessary for IP ranges', options, True)
         arguments = '-nsL'
         scanner = nmap.PortScanner()
-        scanner.scan(hosts='{0}'.format(options['target']), arguments=arguments)
+        scanner.scan(hosts='{0}'.format(options['target']),
+                     arguments=arguments)
         hosts = scanner.all_hosts()
     else:
         hosts = [options['target']]
