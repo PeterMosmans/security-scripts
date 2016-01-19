@@ -175,13 +175,19 @@ def do_portscan(host, options):
     if not options['nmap'] or options['noportscan']:
         return ALLPORTS
     open_ports = []
-    arguments = '-sS -sV -v --script=' + SCRIPTS
+    if is_admin:
+        arguments = '-sS'
+        if options['udp']:
+            arguments += ' -sU'
+    else:
+        print_status('Insufficient permissions for TCP SYN, using CONNECT',
+                     options)
+        arguments = '-sT'
+    arguments += ' -sV -v --script=' + SCRIPTS
     if options['port']:
         arguments += ' -p' + options['port']
     if options['allports']:
         arguments += ' -p1-65535'
-    if options['udp']:
-        arguments += ' -sU'
 # output matches:
 #    bind.version: [secured]
 #    dns-recursion: Recursion appears to be enabled
