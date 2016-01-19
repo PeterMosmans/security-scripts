@@ -1,8 +1,73 @@
 # security-scripts
 
-A collection of security related Bash shell scripts.
-No fancy programming framework required, all that is needed is a Bash shell.
+A collection of security related Python and Bash shell scripts.
+For the shell scripts no fancy programming framework required, all that is needed is a Bash shell.
 
+
+## analyze_hosts.py
+A simple wrapper script around several open source security tools to simplify scanning of hosts for network vulnerabilities. The script lets you analyze one or several hosts for common misconfiguration vulnerabilities and weaknesses.
+The main objectives for the script is to make it as easy as possible to perform generic security tests, without any heavy prerequisites, make the output as informative as possible, and use open source tools....
+
+### installation
+The only prerequisite is Python, and python-nmap. Recommended installation steps using virtualenv:
+```
+git clone https://github.com/PeterMosmans/security-scripts
+cd security-scripts && git checkout python
+virtualenv . && source bin/activate && pip install python-nmap
+```
+
+### usage
+```
+usage: analyze_hosts.py [-h] [--dry-run] [-i INPUTFILE] [-o OUTPUT_FILE] [-f]
+                        [--nikto] [-n] [-p PORT] [--queuefile QUEUEFILE]
+                        [--resume] [--ssl] [--sslcert] [--udp] [--allports]
+                        [-t] [-w] [--header HEADER] [--maxtime MAXTIME]
+                        [--timeout TIMEOUT] [-v]
+                        [target]
+
+analyze_hosts.py version 0.1 - scans one or more hosts for security misconfigurations
+
+Please note that this is NOT a stealthy scan tool: By default, a TCP portscan will be
+launched, using some of nmap's interrogation scripts.
+
+Copyright (C) 2015-2016  Peter Mosmans [Go Forward]
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+positional arguments:
+  target                [TARGET] can be a single (IP) address, an IP range,
+                        eg. 127.0.0.1-255, or multiple comma-separated
+                        addressess
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --dry-run             only show commands, don't actually do anything
+  -i INPUTFILE, --inputfile INPUTFILE
+                        a file containing multiple targets, one per line
+  -o OUTPUT_FILE, --output_file OUTPUT_FILE
+                        output file containing all scanresults (default
+                        analyze_hosts.output
+  -f, --force           don't perform preflight checks, go ahead anyway
+  --nikto               run a nikto scan
+  -n, --noportscan      do NOT run a nmap portscan
+  -p PORT, --port PORT  specific port(s) to scan
+  --queuefile QUEUEFILE
+                        the queuefile
+  --resume              resume working on the queue
+  --ssl                 run a ssl scan
+  --sslcert             download SSL certificate
+  --udp                 check for open UDP ports as well
+  --allports            run a full-blown nmap scan on all ports
+  -t, --trace           check webserver for HTTP TRACE method
+  -w, --whois           perform a whois lookup
+  --header HEADER       custom header to use for scantools (default
+                        analyze_hosts)
+  --maxtime MAXTIME     timeout for scans in seconds (default 600)
+  --timeout TIMEOUT     timeout for requests in seconds (default 10)
+  -v, --verbose         Be more verbose
+```
 
 ## analyze-hosts.sh
 A simple wrapper script around several open source security tools to simplify scanning of hosts for network vulnerabilities. The script lets you analyze one or several hosts for common misconfiguration vulnerabilities and weaknesses.
