@@ -175,7 +175,7 @@ def do_portscan(host, options):
     if not options['nmap'] or options['noportscan']:
         return ALLPORTS
     open_ports = []
-    if is_admin:
+    if is_admin():
         arguments = '-sS'
         if options['udp']:
             arguments += ' -sU'
