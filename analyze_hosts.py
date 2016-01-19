@@ -30,8 +30,23 @@ import nmap
 # manually changed per feature change
 VERSION = '0.1'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
-SCRIPTS = 'banner,dns-nsid,dns-recursion,http-title,http-trace,ntp-info,ntp-monlist,nbstat,smb-os-discovery,smtp-open-relay,ssh2-enum-algos'
+SCRIPTS = """banner,dns-nsid,dns-recursion,http-title,http-trace,\
+ntp-info,ntp-monlist,nbstat,smb-os-discovery,smtp-open-relay,ssh2-enum-algos"""
 UNKNOWN = -1
+
+
+def is_admin():
+    """
+    Returns true if script is run using root privileges
+    """
+    if os.name == 'nt':
+        import ctypes
+        try:
+            return ctypes.windll.shell32.IsUserAnAdmin()
+        except:
+            return False
+    else:
+        return os.geteuid() == 0
 
 
 def timestamp():
@@ -63,7 +78,7 @@ def print_error(text, options, result=False):
     """
     Prints error message and exits with result code result if not 0.
     """
-    if not len(options):
+    if len(text):
         print('[-] ' + text, file=sys.stderr)
         sys.stdout.flush()
         sys.stderr.flush()
@@ -94,6 +109,8 @@ def preflight_checks(options):
                         '    Use --resume to resume with previous targets, or delete file manually'.format(options['queuefile']), options, True)
     for basic in ['nmap']:
         options[basic] = True
+    if options['udp'] and not is_admin():
+        print_error('UDP portscan needs root permissions', options, True)
     options['timeout'] = options['testssl.sh']
     for tool in ['curl', 'nmap', 'nikto', 'testssl.sh', 'timeout']:
         if options[tool]:
@@ -115,7 +132,7 @@ def execute_command(cmd, options):
     result = False
     global child
     child = []
-    if options['dryrun']:
+    if options['dry_run']:
         print(' '.join(cmd))
         return True, stdout, stderr
     try:
@@ -125,7 +142,7 @@ def execute_command(cmd, options):
         child.append(cmd[0])
         stdout, stderr = process.communicate()
         result = not process.returncode
-    except OSError as exception:
+    except OSError:
         pass
     child = []
     return result, stdout, stderr
@@ -163,14 +180,14 @@ def do_portscan(host, options):
         arguments += ' -p' + options['port']
     if options['allports']:
         arguments += ' -p1-65535'
-    else:
+    if options['udp']:
         arguments += ' -sU'
 # output matches:
 #    bind.version: [secured]
 #    dns-recursion: Recursion appears to be enabled
 #    smtp-open-relay: Server is an open relay (x/y tests)
 #    http-trace: TRACE is enabled
-    if options['dryrun']:
+    if options['dry_run']:
         print('nmap {0} {1}'.format(arguments, host))
         return ALLPORTS
     print_status('Starting nmap scan', options)
@@ -201,6 +218,8 @@ def append_logs(options, stdout, stderr=None):
     """
     Append text strings to logfile.
     """
+    if options['dry_run']:
+        return
     try:
         if stdout:
             with open(options['output_file'], 'a+') as open_file:
@@ -217,6 +236,8 @@ def append_file(options, input_file):
     """
     Append file to logfile.
     """
+    if options['dry_run']:
+        return
     try:
         if os.path.isfile(input_file) and os.stat(input_file).st_size:
             with open(input_file, 'r') as read_file:
@@ -339,7 +360,8 @@ def loop_hosts(options, queue):
     """
     for counter, host in enumerate(queue, 1):
         status = '[+] ' + timestamp() + ' - Working on {0} ({1} of {2})'.format(host, counter, len(queue))
-        print(status)
+        if not options['dry_run']:
+            print(status)
         append_logs(options, status + '\n')
         open_ports = do_portscan(host, options)
         for port in open_ports:
@@ -351,7 +373,8 @@ def loop_hosts(options, queue):
                     use_tool(tool, host, port, options)
                     download_cert(host, port, options)
         remove_from_queue(host, options)
-    print('Output saved to {0}'.format(options['output_file']))
+    if not options['dry_run']:
+        print('Output saved to {0}'.format(options['output_file']))
 
 
 def read_queue(filename):
@@ -385,14 +408,17 @@ it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.'''))
     parser.add_argument('target', nargs='?', type=str,
-                        help='[TARGET] can be a single (IP) address, an IP range, eg. 127.0.0.1-255, or multiple comma-separated addressess')
-    parser.add_argument('--dryrun', action='store_true',
-                        help='only show commands, don\'t actually run anything')
+                        help="""[TARGET] can be a single (IP) address, an IP
+                        range, eg. 127.0.0.1-255, or multiple comma-separated
+                        addressess""")
+    parser.add_argument('--dry-run', action='store_true',
+                        help='only show commands, don\'t actually do anything')
     parser.add_argument('-i', '--inputfile', action='store', type=str,
                         help='a file containing multiple targets, one per line')
     parser.add_argument('-o', '--output_file', action='store', type=str,
                         default='analyze_hosts.output',
-                        help='output file containing all scanresults (default analyze_hosts.output')
+                        help="""output file containing all scanresults
+                        (default analyze_hosts.output""")
     parser.add_argument('-f', '--force', action='store_true',
                         help='don\'t perform preflight checks, go ahead anyway')
     parser.add_argument('--nikto', action='store_true',
@@ -409,6 +435,8 @@ the Free Software Foundation, either version 3 of the License, or
                         help='run a ssl scan')
     parser.add_argument('--sslcert', action='store_true',
                         help='download SSL certificate')
+    parser.add_argument('--udp', action='store_true',
+                        help='check for open UDP ports as well')
     parser.add_argument('--allports', action='store_true',
                         help='run a full-blown nmap scan on all ports')
     parser.add_argument('-t', '--trace', action='store_true',
@@ -455,4 +483,3 @@ if __name__ == "__main__":
     original_sigint = signal.getsignal(signal.SIGINT)
     signal.signal(signal.SIGINT, exit_gracefully)
     main()
-
