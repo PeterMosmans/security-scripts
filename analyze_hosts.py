@@ -29,11 +29,11 @@ except ImportError:
           file=sys.stderr)
     sys.exit(-1)
 
-# manually changed per feature change
-VERSION = '0.3'
+
+VERSION = '0.4'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
-SCRIPTS = """banner,dns-nsid,dns-recursion,http-title,http-trace,\
-ntp-info,ntp-monlist,nbstat,smb-os-discovery,smtp-open-relay,ssh2-enum-algos"""
+SCRIPTS = """banner,dns-nsid,dns-recursion,http-title,http-trace,ntp-info,\
+ntp-monlist,nbstat,smb-os-discovery,smtp-open-relay,ssh2-enum-algos"""
 UNKNOWN = -1
 
 
@@ -198,8 +198,6 @@ def do_portscan(host, options):
         if options['udp']:
             arguments += ' -sU'
     else:
-        print_status('Insufficient permissions for TCP SYN, using CONNECT',
-                     options)
         arguments = '-sT'
     arguments += ' -sV -v --script=' + SCRIPTS
     if options['port']:
@@ -229,8 +227,8 @@ def do_portscan(host, options):
             append_file(options, temp_file)
         else:
             print_status('Did not detect any open ports', options)
-        if not options['online']:
-            append_file(options, temp_file)
+            if not options['online']:
+                append_file(options, temp_file)
     except nmap.PortScannerError as exception:
         print_error('Issue with nmap ({0})'.format(exception))
         open_ports = [UNKNOWN]
@@ -248,10 +246,10 @@ def append_logs(options, stdout, stderr=None):
     try:
         if stdout:
             with open(options['output_file'], 'a+') as open_file:
-                open_file.write(stdout)
+                open_file.write(compact_strings(stdout, options))
         if stderr:
             with open(options['output_file'], 'a+') as open_file:
-                open_file.write(stderr)
+                open_file.write(compact_strings(stderr, options))
     except IOError:
         print_error('FAILED: Could not write to {0}'.
                     format(options['output_file']), -1)
@@ -266,14 +264,23 @@ def append_file(options, input_file):
     try:
         if os.path.isfile(input_file) and os.stat(input_file).st_size:
             with open(input_file, 'r') as read_file:
-                result = read_file.read()
-            append_logs(options, result)
+                append_logs(options, read_file.read())
     except IOError as exception:
         print_error('FAILED: Could not read {0} ({1}'.
                     format(input_file, exception), -1)
 
 
-# tool-specific commands
+def compact_strings(strings, options):
+    """
+    Removes as much unnecessary strings as possible.
+    """
+    # remove ' (OK)'
+    # remove ^SF:
+    # remove
+    if not options['compact']:
+        return strings
+    return '\n'.join([x for x in strings.splitlines() if x and not x.startswith('#')]) + '\n'
+
 
 def do_curl(host, port, options):
     """
@@ -452,6 +459,8 @@ the Free Software Foundation, either version 3 of the License, or
                         help='do not log anything for offline hosts')
     parser.add_argument('-p', '--port', action='store',
                         help='specific port(s) to scan')
+    parser.add_argument('--compact', action='store_true',
+                        help='log as little as possible')
     parser.add_argument('--queuefile', action='store',
                         default='analyze_hosts.queue', help='the queuefile')
     parser.add_argument('--resume', action='store_true',
