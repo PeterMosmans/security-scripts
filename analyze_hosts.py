@@ -120,7 +120,8 @@ def preflight_checks(options):
            os.stat(options['queuefile']).st_size:
             print_error('WARNING: Queuefile {0} already exists.\n'.
                         format(options['queuefile']) +
-                        '    Use --resume to resume with previous targets, or delete file manually', True)
+                        '    Use --resume to resume with previous targets, ' +
+                        'or delete file manually', True)
     for basic in ['nmap']:
         options[basic] = True
     if options['udp'] and not is_admin():
@@ -128,10 +129,13 @@ def preflight_checks(options):
     options['timeout'] = options['testssl.sh']
     for tool in ['curl', 'nmap', 'nikto', 'testssl.sh', 'timeout']:
         if options[tool]:
-            print_status('Checking whether {0} is present... '.format(tool), options)
-            result, _stdout, _stderr = execute_command([tool, '--version'], options)
+            print_status('Checking whether {0} is present... '.
+                         format(tool), options)
+            result, _stdout, _stderr = execute_command([tool, '--version'],
+                                                       options)
             if not result:
-                print_error('FAILED: Could not execute {0}, disabling checks'.format(tool), False)
+                print_error('FAILED: Could not execute {0}, disabling checks'.
+                            format(tool), False)
                 options[tool] = False
 
 
@@ -222,9 +226,11 @@ def do_portscan(host, options):
                           scanner[ip]['tcp'][port]['state'] == 'open']
         if len(open_ports):
             print_line('    Found open ports {0}'.format(open_ports))
+            append_file(options, temp_file)
         else:
             print_status('Did not detect any open ports', options)
-        append_file(options, temp_file)
+        if not options['online']:
+            append_file(options, temp_file)
     except nmap.PortScannerError as exception:
         print_error('Issue with nmap ({0})'.format(exception))
         open_ports = [UNKNOWN]
@@ -442,6 +448,8 @@ the Free Software Foundation, either version 3 of the License, or
                         help='run a nikto scan')
     parser.add_argument('-n', '--noportscan', action='store_true',
                         help='do NOT run a nmap portscan')
+    parser.add_argument('--online', action='store_true',
+                        help='do not log anything for offline hosts')
     parser.add_argument('-p', '--port', action='store',
                         help='specific port(s) to scan')
     parser.add_argument('--queuefile', action='store',
@@ -494,7 +502,7 @@ def main():
     loop_hosts(options, queue)
     if not options['dry_run']:
         print_line('{0} Output saved to {1}'.format(timestamp(),
-                                                        options['output_file']))
+                                                    options['output_file']))
 
 
 if __name__ == "__main__":
