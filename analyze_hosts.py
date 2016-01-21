@@ -190,25 +190,25 @@ def do_portscan(host, options):
         host: target host in string
         options: dictionary with options
     """
-    if not options['nmap'] or options['noportscan']:
+    if not options['nmap']:
         return ALLPORTS
     open_ports = []
+    arguments = '--open'
     if is_admin():
-        arguments = '-sS'
+        arguments += ' -sS'
         if options['udp']:
             arguments += ' -sU'
     else:
-        arguments = '-sT'
-    arguments += ' -sV -v --open --script=' + SCRIPTS
+        arguments += ' -sT'
     if options['port']:
         arguments += ' -p' + options['port']
+    if options['no_portscan']:
+        arguments = '-sn -Pn'
+    arguments += ' -sV --script=' + SCRIPTS
+    if options['whois']:
+        arguments += ',whois-ip'
     if options['allports']:
         arguments += ' -p1-65535'
-# output matches:
-#    bind.version: [secured]
-#    dns-recursion: Recursion appears to be enabled
-#    smtp-open-relay: Server is an open relay (x/y tests)
-#    http-trace: TRACE is enabled
     if options['dry_run']:
         print_line('nmap {0} {1}'.format(arguments, host))
         return ALLPORTS
@@ -448,13 +448,13 @@ the Free Software Foundation, either version 3 of the License, or
                         help='only show commands, don\'t actually do anything')
     parser.add_argument('-i', '--inputfile', action='store', type=str,
                         help='a file containing targets, one per line')
-    parser.add_argument('-o', '--output_file', action='store', type=str,
+    parser.add_argument('-o', '--output-file', action='store', type=str,
                         default='analyze_hosts.output',
                         help="""output file containing all scanresults
                         (default analyze_hosts.output""")
     parser.add_argument('--nikto', action='store_true',
                         help='run a nikto scan')
-    parser.add_argument('-n', '--noportscan', action='store_true',
+    parser.add_argument('-n', '--no-portscan', action='store_true',
                         help='do NOT run a nmap portscan')
     parser.add_argument('-p', '--port', action='store',
                         help='specific port(s) to scan')
