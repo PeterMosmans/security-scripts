@@ -28,7 +28,7 @@ import nmap
 
 
 # manually changed per feature change
-VERSION = '0.1'
+VERSION = '0.2'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
 SCRIPTS = """banner,dns-nsid,dns-recursion,http-title,http-trace,\
 ntp-info,ntp-monlist,nbstat,smb-os-discovery,smtp-open-relay,ssh2-enum-algos"""
@@ -37,7 +37,7 @@ UNKNOWN = -1
 
 def is_admin():
     """
-    Returns true if script is run using root privileges
+    Returns true if script is executed using root privileges
     """
     if os.name == 'nt':
         import ctypes
@@ -74,14 +74,24 @@ def exit_gracefully(signum, frame):
     signal.signal(signal.SIGINT, [], exit_gracefully)
 
 
+def print_line(text, error=False):
+    """
+    Prints text, and flushes stdout and stdin
+    """
+    if not error:
+        print(text)
+    else:
+        print(text, file=sys.stderr)
+    sys.stdout.flush()
+    sys.stderr.flush()
+
+
 def print_error(text, options, result=False):
     """
     Prints error message and exits with result code result if not 0.
     """
     if len(text):
-        print('[-] ' + text, file=sys.stderr)
-        sys.stdout.flush()
-        sys.stderr.flush()
+        print_line('[-] ' + text, True)
     if result:
         sys.exit(result)
 
@@ -91,9 +101,7 @@ def print_status(text, options):
     Prints status message.
     """
     if options['verbose']:
-        print('[*] ' + text)
-        sys.stdout.flush()
-        sys.stderr.flush()
+        print_line('[*] ' + text)
 
 
 def preflight_checks(options):
@@ -133,7 +141,7 @@ def execute_command(cmd, options):
     global child
     child = []
     if options['dry_run']:
-        print(' '.join(cmd))
+        print_line(' '.join(cmd))
         return True, stdout, stderr
     try:
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE,
@@ -194,29 +202,28 @@ def do_portscan(host, options):
 #    smtp-open-relay: Server is an open relay (x/y tests)
 #    http-trace: TRACE is enabled
     if options['dry_run']:
-        print('nmap {0} {1}'.format(arguments, host))
+        print_line('nmap {0} {1}'.format(arguments, host))
         return ALLPORTS
-    print_status('Starting nmap scan', options)
+    print_line('[+] Starting nmap scan')
     try:
-        temp_file = tempfile.NamedTemporaryFile()
-        arguments = '{0} -oN {1}'.format(arguments, temp_file.name)
+        temp_file = next(tempfile._get_candidate_names())
+        arguments = '{0} -oN {1}'.format(arguments, temp_file)
         scanner = nmap.PortScanner()
         scanner.scan(hosts=host, arguments=arguments)
-        for ip in scanner.all_hosts():
-            if scanner[ip] and scanner[ip].state() == 'up':
-                for port in scanner[ip].all_tcp():
-                    if scanner[ip]['tcp'][port]['state'] == 'open':
-                        open_ports.append(port)
+        for ip in [x for x in scanner.all_hosts() if scanner[x] and
+                   scanner[x].state() == 'up']:
+            open_ports = [port for port in scanner[ip].all_tcp() if
+                          scanner[ip]['tcp'][port]['state'] == 'open']
         if len(open_ports):
-            print('    Found open ports {0}'.format(open_ports))
+            print_line('    Found open ports {0}'.format(open_ports))
         else:
             print_status('Did not detect any open ports', options)
-        append_file(options, temp_file.name)
+        append_file(options, temp_file)
     except nmap.PortScannerError as exception:
-        print_error('issue while running nmap ({0})'.format(exception), options)
+        print_error('Issue with nmap ({0})'.format(exception), options)
         open_ports = [UNKNOWN]
     finally:
-        temp_file.close()
+        os.remove(temp_file)
     return open_ports
 
 
@@ -240,7 +247,7 @@ def append_logs(options, stdout, stderr=None):
 
 def append_file(options, input_file):
     """
-    Append file to logfile.
+    Append file to logfile, and deletes @input_file.
     """
     if options['dry_run']:
         return
@@ -347,11 +354,12 @@ def port_open(port, open_ports):
 
 def use_tool(tool, host, port, options):
     """
-    Wrapper to see if tool is available, and to tart correct tool.
+    Wrapper to see if tool is available, and to start correct tool.
     """
     if not options[tool]:
         return
-    print_status('starting {0} scan on {1}:{2}'.format(tool, host, port), options)
+    print_status('starting {0} scan on {1}:{2}'.
+                 format(tool, host, port), options)
     if tool == 'nikto':
         do_nikto(host, port, options)
     if tool == 'curl':
@@ -365,9 +373,10 @@ def loop_hosts(options, queue):
     Main loop, iterates all hosts in queue.
     """
     for counter, host in enumerate(queue, 1):
-        status = '[+] ' + timestamp() + ' - Working on {0} ({1} of {2})'.format(host, counter, len(queue))
+        status = '{0} Working on {1} ({2} of {3})'.format(timestamp(), host,
+                                                          counter, len(queue))
         if not options['dry_run']:
-            print(status)
+            print_line(status)
         append_logs(options, status + '\n')
         open_ports = do_portscan(host, options)
         for port in open_ports:
@@ -379,8 +388,6 @@ def loop_hosts(options, queue):
                     use_tool(tool, host, port, options)
                     download_cert(host, port, options)
         remove_from_queue(host, options)
-    if not options['dry_run']:
-        print('Output saved to {0}'.format(options['output_file']))
 
 
 def read_queue(filename):
@@ -392,7 +399,7 @@ def read_queue(filename):
         with open(filename, 'r') as queuefile:
             queue = queuefile.read().splitlines()
     except IOError:
-        print('[-] could not read {0}'.format(filename))
+        print_line('[-] could not read {0}'.format(filename), True)
     return queue
 
 
@@ -420,7 +427,7 @@ the Free Software Foundation, either version 3 of the License, or
     parser.add_argument('--dry-run', action='store_true',
                         help='only show commands, don\'t actually do anything')
     parser.add_argument('-i', '--inputfile', action='store', type=str,
-                        help='a file containing multiple targets, one per line')
+                        help='a file containing targets, one per line')
     parser.add_argument('-o', '--output_file', action='store', type=str,
                         default='analyze_hosts.output',
                         help="""output file containing all scanresults
@@ -472,7 +479,7 @@ def main():
     """
     banner = 'analyze_hosts.py version {0}'.format(VERSION)
     options = parse_arguments(banner)
-    print(banner + ' - starting at ' + timestamp())
+    print_line(banner)
     if not options['force']:
         preflight_checks(options)
     if not options['inputfile']:
@@ -482,7 +489,9 @@ def main():
             options['inputfile'] = prepare_queue(options)
     queue = read_queue(options['queuefile'])
     loop_hosts(options, queue)
-    print('[+] Ended at ' + timestamp())
+    if not options['dry_run']:
+        print_line('{0} Output saved to {1}'.format(timestamp(),
+                                                        options['output_file']))
 
 
 if __name__ == "__main__":
