@@ -42,10 +42,10 @@ def is_admin():
     Returns true if script is executed using root privileges
     """
     if os.name == 'nt':
-        import ctypes
         try:
+            import ctypes
             return ctypes.windll.shell32.IsUserAnAdmin()
-        except:
+        except ImportError:
             return False
     else:
         return os.geteuid() == 0
@@ -199,7 +199,7 @@ def do_portscan(host, options):
             arguments += ' -sU'
     else:
         arguments = '-sT'
-    arguments += ' -sV -v --script=' + SCRIPTS
+    arguments += ' -sV -v --open --script=' + SCRIPTS
     if options['port']:
         arguments += ' -p' + options['port']
     if options['allports']:
@@ -279,7 +279,8 @@ def compact_strings(strings, options):
     # remove
     if not options['compact']:
         return strings
-    return '\n'.join([x for x in strings.splitlines() if x and not x.startswith('#')]) + '\n'
+    return '\n'.join([x for x in strings.splitlines() if x and
+                      not x.startswith('#')]) + '\n'
 
 
 def do_curl(host, port, options):
@@ -303,7 +304,7 @@ def do_nikto(host, port, options):
                '{0}:{1}'.format(host, port)]
     if port == 443:
         command.append('-ssl')
-    result, stdout, stderr = execute_command(command, options)
+    _result, stdout, stderr = execute_command(command, options)
     append_logs(options, stdout, stderr)
 
 
@@ -393,8 +394,9 @@ def loop_hosts(options, queue):
     Main loop, iterates all hosts in queue.
     """
     for counter, host in enumerate(queue, 1):
-        status = '{0} Working on {1} ({2} of {3})'.format(timestamp(), host,
-                                                          counter, len(queue))
+        status = '[+] {0} Working on {1} ({2} of {3})'.format(timestamp(),
+                                                              host, counter,
+                                                              len(queue))
         if not options['dry_run']:
             print_line(status)
         append_logs(options, status + '\n')
@@ -428,8 +430,8 @@ def parse_arguments(banner):
     Parses command line arguments.
     """
     parser = argparse.ArgumentParser(
-            formatter_class=argparse.RawDescriptionHelpFormatter,
-            description=textwrap.dedent(banner + '''\
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=textwrap.dedent(banner + '''\
  - scans one or more hosts for security misconfigurations
 
 Please note that this is NOT a stealthy scan tool: By default, a TCP and UDP
