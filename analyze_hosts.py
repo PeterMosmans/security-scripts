@@ -22,13 +22,15 @@ import sys
 import tempfile
 import textwrap
 import time
-
-
-import nmap
-
+try:
+    import nmap
+except ImportError:
+    print('Please install python-nmap, e.g. pip install python-nmap',
+          file=sys.stderr)
+    sys.exit(-1)
 
 # manually changed per feature change
-VERSION = '0.2'
+VERSION = '0.3'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
 SCRIPTS = """banner,dns-nsid,dns-recursion,http-title,http-trace,\
 ntp-info,ntp-monlist,nbstat,smb-os-discovery,smtp-open-relay,ssh2-enum-algos"""
@@ -68,7 +70,7 @@ def exit_gracefully(signum, frame):
                          format(child[1])).lower().startswith('y'):
                 os.kill(child[0], signal.SIGHUP)
         if raw_input("\nQuit analyze_hosts ? (y/n) ").lower().startswith('y'):
-            print_error('Quitting...', [], -1)
+            print_error('Quitting...', -1)
     except KeyboardInterrupt:
         print_error('Quitting...', -1)
     signal.signal(signal.SIGINT, [], exit_gracefully)
@@ -86,7 +88,7 @@ def print_line(text, error=False):
     sys.stderr.flush()
 
 
-def print_error(text, options, result=False):
+def print_error(text, result=False):
     """
     Prints error message and exits with result code result if not 0.
     """
@@ -109,23 +111,27 @@ def preflight_checks(options):
     Checks if all tools are there, and disables tools automatically
     """
     if options['resume']:
-        if not os.path.isfile(options['queuefile']) or not os.stat(options['queuefile']).st_size:
-            print_error('Cannot resume - queuefile {0} is empty'.format(options['queuefile']), options, True)
+        if not os.path.isfile(options['queuefile']) or \
+           not os.stat(options['queuefile']).st_size:
+            print_error('Cannot resume - queuefile {0} is empty'.
+                        format(options['queuefile']), True)
     else:
-        if os.path.isfile(options['queuefile']) and os.stat(options['queuefile']).st_size:
-            print_error('WARNING: Queuefile {0} already exists.\n' +
-                        '    Use --resume to resume with previous targets, or delete file manually'.format(options['queuefile']), options, True)
+        if os.path.isfile(options['queuefile']) and \
+           os.stat(options['queuefile']).st_size:
+            print_error('WARNING: Queuefile {0} already exists.\n'.
+                        format(options['queuefile']) +
+                        '    Use --resume to resume with previous targets, or delete file manually', True)
     for basic in ['nmap']:
         options[basic] = True
     if options['udp'] and not is_admin():
-        print_error('UDP portscan needs root permissions', options, True)
+        print_error('UDP portscan needs root permissions', True)
     options['timeout'] = options['testssl.sh']
     for tool in ['curl', 'nmap', 'nikto', 'testssl.sh', 'timeout']:
         if options[tool]:
             print_status('Checking whether {0} is present... '.format(tool), options)
             result, _stdout, _stderr = execute_command([tool, '--version'], options)
             if not result:
-                print_error('FAILED: Could not execute {0}, disabling checks'.format(tool), options, False)
+                print_error('FAILED: Could not execute {0}, disabling checks'.format(tool), False)
                 options[tool] = False
 
 
@@ -220,7 +226,7 @@ def do_portscan(host, options):
             print_status('Did not detect any open ports', options)
         append_file(options, temp_file)
     except nmap.PortScannerError as exception:
-        print_error('Issue with nmap ({0})'.format(exception), options)
+        print_error('Issue with nmap ({0})'.format(exception))
         open_ports = [UNKNOWN]
     finally:
         os.remove(temp_file)
@@ -242,7 +248,7 @@ def append_logs(options, stdout, stderr=None):
                 open_file.write(stderr)
     except IOError:
         print_error('FAILED: Could not write to {0}'.
-                    format(options['output_file']), options, -1)
+                    format(options['output_file']), -1)
 
 
 def append_file(options, input_file):
@@ -258,7 +264,7 @@ def append_file(options, input_file):
             append_logs(options, result)
     except IOError as exception:
         print_error('FAILED: Could not read {0} ({1}'.
-                    format(input_file, exception), options, -1)
+                    format(input_file, exception), -1)
 
 
 # tool-specific commands
@@ -311,7 +317,7 @@ def prepare_queue(options):
     """
     if ('/' in options['target']) or ('-' in options['target']):
         if not options['nmap']:
-            print_error('nmap is necessary for IP ranges', options, True)
+            print_error('nmap is necessary for IP ranges', True)
         arguments = '-nsL'
         scanner = nmap.PortScanner()
         scanner.scan(hosts='{0}'.format(options['target']),
@@ -432,8 +438,6 @@ the Free Software Foundation, either version 3 of the License, or
                         default='analyze_hosts.output',
                         help="""output file containing all scanresults
                         (default analyze_hosts.output""")
-    parser.add_argument('-f', '--force', action='store_true',
-                        help='don\'t perform preflight checks, go ahead anyway')
     parser.add_argument('--nikto', action='store_true',
                         help='run a nikto scan')
     parser.add_argument('-n', '--noportscan', action='store_true',
@@ -457,7 +461,7 @@ the Free Software Foundation, either version 3 of the License, or
     parser.add_argument('-w', '--whois', action='store_true',
                         help='perform a whois lookup')
     parser.add_argument('--header', action='store', default='analyze_hosts',
-                        help='custom header to use for scantools (default analyze_hosts)')
+                        help='custom header to use for scantools')
     parser.add_argument('--maxtime', action='store', default='600', type=int,
                         help='timeout for scans in seconds (default 600)')
     parser.add_argument('--timeout', action='store', default='10', type=int,
@@ -480,8 +484,7 @@ def main():
     banner = 'analyze_hosts.py version {0}'.format(VERSION)
     options = parse_arguments(banner)
     print_line(banner)
-    if not options['force']:
-        preflight_checks(options)
+    preflight_checks(options)
     if not options['inputfile']:
         if options['resume']:
             options['inputfile'] = options['queuefile']
