@@ -227,8 +227,6 @@ def do_portscan(host, options):
             append_file(options, temp_file)
         else:
             print_status('Did not detect any open ports', options)
-            if not options['online']:
-                append_file(options, temp_file)
     except nmap.PortScannerError as exception:
         print_error('Issue with nmap ({0})'.format(exception))
         open_ports = [UNKNOWN]
@@ -458,8 +456,6 @@ the Free Software Foundation, either version 3 of the License, or
                         help='run a nikto scan')
     parser.add_argument('-n', '--noportscan', action='store_true',
                         help='do NOT run a nmap portscan')
-    parser.add_argument('--online', action='store_true',
-                        help='do not log anything for offline hosts')
     parser.add_argument('-p', '--port', action='store',
                         help='specific port(s) to scan')
     parser.add_argument('--compact', action='store_true',
