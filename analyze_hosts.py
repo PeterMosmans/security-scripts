@@ -335,7 +335,8 @@ def prepare_queue(options):
         scanner = nmap.PortScanner()
         scanner.scan(hosts='{0}'.format(options['target']),
                      arguments=arguments)
-        hosts = scanner.all_hosts()
+        hosts = sorted(scanner.all_hosts(),
+                       key=lambda x: tuple(map(int, x.split('.'))))
     else:
         hosts = [options['target']]
     with open(options['queuefile'], 'a') as queuefile:
