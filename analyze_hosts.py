@@ -30,10 +30,12 @@ except ImportError:
     sys.exit(-1)
 
 
-VERSION = '0.4'
+VERSION = '0.5'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
-SCRIPTS = """banner,dns-nsid,dns-recursion,http-title,http-trace,ntp-info,\
-ntp-monlist,nbstat,smb-os-discovery,smtp-open-relay,ssh2-enum-algos"""
+SCRIPTS = """banner,dns-nsid,dns-recursion,http-cisco-anyconnect,\
+http-php-version,http-title,http-trace,ntp-info,ntp-monlist,nbstat,\
+rdp-enum-encryption,rpcinfo,sip-methods,smb-os-discovery,smb-security-mode,\
+smtp-open-relay,ssh2-enum-algos,vnc-info,xmlrpc-methods,xmpp-info"""
 UNKNOWN = -1
 
 
@@ -206,7 +208,7 @@ def do_portscan(host, options):
         arguments = '-sn -Pn'
     arguments += ' -sV --script=' + SCRIPTS
     if options['whois']:
-        arguments += ',whois-ip'
+        arguments += ',whois-ip,fcrdns'
     if options['allports']:
         arguments += ' -p1-65535'
     if options['dry_run']:
@@ -222,9 +224,10 @@ def do_portscan(host, options):
                    scanner[x].state() == 'up']:
             open_ports = [port for port in scanner[ip].all_tcp() if
                           scanner[ip]['tcp'][port]['state'] == 'open']
-        if len(open_ports):
-            print_line('    Found open ports {0}'.format(open_ports))
+        if options['no_portscan'] or len(open_ports):
             append_file(options, temp_file)
+            if len(open_ports):
+                print_line('    Found open ports {0}'.format(open_ports))
         else:
             print_status('Did not detect any open ports', options)
     except nmap.PortScannerError as exception:
