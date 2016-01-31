@@ -9,11 +9,14 @@ A simple wrapper script around several open source security tools to simplify sc
 The main objectives for the script is to make it as easy as possible to perform generic security tests, without any heavy prerequisites, make the output as informative as possible, and use open source tools....
 
 ### installation
-The only prerequisite is Python, and python-nmap. Recommended installation steps using virtualenv:
+The only prerequisite is Python, and python-nmap. Recommended one-time installation steps using virtualenv:
 ```
 git clone https://github.com/PeterMosmans/security-scripts
-cd security-scripts && git checkout python
-virtualenv . && source bin/activate && pip install python-nmap
+cd security-scripts
+virtualenv .
+[[ -f bin/activate ]] && source bin/activate
+[[ -f Scripts/activate ]] && source Scripts/activate
+pip install -r requirements.txt
 ```
 
 ### usage
