@@ -214,7 +214,7 @@ def do_portscan(host, options):
     if options['dry_run']:
         print_line('nmap {0} {1}'.format(arguments, host))
         return ALLPORTS
-    print_line('[+] Starting nmap scan')
+    print_line('[+] Starting nmap')
     try:
         temp_file = next(tempfile._get_candidate_names())
         arguments = '{0} -oN {1}'.format(arguments, temp_file)
