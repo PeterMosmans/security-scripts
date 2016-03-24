@@ -30,7 +30,7 @@ except ImportError:
     sys.exit(-1)
 
 
-VERSION = '0.5'
+VERSION = '0.6'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
 SCRIPTS = """banner,dns-nsid,dns-recursion,http-cisco-anyconnect,\
 http-php-version,http-title,http-trace,ntp-info,ntp-monlist,nbstat,\
@@ -330,21 +330,27 @@ def prepare_queue(options):
     """
     Prepares a queue file which holds all hosts to scan.
     """
-    if ('/' in options['target']) or ('-' in options['target']):
-        if not options['nmap']:
-            print_error('nmap is necessary for IP ranges', True)
-        arguments = '-nsL'
-        scanner = nmap.PortScanner()
-        scanner.scan(hosts='{0}'.format(options['target']),
-                     arguments=arguments)
-        hosts = sorted(scanner.all_hosts(),
-                       key=lambda x: tuple(map(int, x.split('.'))))
-    else:
-        hosts = [options['target']]
-    with open(options['queuefile'], 'a') as queuefile:
-        for host in hosts:
-            queuefile.write(host + '\n')
-    return queuefile
+    if not options['inputfile']:
+        options['inputfile'] = next(tempfile._get_candidate_names())
+        with open(options['inputfile'], 'a') as f:
+            f.write(options['target'])
+    with open(options['inputfile'], 'r') as f:
+        hosts = f.read().splitlines()
+        for target in hosts:
+            if ('/' in target) or ('-' in target):
+                if not options['nmap']:
+                    print_error('nmap is necessary for IP ranges', True)
+                arguments = '-nsL'
+                scanner = nmap.PortScanner()
+                scanner.scan(hosts='{0}'.format(target),
+                             arguments=arguments)
+                normalized = sorted(scanner.all_hosts(),
+                               key=lambda x: tuple(map(int, x.split('.'))))
+            else:
+                normalized = target
+            with open(options['queuefile'], 'a') as queuefile:
+                for host in normalized:
+                    queuefile.write(host + '\n')
 
 
 def remove_from_queue(host, options):
@@ -504,11 +510,10 @@ def main():
     options = parse_arguments(banner)
     print_line(banner)
     preflight_checks(options)
-    if not options['inputfile']:
-        if options['resume']:
-            options['inputfile'] = options['queuefile']
-        else:
-            options['inputfile'] = prepare_queue(options)
+    if options['resume']:
+        options['inputfile'] = options['queuefile']
+    else:
+        prepare_queue(options)
     queue = read_queue(options['queuefile'])
     loop_hosts(options, queue)
     if not options['dry_run']:
