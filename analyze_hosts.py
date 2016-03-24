@@ -320,9 +320,9 @@ def do_testssl(host, port, options):
         command = ['timeout', str(timeout)] + command
     if port == 25:
         command += ['--starttls', 'smtp']
-    result, stdout, stderr = execute_command(command +
-                                             ['{0}:{1}'.format(host, port)],
-                                             options)
+    _result, stdout, stderr = execute_command(command +
+                                              ['{0}:{1}'.format(host, port)],
+                                              options)
     append_logs(options, stdout, stderr)
 
 
@@ -332,38 +332,38 @@ def prepare_queue(options):
     """
     if not options['inputfile']:
         options['inputfile'] = next(tempfile._get_candidate_names())
-        with open(options['inputfile'], 'a') as f:
-            f.write(options['target'])
-    with open(options['inputfile'], 'r') as f:
-        hosts = f.read().splitlines()
-        for target in hosts:
-            if ('/' in target) or ('-' in target):
+        with open(options['inputfile'], 'a') as inputfile:
+            inputfile.write(options['target'])
+    with open(options['inputfile'], 'r') as inputfile:
+        hosts = inputfile.read().splitlines()
+        targets = []
+        for host in hosts:
+            if ('/' in host) or ('-' in host):
                 if not options['nmap']:
                     print_error('nmap is necessary for IP ranges', True)
                 arguments = '-nsL'
                 scanner = nmap.PortScanner()
-                scanner.scan(hosts='{0}'.format(target),
-                             arguments=arguments)
-                normalized = sorted(scanner.all_hosts(),
-                               key=lambda x: tuple(map(int, x.split('.'))))
+                scanner.scan(hosts='{0}'.format(host), arguments=arguments)
+                targets += sorted(scanner.all_hosts(),
+                                  key=lambda x: tuple(map(int, x.split('.'))))
             else:
-                normalized = target
-            with open(options['queuefile'], 'a') as queuefile:
-                for host in normalized:
-                    queuefile.write(host + '\n')
+                targets.append(host)
+        with open(options['queuefile'], 'a') as queuefile:
+            for target in targets:
+                queuefile.write(target + '\n')
 
 
 def remove_from_queue(host, options):
     """
     Removes a host from the queue file.
     """
-    with open(options['queuefile'], 'r+') as f:
-        hosts = f.read().splitlines()
-        f.seek(0)
+    with open(options['queuefile'], 'r+') as queuefile:
+        hosts = queuefile.read().splitlines()
+        queuefile.seek(0)
         for i in hosts:
             if i != host:
-                f.write(i + '\n')
-        f.truncate()
+                queuefile.write(i + '\n')
+        queuefile.truncate()
     if not os.stat(options['queuefile']).st_size:
         os.remove(options['queuefile'])
 
@@ -510,9 +510,7 @@ def main():
     options = parse_arguments(banner)
     print_line(banner)
     preflight_checks(options)
-    if options['resume']:
-        options['inputfile'] = options['queuefile']
-    else:
+    if not options['resume']:
         prepare_queue(options)
     queue = read_queue(options['queuefile'])
     loop_hosts(options, queue)
