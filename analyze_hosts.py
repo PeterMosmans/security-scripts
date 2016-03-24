@@ -330,10 +330,12 @@ def prepare_queue(options):
     """
     Prepares a queue file which holds all hosts to scan.
     """
+    expanded = False
     if not options['inputfile']:
-        options['inputfile'] = next(tempfile._get_candidate_names())
-        with open(options['inputfile'], 'a') as inputfile:
+        expanded = next(tempfile._get_candidate_names())
+        with open(expanded, 'a') as inputfile:
             inputfile.write(options['target'])
+        options['inputfile'] = expanded
     with open(options['inputfile'], 'r') as inputfile:
         hosts = inputfile.read().splitlines()
         targets = []
@@ -351,6 +353,8 @@ def prepare_queue(options):
         with open(options['queuefile'], 'a') as queuefile:
             for target in targets:
                 queuefile.write(target + '\n')
+    if expanded:
+        os.remove(expanded)
 
 
 def remove_from_queue(host, options):
