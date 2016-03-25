@@ -30,7 +30,7 @@ except ImportError:
     sys.exit(-1)
 
 
-VERSION = '0.6'
+VERSION = '0.7'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
 SCRIPTS = """banner,dns-nsid,dns-recursion,http-cisco-anyconnect,\
 http-php-version,http-title,http-trace,ntp-info,ntp-monlist,nbstat,\
@@ -420,6 +420,11 @@ def loop_hosts(options, queue):
                 for tool in ['testssl.sh']:
                     use_tool(tool, host, port, options)
                     download_cert(host, port, options)
+        status = '[-] {0} Finished {1} ({2} of {3})'.format(timestamp(),
+                                                            host, counter,
+                                                            len(queue))
+        if not options['dry_run']:
+            print_line(status)
         remove_from_queue(host, options)
 
 
