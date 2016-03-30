@@ -313,7 +313,7 @@ def do_testssl(host, port, options):
     """
     Checks SSL/TLS configuration and vulnerabilities.
     """
-    timeout = 60  # hardcoded for now
+    timeout = 120  # hardcoded for now
     command = ['testssl.sh', '--quiet', '--warnings', 'off', '--color', '0',
                '-p', '-f', '-U', '-S']
     if options['timeout']:
