@@ -30,7 +30,7 @@ except ImportError:
     sys.exit(-1)
 
 
-VERSION = '0.7'
+VERSION = '0.8'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
 SCRIPTS = """banner,dns-nsid,dns-recursion,http-cisco-anyconnect,\
 http-php-version,http-title,http-trace,ntp-info,ntp-monlist,nbstat,\
@@ -50,7 +50,7 @@ def is_admin():
         except ImportError:
             return False
     else:
-        return os.geteuid() == 0
+        return os.geteuid() == 0  # pylint: disable=no-member
 
 
 def timestamp():
@@ -134,7 +134,7 @@ def preflight_checks(options):
             print_status('Checking whether {0} is present... '.
                          format(tool), options)
             result, _stdout, _stderr = execute_command([tool, '--version'],
-                                                       options)
+                                                       options)  # pylint: disable=unused-variable
             if not result:
                 print_error('FAILED: Could not execute {0}, disabling checks'.
                             format(tool), False)
@@ -216,7 +216,7 @@ def do_portscan(host, options):
         return ALLPORTS
     print_line('[+] Starting nmap')
     try:
-        temp_file = next(tempfile._get_candidate_names())
+        temp_file = next(tempfile._get_candidate_names())  # pylint: disable=protected-access
         arguments = '{0} -oN {1}'.format(arguments, temp_file)
         scanner = nmap.PortScanner()
         scanner.scan(hosts=host, arguments=arguments)
@@ -332,7 +332,7 @@ def prepare_queue(options):
     """
     expanded = False
     if not options['inputfile']:
-        expanded = next(tempfile._get_candidate_names())
+        expanded = next(tempfile._get_candidate_names())  # pylint: disable=protected-access
         with open(expanded, 'a') as inputfile:
             inputfile.write(options['target'])
         options['inputfile'] = expanded
