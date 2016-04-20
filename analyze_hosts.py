@@ -37,7 +37,7 @@ except ImportError:
           'pip install -r requirements.txt')
 
 
-VERSION = '0.9'
+VERSION = '0.10'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
 SCRIPTS = """banner,dns-nsid,dns-recursion,http-cisco-anyconnect,\
 http-php-version,http-title,http-trace,ntp-info,ntp-monlist,nbstat,\
@@ -48,7 +48,7 @@ UNKNOWN = -1
 
 def analyze_url(url, port, options):
     """
-    Analyzes an URL using wappalyzer.
+    Analyzes an URL using wappalyzer and executes corresponding scans.
     """
     if not options['framework']:
         return
@@ -82,11 +82,12 @@ def analyze_url(url, port, options):
             analysis = wappalyzer.analyze(webpage)
             print_status('Analysis for {0}: {1}'.format(url, analysis),
                          options)
+            if 'Drupal' in analysis:
+                do_droopescan(url, 'drupal', options)
+            if 'Joomla' in analysis:
+                do_droopescan(url, 'joomla', options)
             if 'WordPress' in analysis:
                 do_wpscan(url, options)
-            if 'Drupal' in analysis:
-                print_status('Drupal detected on {0}'.format(url),
-                             options)
         else:
             print_error('Got result {0} - cannot analyze that...'.
                         format(page.status_code))
@@ -190,16 +191,18 @@ def preflight_checks(options):
         print_error('Disabling --framework due to missing Python libraries')
         options['framework'] = False
     if options['framework']:
+        options['droopescan'] = True
         options['wpscan'] = True
     if options['wpscan'] and not is_admin():
         print_error('Disabling --wpscan as this option needs root permissions')
         options['wpscan'] = False
     options['timeout'] = options['testssl.sh']
-    for tool in ['curl', 'nikto', 'nmap', 'testssl.sh', 'timeout', 'wpscan']:
+    for tool in ['curl', 'droopescan', 'nikto', 'nmap', 'testssl.sh',
+                 'timeout', 'wpscan']:
         if options[tool]:
             print_status('Checking whether {0} is present... '.
                          format(tool), options)
-            result, _stdout, _stderr = execute_command([tool, '--version'],
+            result, _stdout, _stderr = execute_command([tool, '--help'],
                                                        options)  # pylint: disable=unused-variable
             if not result:
                 print_error('FAILED: Could not execute {0}, disabling checks'.
@@ -244,6 +247,90 @@ def download_cert(host, port, options):
             append_logs(options, cert)
         except ssl.SSLError:
             pass
+
+
+def append_logs(options, stdout, stderr=None):
+    """
+    Append text strings to logfile.
+    """
+    if options['dry_run']:
+        return
+    try:
+        if stdout:
+            with open(options['output_file'], 'a+') as open_file:
+                open_file.write(compact_strings(stdout, options))
+        if stderr:
+            with open(options['output_file'], 'a+') as open_file:
+                open_file.write(compact_strings(stderr, options))
+    except IOError:
+        print_error('FAILED: Could not write to {0}'.
+                    format(options['output_file']), -1)
+
+
+def append_file(options, input_file):
+    """
+    Append file to logfile, and deletes @input_file.
+    """
+    if options['dry_run']:
+        return
+    try:
+        if os.path.isfile(input_file) and os.stat(input_file).st_size:
+            with open(input_file, 'r') as read_file:
+                append_logs(options, read_file.read())
+    except IOError as exception:
+        print_error('FAILED: Could not read {0} ({1}'.
+                    format(input_file, exception), -1)
+
+
+def compact_strings(strings, options):
+    """
+    Removes as much unnecessary strings as possible.
+    """
+    # remove ' (OK)'
+    # remove ^SF:
+    # remove
+    if not options['compact']:
+        return strings
+    return '\n'.join([x for x in strings.splitlines() if x and
+                      not x.startswith('#')]) + '\n'
+
+
+def do_curl(host, port, options):
+    """
+    Checks for HTTP TRACE method.
+    """
+    if options['trace']:
+        command = ['curl', '-qsIA', "'{0}'".format(options['header']),
+                   '--connect-timeout', str(options['timeout']), '-X', 'TRACE',
+                   '{0}:{1}'.format(host, port)]
+        _result, stdout, stderr = execute_command(command, options)  # pylint: disable=unused-variable
+        append_logs(options, stdout, stderr)
+
+
+def do_droopescan(url, cms, options):
+    """
+    Performs a droopescan of type @cmd
+    """
+    if options['droopescan']:
+        print_status('Performing droopescan on {0} of type {1}'.format(url,
+                                                                       cms),
+                     options)
+        command = ['droopescan', 'scan', cms, '--url', url]
+        _result, stdout, stderr = execute_command(command, options)  # pylint: disable=unused-variable
+        append_logs(options, stdout, stderr)
+
+
+def do_nikto(host, port, options):
+    """
+    Performs a nikto scan.
+    """
+    command = ['nikto', '-vhost', '{0}'.format(host), '-maxtime',
+               '{0}s'.format(options['maxtime']), '-host',
+               '{0}:{1}'.format(host, port)]
+    if port == 443:
+        command.append('-ssl')
+    _result, stdout, stderr = execute_command(command, options)  # pylint: disable=unused-variable
+    append_logs(options, stdout, stderr)
 
 
 def do_portscan(host, options):
@@ -304,77 +391,6 @@ def do_portscan(host, options):
     return open_ports
 
 
-def append_logs(options, stdout, stderr=None):
-    """
-    Append text strings to logfile.
-    """
-    if options['dry_run']:
-        return
-    try:
-        if stdout:
-            with open(options['output_file'], 'a+') as open_file:
-                open_file.write(compact_strings(stdout, options))
-        if stderr:
-            with open(options['output_file'], 'a+') as open_file:
-                open_file.write(compact_strings(stderr, options))
-    except IOError:
-        print_error('FAILED: Could not write to {0}'.
-                    format(options['output_file']), -1)
-
-
-def append_file(options, input_file):
-    """
-    Append file to logfile, and deletes @input_file.
-    """
-    if options['dry_run']:
-        return
-    try:
-        if os.path.isfile(input_file) and os.stat(input_file).st_size:
-            with open(input_file, 'r') as read_file:
-                append_logs(options, read_file.read())
-    except IOError as exception:
-        print_error('FAILED: Could not read {0} ({1}'.
-                    format(input_file, exception), -1)
-
-
-def compact_strings(strings, options):
-    """
-    Removes as much unnecessary strings as possible.
-    """
-    # remove ' (OK)'
-    # remove ^SF:
-    # remove
-    if not options['compact']:
-        return strings
-    return '\n'.join([x for x in strings.splitlines() if x and
-                      not x.startswith('#')]) + '\n'
-
-
-def do_curl(host, port, options):
-    """
-    Checks for HTTP TRACE method.
-    """
-    if options['trace']:
-        command = ['curl', '-qsIA', "'{0}'".format(options['header']),
-                   '--connect-timeout', str(options['timeout']), '-X', 'TRACE',
-                   '{0}:{1}'.format(host, port)]
-        _result, stdout, stderr = execute_command(command, options)
-        append_logs(options, stdout, stderr)
-
-
-def do_nikto(host, port, options):
-    """
-    Performs a nikto scan.
-    """
-    command = ['nikto', '-vhost', '{0}'.format(host), '-maxtime',
-               '{0}s'.format(options['maxtime']), '-host',
-               '{0}:{1}'.format(host, port)]
-    if port == 443:
-        command.append('-ssl')
-    _result, stdout, stderr = execute_command(command, options)
-    append_logs(options, stdout, stderr)
-
-
 def do_testssl(host, port, options):
     """
     Checks SSL/TLS configuration and vulnerabilities.
@@ -388,7 +404,7 @@ def do_testssl(host, port, options):
         command += ['--starttls', 'smtp']
     _result, stdout, stderr = execute_command(command +
                                               ['{0}:{1}'.format(host, port)],
-                                              options)
+                                              options)  # pylint: disable=unused-variable
     append_logs(options, stdout, stderr)
 
 
@@ -399,7 +415,7 @@ def do_wpscan(url, options):
     if options['wpscan']:
         print_status('Performing WPscan on ' + url, options)
         command = ['wpscan', '--batch', '--no-color', '--url', url]
-        _result, stdout, stderr = execute_command(command, options)
+        _result, stdout, stderr = execute_command(command, options)  # pylint: disable=unused-variable
         append_logs(options, stdout, stderr)
 
 
