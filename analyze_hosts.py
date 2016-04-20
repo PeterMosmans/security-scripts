@@ -29,12 +29,15 @@ except ImportError:
     print('Please install python-nmap, e.g. pip install python-nmap',
           file=sys.stderr)
     sys.exit(-1)
+try:
+    import requests
+    from Wappalyzer import Wappalyzer, WebPage
+except ImportError:
+    print('[-] Please install the modules in requirements.txt, e.g. '
+          'pip install -r requirements.txt')
 
-import requests
-from Wappalyzer import Wappalyzer, WebPage
 
-
-VERSION = '0.8'
+VERSION = '0.9'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
 SCRIPTS = """banner,dns-nsid,dns-recursion,http-cisco-anyconnect,\
 http-php-version,http-title,http-trace,ntp-info,ntp-monlist,nbstat,\
@@ -180,8 +183,17 @@ def preflight_checks(options):
         options[basic] = True
     if options['udp'] and not is_admin():
         print_error('UDP portscan needs root permissions', True)
+    try:
+        import requests
+        import Wappalyzer
+    except ImportError:
+        print_error('Disabling --framework due to missing Python libraries')
+        options['framework'] = False
     if options['framework']:
         options['wpscan'] = True
+    if options['wpscan'] and not is_admin():
+        print_error('Disabling --wpscan as this option needs root permissions')
+        options['wpscan'] = False
     options['timeout'] = options['testssl.sh']
     for tool in ['curl', 'nikto', 'nmap', 'testssl.sh', 'timeout', 'wpscan']:
         if options[tool]:
