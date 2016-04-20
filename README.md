@@ -9,7 +9,14 @@ A simple wrapper script around several open source security tools to simplify sc
 The main objectives for the script is to make it as easy as possible to perform generic security tests, without any heavy prerequisites, make the output as informative as possible, and use open source tools....
 
 ### installation
-The only prerequisite is Python, and python-nmap. Recommended one-time installation steps using virtualenv:
+The only prerequisites are Python, with the modules (see requirements.txt):
+```
+python-nmap
+python-wappalyzer
+requests
+```
+
+Recommended one-time installation steps using virtualenv:
 ```
 git clone https://github.com/PeterMosmans/security-scripts
 cd security-scripts
@@ -24,11 +31,12 @@ pip install -r requirements.txt
 usage: analyze_hosts.py [-h] [--dry-run] [-i INPUTFILE] [-o OUTPUT_FILE]
                         [--nikto] [-n] [-p PORT] [--compact]
                         [--queuefile QUEUEFILE] [--resume] [--ssl] [--sslcert]
-                        [--udp] [--allports] [-t] [-w] [--header HEADER]
-                        [--maxtime MAXTIME] [--timeout TIMEOUT] [-v]
+                        [--udp] [--framework] [--allports] [-t] [-w]
+                        [--header HEADER] [--maxtime MAXTIME]
+                        [--timeout TIMEOUT] [-v]
                         [target]
 
-analyze_hosts.py version 0.5 - scans one or more hosts for security misconfigurations
+analyze_hosts.py version 0.8 - scans one or more hosts for security misconfigurations
 
 Please note that this is NOT a stealthy scan tool: By default, a TCP and UDP
 portscan will be launched, using some of nmap's interrogation scripts.
@@ -62,6 +70,7 @@ optional arguments:
   --ssl                 run a ssl scan
   --sslcert             download SSL certificate
   --udp                 check for open UDP ports as well
+  --framework           analyze the website and run webscans
   --allports            run a full-blown nmap scan on all ports
   -t, --trace           check webserver for HTTP TRACE method
   -w, --whois           perform a whois lookup
@@ -69,6 +78,7 @@ optional arguments:
   --maxtime MAXTIME     timeout for scans in seconds (default 600)
   --timeout TIMEOUT     timeout for requests in seconds (default 10)
   -v, --verbose         Be more verbose
+
 ```
 
 ## analyze-hosts.sh

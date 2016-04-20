@@ -22,12 +22,16 @@ import sys
 import tempfile
 import textwrap
 import time
+import urlparse
 try:
     import nmap
 except ImportError:
     print('Please install python-nmap, e.g. pip install python-nmap',
           file=sys.stderr)
     sys.exit(-1)
+
+import requests
+from Wappalyzer import Wappalyzer, WebPage
 
 
 VERSION = '0.8'
@@ -37,6 +41,55 @@ http-php-version,http-title,http-trace,ntp-info,ntp-monlist,nbstat,\
 rdp-enum-encryption,rpcinfo,sip-methods,smb-os-discovery,smb-security-mode,\
 smtp-open-relay,ssh2-enum-algos,vnc-info,xmlrpc-methods,xmpp-info"""
 UNKNOWN = -1
+
+
+def analyze_url(url, port, options):
+    """
+    Analyzes an URL using wappalyzer.
+    """
+    if not options['framework']:
+        return
+    analysis = {}
+    auth = None
+    proxies = {}
+    verify = True
+    if not urlparse.urlparse(url).scheme:
+        if port == 443:
+            url = 'https://{0}:{1}'.format(url, port)
+        else:
+            url = 'http://{0}:{1}'.format(url, port)
+    wappalyzer = Wappalyzer.latest()
+#    if options['username'] and options['password']:
+#        if options['digest']:
+#            auth = HTTPDigestAuth(parameters['username'],
+#                                  parameters['password'])
+#        else:
+#            auth = HTTPBasicAuth(parameters['username'],
+#                                 parameters['password'])
+    if 'proxy' in options:
+        proxies['http'] = options['proxy']
+        proxies['https'] = options['proxy']
+    if 'no_validate' in options:
+        requests.packages.urllib3.disable_warnings()
+        verify = False
+    try:
+        page = requests.get(url, auth=auth, proxies=proxies, verify=verify)
+        if page.status_code == 200:
+            webpage = WebPage(url, page.text, page.headers)
+            analysis = wappalyzer.analyze(webpage)
+            print_status('Analysis for {0}: {1}'.format(url, analysis),
+                         options)
+            if 'WordPress' in analysis:
+                print_status('WordPress detected on {0}'.format(url),
+                             options)
+            if 'Drupal' in analysis:
+                print_status('Drupal detected on {0}'.format(url),
+                             options)
+        else:
+            print_error('Got result {0} - cannot analyze that...'.
+                        format(page.status_code))
+    except requests.exceptions.ConnectionError as exception:
+        print_error('Could not connect to {0} ({1})'.format(url, exception))
 
 
 def is_admin():
@@ -416,6 +469,7 @@ def loop_hosts(options, queue):
             if port in [80, 443, 8080]:
                 for tool in ['curl', 'nikto']:
                     use_tool(tool, host, port, options)
+                analyze_url(host, port, options)
             if port in [25, 443, 465, 993, 995]:
                 for tool in ['testssl.sh']:
                     use_tool(tool, host, port, options)
@@ -488,6 +542,8 @@ the Free Software Foundation, either version 3 of the License, or
                         help='download SSL certificate')
     parser.add_argument('--udp', action='store_true',
                         help='check for open UDP ports as well')
+    parser.add_argument('--framework', action='store_true',
+                        help='analyze the website and run webscans')
     parser.add_argument('--allports', action='store_true',
                         help='run a full-blown nmap scan on all ports')
     parser.add_argument('-t', '--trace', action='store_true',
