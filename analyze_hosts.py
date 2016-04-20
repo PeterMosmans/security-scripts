@@ -31,7 +31,7 @@ except ImportError:
     sys.exit(-1)
 try:
     import requests
-    from Wappalyzer import Wappalyzer, WebPage
+    import Wappalyzer
 except ImportError:
     print('[-] Please install the modules in requirements.txt, e.g. '
           'pip install -r requirements.txt')
@@ -52,33 +52,18 @@ def analyze_url(url, port, options):
     """
     if not options['framework']:
         return
-    analysis = {}
-    auth = None
-    proxies = {}
-    verify = True
+    requests.packages.urllib3.disable_warnings(
+        requests.packages.urllib3.exceptions.InsecureRequestWarning)
     if not urlparse.urlparse(url).scheme:
         if port == 443:
             url = 'https://{0}:{1}'.format(url, port)
         else:
             url = 'http://{0}:{1}'.format(url, port)
-    wappalyzer = Wappalyzer.latest()
-#    if options['username'] and options['password']:
-#        if options['digest']:
-#            auth = HTTPDigestAuth(parameters['username'],
-#                                  parameters['password'])
-#        else:
-#            auth = HTTPBasicAuth(parameters['username'],
-#                                 parameters['password'])
-    if 'proxy' in options:
-        proxies['http'] = options['proxy']
-        proxies['https'] = options['proxy']
-    if 'no_validate' in options:
-        requests.packages.urllib3.disable_warnings()
-        verify = False
+    wappalyzer = Wappalyzer.Wappalyzer.latest()
     try:
-        page = requests.get(url, auth=auth, proxies=proxies, verify=verify)
+        page = requests.get(url, auth=None, proxies={}, verify=False)
         if page.status_code == 200:
-            webpage = WebPage(url, page.text, page.headers)
+            webpage = Wappalyzer.WebPage(url, page.text, page.headers)
             analysis = wappalyzer.analyze(webpage)
             print_status('Analysis for {0}: {1}'.format(url, analysis),
                          options)
@@ -402,6 +387,8 @@ def do_testssl(host, port, options):
         command = ['timeout', str(timeout)] + command
     if port == 25:
         command += ['--starttls', 'smtp']
+    print_status('Starting testssl.sh on {0}:{1}'.format(host, options),
+                 options)
     _result, stdout, stderr = execute_command(command +
                                               ['{0}:{1}'.format(host, port)],
                                               options)  # pylint: disable=unused-variable
@@ -413,7 +400,7 @@ def do_wpscan(url, options):
     Runs WPscan.
     """
     if options['wpscan']:
-        print_status('Performing WPscan on ' + url, options)
+        print_status('Starting WPscan on ' + url, options)
         command = ['wpscan', '--batch', '--no-color', '--url', url]
         _result, stdout, stderr = execute_command(command, options)  # pylint: disable=unused-variable
         append_logs(options, stdout, stderr)
@@ -513,7 +500,7 @@ def loop_hosts(options, queue):
             if port in [25, 443, 465, 993, 995]:
                 for tool in ['testssl.sh']:
                     use_tool(tool, host, port, options)
-                    download_cert(host, port, options)
+                download_cert(host, port, options)
         status = '[-] {0} Finished {1} ({2} of {3})'.format(timestamp(),
                                                             host, counter,
                                                             len(queue))
