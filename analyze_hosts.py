@@ -80,8 +80,7 @@ def analyze_url(url, port, options):
             print_status('Analysis for {0}: {1}'.format(url, analysis),
                          options)
             if 'WordPress' in analysis:
-                print_status('WordPress detected on {0}'.format(url),
-                             options)
+                do_wpscan(url, options)
             if 'Drupal' in analysis:
                 print_status('Drupal detected on {0}'.format(url),
                              options)
@@ -181,8 +180,10 @@ def preflight_checks(options):
         options[basic] = True
     if options['udp'] and not is_admin():
         print_error('UDP portscan needs root permissions', True)
+    if options['framework']:
+        options['wpscan'] = True
     options['timeout'] = options['testssl.sh']
-    for tool in ['curl', 'nmap', 'nikto', 'testssl.sh', 'timeout']:
+    for tool in ['curl', 'nikto', 'nmap', 'testssl.sh', 'timeout', 'wpscan']:
         if options[tool]:
             print_status('Checking whether {0} is present... '.
                          format(tool), options)
@@ -377,6 +378,17 @@ def do_testssl(host, port, options):
                                               ['{0}:{1}'.format(host, port)],
                                               options)
     append_logs(options, stdout, stderr)
+
+
+def do_wpscan(url, options):
+    """
+    Runs WPscan.
+    """
+    if options['wpscan']:
+        print_status('Performing WPscan on ' + url, options)
+        command = ['wpscan', '--batch', '--no-color', '--url', url]
+        _result, stdout, stderr = execute_command(command, options)
+        append_logs(options, stdout, stderr)
 
 
 def prepare_queue(options):
