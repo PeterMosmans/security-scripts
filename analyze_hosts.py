@@ -50,34 +50,34 @@ def analyze_url(url, port, options):
     """
     Analyzes an URL using wappalyzer and executes corresponding scans.
     """
-    if not options['framework']:
-        return
-    requests.packages.urllib3.disable_warnings(
-        requests.packages.urllib3.exceptions.InsecureRequestWarning)
-    if not urlparse.urlparse(url).scheme:
-        if port == 443:
-            url = 'https://{0}:{1}'.format(url, port)
-        else:
-            url = 'http://{0}:{1}'.format(url, port)
-    wappalyzer = Wappalyzer.Wappalyzer.latest()
-    try:
-        page = requests.get(url, auth=None, proxies={}, verify=False)
-        if page.status_code == 200:
-            webpage = Wappalyzer.WebPage(url, page.text, page.headers)
-            analysis = wappalyzer.analyze(webpage)
-            print_status('Analysis for {0}: {1}'.format(url, analysis),
-                         options)
-            if 'Drupal' in analysis:
-                do_droopescan(url, 'drupal', options)
-            if 'Joomla' in analysis:
-                do_droopescan(url, 'joomla', options)
-            if 'WordPress' in analysis:
-                do_wpscan(url, options)
-        else:
-            print_error('Got result {0} - cannot analyze that...'.
-                        format(page.status_code))
-    except requests.exceptions.ConnectionError as exception:
-        print_error('Could not connect to {0} ({1})'.format(url, exception))
+    if options['framework']:
+        requests.packages.urllib3.disable_warnings(
+            requests.packages.urllib3.exceptions.InsecureRequestWarning)
+        if not urlparse.urlparse(url).scheme:
+            if port == 443:
+                url = 'https://{0}:{1}'.format(url, port)
+            else:
+                url = 'http://{0}:{1}'.format(url, port)
+        wappalyzer = Wappalyzer.Wappalyzer.latest()
+        try:
+            page = requests.get(url, auth=None, proxies={}, verify=False)
+            if page.status_code == 200:
+                webpage = Wappalyzer.WebPage(url, page.text, page.headers)
+                analysis = wappalyzer.analyze(webpage)
+                print_status('Analysis for {0}: {1}'.format(url, analysis),
+                             options)
+                if 'Drupal' in analysis:
+                    do_droopescan(url, 'drupal', options)
+                if 'Joomla' in analysis:
+                    do_droopescan(url, 'joomla', options)
+                if 'WordPress' in analysis:
+                    do_wpscan(url, options)
+            else:
+                print_error('Got result {0} - cannot analyze that...'.
+                            format(page.status_code))
+        except requests.exceptions.ConnectionError as exception:
+            print_error('Could not connect to {0} ({1})'.
+                        format(url, exception))
 
 
 def is_admin():
@@ -346,7 +346,7 @@ def do_portscan(host, options):
         arguments = '-sn -Pn'
     arguments += ' -sV --script=' + SCRIPTS
     if options['whois']:
-        arguments += ',whois-ip,fcrdns'
+        arguments += ',whois-domain,whois-ip,fcrdns'
     if options['allports']:
         arguments += ' -p1-65535'
     if options['dry_run']:
@@ -591,6 +591,8 @@ the Free Software Foundation, either version 3 of the License, or
     options = vars(parser.parse_args())
     options['testssl.sh'] = args.ssl
     options['curl'] = args.trace
+    options['wpscan'] = args.framework
+    options['droopescan'] = args.framework
     return options
 
 
