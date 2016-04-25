@@ -37,7 +37,7 @@ except ImportError:
           'pip install -r requirements.txt')
 
 
-VERSION = '0.10'
+VERSION = '0.11'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
 SCRIPTS = """banner,dns-nsid,dns-recursion,http-cisco-anyconnect,\
 http-php-version,http-title,http-trace,ntp-info,ntp-monlist,nbstat,\
@@ -300,7 +300,7 @@ def do_droopescan(url, cms, options):
         print_status('Performing droopescan on {0} of type {1}'.format(url,
                                                                        cms),
                      options)
-        command = ['droopescan', 'scan', cms, '--url', url]
+        command = ['droopescan', 'scan', cms, '--quiet', '--url', url]
         _result, stdout, stderr = execute_command(command, options)  # pylint: disable=unused-variable
         append_logs(options, stdout, stderr)
 
