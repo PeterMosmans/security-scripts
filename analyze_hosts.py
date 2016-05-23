@@ -119,9 +119,21 @@ def exit_gracefully(signum, frame):
     signal.signal(signal.SIGINT, [], exit_gracefully)
 
 
+def print_error(text, result=False):
+    """
+    Prints error message
+    When @result, exits with result.
+    """
+    if len(text):
+        print_line('[-] ' + text, True)
+    if result:
+        sys.exit(result)
+
+
 def print_line(text, error=False):
     """
-    Prints text, and flushes stdout and stdin
+    Prints text, and flushes stdout and stdin.
+    When @error, prints text to stderr instead of stdout.
     """
     if not error:
         print(text)
@@ -131,27 +143,17 @@ def print_line(text, error=False):
     sys.stderr.flush()
 
 
-def print_error(text, result=False):
+def print_status(text, options=False):
     """
-    Prints error message and exits with result code result if not 0.
+    Prints status message if options array is given and contains 'verbose'.
     """
-    if len(text):
-        print_line('[-] ' + text, True)
-    if result:
-        sys.exit(result)
-
-
-def print_status(text, options):
-    """
-    Prints status message.
-    """
-    if options['verbose']:
+    if options and options['verbose']:
         print_line('[*] ' + text)
 
 
 def preflight_checks(options):
     """
-    Checks if all tools are there, and disables tools automatically
+    Checks if all tools are there, and disables tools automatically.
     """
     if options['resume']:
         if not os.path.isfile(options['queuefile']) or \
