@@ -16,13 +16,27 @@ python-wappalyzer
 requests
 ```
 
-Recommended one-time installation steps using virtualenv:
+The script `analyze_hosts` can execute other scans, based on their fingerprint:
+```
+droopescan
+WPscan
+```
+
+
+Recommended one-time installation steps using virtualenv (note that virtualenv needs to be installed for this):
 ```
 git clone https://github.com/PeterMosmans/security-scripts
 cd security-scripts
 virtualenv .
 [[ -f bin/activate ]] && source bin/activate
 [[ -f Scripts/activate ]] && source Scripts/activate
+pip install -r requirements.txt
+```
+
+
+Recommended one-time installation steps without virtualenv:
+```
+git clone https://github.com/PeterMosmans/security-scripts
 pip install -r requirements.txt
 ```
 
@@ -36,7 +50,7 @@ usage: analyze_hosts.py [-h] [--dry-run] [-i INPUTFILE] [-o OUTPUT_FILE]
                         [--timeout TIMEOUT] [-v]
                         [target]
 
-analyze_hosts.py version 0.8 - scans one or more hosts for security misconfigurations
+analyze_hosts.py version 0.13 - scans one or more hosts for security misconfigurations
 
 Please note that this is NOT a stealthy scan tool: By default, a TCP and UDP
 portscan will be launched, using some of nmap's interrogation scripts.
@@ -78,7 +92,6 @@ optional arguments:
   --maxtime MAXTIME     timeout for scans in seconds (default 600)
   --timeout TIMEOUT     timeout for requests in seconds (default 10)
   -v, --verbose         Be more verbose
-
 ```
 
 ## analyze-hosts.sh
@@ -90,6 +103,7 @@ The main objectives for the script is to make it as easy as possible to perform 
 * nmap
 * [openssl-1.0.2-chacha](https://github.com/PeterMosmans/openssl/tree/1.0.2-chacha/)
 * [whatweb](https://github.com/urbanadventurer/WhatWeb)
++ whois
 
 
 ### Examples
