@@ -12,6 +12,7 @@ the Free Software Foundation, either version 3 of the License, or
 
 from __future__ import absolute_import
 from __future__ import print_function
+from __future__ import unicode_literals
 
 import argparse
 import os
@@ -37,7 +38,7 @@ except ImportError:
           'pip install -r requirements.txt')
 
 
-VERSION = '0.11'
+VERSION = '0.13'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
 SCRIPTS = """banner,dns-nsid,dns-recursion,http-cisco-anyconnect,\
 http-php-version,http-title,http-trace,ntp-info,ntp-monlist,nbstat,\
@@ -66,6 +67,8 @@ def analyze_url(url, port, options):
                 analysis = wappalyzer.analyze(webpage)
                 print_status('Analysis for {0}: {1}'.format(url, analysis),
                              options)
+                append_logs(options,
+                            'Analysis for {0}: {1}'.format(url, analysis))
                 if 'Drupal' in analysis:
                     do_droopescan(url, 'drupal', options)
                 if 'Joomla' in analysis:
