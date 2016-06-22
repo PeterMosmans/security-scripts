@@ -172,7 +172,7 @@ def preflight_checks(options):
                         'or delete file manually', True)
     for basic in ['nmap']:
         options[basic] = True
-    if options['udp'] and not is_admin():
+    if options['udp'] and not is_admin() and not options['dry_run']:
         print_error('UDP portscan needs root permissions', True)
     try:
         import requests
@@ -200,11 +200,20 @@ def preflight_checks(options):
                 options[tool] = False
 
 
+def grab_versions(options):
+    """
+    Adds version information of the tools to the logfile.
+    """
+    for tool in ['curl', 'droopescan', 'nikto', 'nmap', 'testssl.sh',
+                 'timeout', 'wpscan']:
+        if options[tool]:
+            result, _stdout, _stderr = execute_command([tool, '--version'],
+                                                       options)  # pylint: disable=unused-variable
+
 def execute_command(cmd, options):
     """
     Executes command.
-
-    Returns result, stdout, stderr
+    Returns result, stdout, stderr.
     """
     stdout = ''
     stderr = ''
@@ -215,6 +224,7 @@ def execute_command(cmd, options):
         print_line(' '.join(cmd))
         return True, stdout, stderr
     try:
+        append_logs(options, 'command: ' + ' '.join(cmd), options)
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE)
         child.append(process.pid)
@@ -584,8 +594,8 @@ the Free Software Foundation, either version 3 of the License, or
                         help='perform a whois lookup')
     parser.add_argument('--header', action='store', default='analyze_hosts',
                         help='custom header to use for scantools')
-    parser.add_argument('--maxtime', action='store', default='600', type=int,
-                        help='timeout for scans in seconds (default 600)')
+    parser.add_argument('--maxtime', action='store', default='1200', type=int,
+                        help='timeout for scans in seconds (default 1200)')
     parser.add_argument('--timeout', action='store', default='10', type=int,
                         help='timeout for requests in seconds (default 10)')
     parser.add_argument('-v', '--verbose', action='store_true',
