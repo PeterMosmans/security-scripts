@@ -258,10 +258,10 @@ def append_logs(options, stdout, stderr=None):
     try:
         if stdout:
             with open(options['output_file'], 'a+') as open_file:
-                open_file.write(compact_strings(stdout, options))
+                open_file.write(compact_strings(str(stdout), options))
         if stderr:
             with open(options['output_file'], 'a+') as open_file:
-                open_file.write(compact_strings(stderr, options))
+                open_file.write(compact_strings(str(stderr), options))
     except IOError:
         print_error('FAILED: Could not write to {0}'.
                     format(options['output_file']), -1)
