@@ -38,7 +38,7 @@ except ImportError:
           'pip install -r requirements.txt')
 
 
-VERSION = '0.13'
+VERSION = '0.14'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
 SCRIPTS = """banner,dns-nsid,dns-recursion,http-cisco-anyconnect,\
 http-php-version,http-title,http-trace,ntp-info,ntp-monlist,nbstat,\
@@ -224,7 +224,7 @@ def execute_command(cmd, options):
         print_line(' '.join(cmd))
         return True, stdout, stderr
     try:
-        append_logs(options, 'command: ' + ' '.join(cmd), options)
+        append_logs(options, 'command: ' + ' '.join(cmd) + '\n')
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE)
         child.append(process.pid)
@@ -256,10 +256,10 @@ def append_logs(options, stdout, stderr=None):
     if options['dry_run']:
         return
     try:
-        if stdout:
+        if stdout and len(str(stdout)):
             with open(options['output_file'], 'a+') as open_file:
                 open_file.write(compact_strings(str(stdout), options))
-        if stderr:
+        if stderr and len(str(stderr)):
             with open(options['output_file'], 'a+') as open_file:
                 open_file.write(compact_strings(str(stderr), options))
     except IOError:
