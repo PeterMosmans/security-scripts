@@ -16,6 +16,7 @@ from __future__ import unicode_literals
 
 import argparse
 import os
+import re
 import signal
 import ssl
 import subprocess
@@ -436,7 +437,7 @@ def prepare_queue(options):
         hosts = inputfile.read().splitlines()
         targets = []
         for host in hosts:
-            if ('/' in host) or ('-' in host):
+            if re.match('.*\.[0-9]+[-/][0-9]+', host) and not options['dry_run']:
                 if not options['nmap']:
                     print_error('nmap is necessary for IP ranges', True)
                 arguments = '-nsL'
