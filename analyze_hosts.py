@@ -10,7 +10,7 @@ the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 """
 
-from __future__ import absolute_import
+
 from __future__ import print_function
 from __future__ import unicode_literals
 
@@ -87,7 +87,7 @@ def analyze_url(url, port, options):
 
 def is_admin():
     """
-    Returns true if script is executed using root privileges
+    Check whether script is executed using root privileges.
     """
     if os.name == 'nt':
         try:
@@ -101,14 +101,14 @@ def is_admin():
 
 def timestamp():
     """
-    Returns timestamp.
+    Return timestamp.
     """
     return time.strftime("%H:%M:%S %d-%m-%Y")
 
 
 def exit_gracefully(signum, frame):
     """
-    Handle interrupts gracefully.
+    Handle interrupts (gracefully).
     """
     global child
     signal.signal(signal.SIGINT, original_sigint)
@@ -124,21 +124,27 @@ def exit_gracefully(signum, frame):
     signal.signal(signal.SIGINT, [], exit_gracefully)
 
 
-def print_error(text, result=False):
+def print_error(text, exit_code=False):
     """
-    Prints error message
-    When @result, exits with result.
+    Print error message to standard error.
+
+    Args:
+        text: Error message to print.
+        exit_code: If this is set, exit script immediately with exit_code.
     """
     if len(text):
         print_line('[-] ' + text, True)
-    if result:
-        sys.exit(result)
+    if exit_code:
+        sys.exit(exit_code)
 
 
 def print_line(text, error=False):
     """
-    Prints text, and flushes stdout and stdin.
-    When @error, prints text to stderr instead of stdout.
+    Print message to standard output (default) or standard error.
+
+    Args:
+        text: Message to print.
+        error: If True, print to standard error.
     """
     if not error:
         print(text)
@@ -299,7 +305,7 @@ def compact_strings(strings, options):
 
 def do_curl(host, port, options):
     """
-    Checks for HTTP TRACE method.
+    Check for HTTP TRACE method.
     """
     if options['trace']:
         command = ['curl', '-qsIA', "'{0}'".format(options['header']),
@@ -311,7 +317,7 @@ def do_curl(host, port, options):
 
 def do_droopescan(url, cms, options):
     """
-    Performs a droopescan of type @cmd
+    Perform a droopescan of type @cmd
     """
     if options['droopescan']:
         print_status('Performing droopescan on {0} of type {1}'.format(url,
@@ -337,15 +343,14 @@ def do_nikto(host, port, options):
 
 def do_portscan(host, options):
     """
-    Performs a portscan.
+    Perform a portscan.
 
+    Args:
+        host: Target host.
+        options: Dictionary object containing options.
 
     Returns:
         A list of open ports.
-
-    Arguments:
-        host: target host in string
-        options: dictionary with options
     """
     if not options['nmap']:
         return ALLPORTS
@@ -363,7 +368,9 @@ def do_portscan(host, options):
         arguments = '-sn -Pn'
     arguments += ' -sV --script=' + SCRIPTS
     if options['whois']:
-        arguments += ',asn-query,fcrdns,whois-domain,whois-ip'
+        arguments += ',asn-query,fcrdns,whois-ip'
+        if re.match('.*[a-z].*', host):
+            arguments += ',whois-domain'
     if options['allports']:
         arguments += ' -p1-65535'
     if options['dry_run']:
@@ -395,7 +402,7 @@ def do_portscan(host, options):
 
 def do_testssl(host, port, options):
     """
-    Checks SSL/TLS configuration and vulnerabilities.
+    Check SSL/TLS configuration and vulnerabilities.
     """
     timeout = 120  # hardcoded for now
     command = ['testssl.sh', '--quiet', '--warnings', 'off', '--color', '0',
@@ -414,7 +421,7 @@ def do_testssl(host, port, options):
 
 def do_wpscan(url, options):
     """
-    Runs WPscan.
+    Run WPscan.
     """
     if options['wpscan']:
         print_status('Starting WPscan on ' + url, options)
@@ -425,7 +432,7 @@ def do_wpscan(url, options):
 
 def prepare_queue(options):
     """
-    Prepares a queue file which holds all hosts to scan.
+    Prepare a queue file which holds all hosts to scan.
     """
     expanded = False
     if not options['inputfile']:
@@ -437,7 +444,7 @@ def prepare_queue(options):
         hosts = inputfile.read().splitlines()
         targets = []
         for host in hosts:
-            if re.match('.*\.[0-9]+[-/][0-9]+', host) and not options['dry_run']:
+            if re.match(r'.*\.[0-9]+[-/][0-9]+', host) and not options['dry_run']:
                 if not options['nmap']:
                     print_error('nmap is necessary for IP ranges', True)
                 arguments = '-nsL'
