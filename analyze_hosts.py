@@ -24,10 +24,11 @@ import tempfile
 import textwrap
 import time
 import urlparse
+
 try:
     import nmap
 except ImportError:
-    print('Please install python-nmap, e.g. pip install python-nmap',
+    print('[-] Please install python-nmap, e.g. pip install python-nmap',
           file=sys.stderr)
     sys.exit(-1)
 try:
@@ -38,7 +39,7 @@ except ImportError:
           'pip install -r requirements.txt')
 
 
-VERSION = '0.14'
+VERSION = '0.15'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
 SCRIPTS = """banner,dns-nsid,dns-recursion,http-cisco-anyconnect,\
 http-php-version,http-title,http-trace,ntp-info,ntp-monlist,nbstat,\
@@ -361,7 +362,7 @@ def do_portscan(host, options):
         arguments = '-sn -Pn'
     arguments += ' -sV --script=' + SCRIPTS
     if options['whois']:
-        arguments += ',whois-domain,whois-ip,fcrdns'
+        arguments += ',asn-query,fcrdns,whois-domain,whois-ip'
     if options['allports']:
         arguments += ' -p1-65535'
     if options['dry_run']:
