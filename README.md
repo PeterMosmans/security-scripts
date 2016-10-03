@@ -3,10 +3,12 @@
 A collection of security related Python and Bash shell scripts.
 For the shell scripts no fancy programming framework required, all that is needed is a Bash shell.
 
+Note that it is highly recommended to use `analyze_hosts.py` as is the most recent version. No new features will be added to the Bash version `analyze_hosts.sh`.
+
 
 ## analyze_hosts.py
 A simple wrapper script around several open source security tools to simplify scanning of hosts for network vulnerabilities. The script lets you analyze one or several hosts for common misconfiguration vulnerabilities and weaknesses.
-The main objectives for the script is to make it as easy as possible to perform generic security tests, without any heavy prerequisites, make the output as informative as possible, and use open source tools....
+The main objectives for the script is to make it as easy as possible to perform generic security tests, without any heavy prerequisites, make the output as informative as possible, and use open source tools...
 
 ### installation
 The only prerequisites are Python, with the modules (see requirements.txt):
@@ -16,9 +18,11 @@ python-wappalyzer
 requests
 ```
 
-The script `analyze_hosts` can execute other scans, based on their fingerprint:
+The script `analyze_hosts` can execute other scans (based on their fingerprint or open ports):
 ```
 droopescan
+nikto
+testssl.sh
 WPscan
 ```
 
@@ -45,12 +49,12 @@ pip install -r requirements.txt
 usage: analyze_hosts.py [-h] [--dry-run] [-i INPUTFILE] [-o OUTPUT_FILE]
                         [--nikto] [-n] [-p PORT] [--compact]
                         [--queuefile QUEUEFILE] [--resume] [--ssl] [--sslcert]
-                        [--udp] [--framework] [--allports] [-t] [-w]
-                        [--header HEADER] [--maxtime MAXTIME]
+                        [--threads THREADS] [--udp] [--framework] [--allports]
+                        [-t] [-w] [--header HEADER] [--maxtime MAXTIME]
                         [--timeout TIMEOUT] [-v]
                         [target]
 
-analyze_hosts.py version 0.13 - scans one or more hosts for security misconfigurations
+analyze_hosts.py version 0.16 - scans one or more hosts for security misconfigurations
 
 Please note that this is NOT a stealthy scan tool: By default, a TCP and UDP
 portscan will be launched, using some of nmap's interrogation scripts.
@@ -83,13 +87,14 @@ optional arguments:
   --resume              resume working on the queue
   --ssl                 run a ssl scan
   --sslcert             download SSL certificate
+  --threads THREADS     maximum number of threads
   --udp                 check for open UDP ports as well
   --framework           analyze the website and run webscans
   --allports            run a full-blown nmap scan on all ports
   -t, --trace           check webserver for HTTP TRACE method
   -w, --whois           perform a whois lookup
   --header HEADER       custom header to use for scantools
-  --maxtime MAXTIME     timeout for scans in seconds (default 600)
+  --maxtime MAXTIME     timeout for scans in seconds (default 1200)
   --timeout TIMEOUT     timeout for requests in seconds (default 10)
   -v, --verbose         Be more verbose
 ```
