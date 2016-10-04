@@ -50,8 +50,6 @@ rdp-enum-encryption,rpcinfo,sip-methods,smb-os-discovery,smb-security-mode,\
 smtp-open-relay,ssh2-enum-algos,vnc-info,xmlrpc-methods,xmpp-info"""
 UNKNOWN = -1
 
-# global stop_event
-
 
 def analyze_url(url, port, options, logfile):
     """
@@ -110,16 +108,6 @@ def timestamp():
     return time.strftime("%H:%M:%S %d-%m-%Y")
 
 
-def stop_gracefully(signum, frame):
-    """
-    Handle interrupt (gracefully).
-    """
-    global stop_event
-    print('caught Ctrl-C - exiting gracefully')
-    stop_event.set()
-    sys.exit(0)
-
-
 def print_error(text, exit_code=False):
     """
     Print error message to standard error.
@@ -144,10 +132,10 @@ def print_line(text, error=False):
     """
     if not error:
         print(text)
+        sys.stdout.flush()
     else:
         print(text, file=sys.stderr)
-    sys.stdout.flush()
-    sys.stderr.flush()
+        sys.stderr.flush()
 
 
 def print_status(text, options=False):
@@ -339,14 +327,15 @@ def do_nikto(host, port, options, logfile):
     append_logs(logfile, options, stdout, stderr)
 
 
-def do_portscan(host, options, logfile):
+def do_portscan(host, options, logfile, stop_event):
     """
     Perform a portscan.
 
     Args:
-        host: Target host.
-        options: Dictionary object containing options.
-        logfile: Filename where logfile will be written to.
+        host:       Target host.
+        options:    Dictionary object containing options.
+        logfile:    Filename where logfile will be written to.
+        stop_event: Event handler for stop event
 
     Returns:
         A list of open ports.
@@ -389,10 +378,11 @@ def do_portscan(host, options, logfile):
             append_file(logfile, options, temp_file)
             if len(open_ports):
                 print_line('    {1} Found open ports {0}'.format(open_ports, host))
-        else:
-            print_line('{0} Did not detect any open ports'.format(host), options)
     except (AssertionError, nmap.PortScannerError) as exception:
-        print_error('Issue with nmap ({0})'.format(exception))
+        if stop_event.isSet():
+            print_error('Thread requested to stop')
+        else:
+            print_error('Issue with nmap ({0})'.format(exception))
         open_ports = [UNKNOWN]
     finally:
         if os.path.isfile(temp_file):
@@ -507,16 +497,16 @@ def process_host(options, host_queue, stop_event):
     """
     Worker thread: Process each host atomic, append to logfile
     """
-    while not host_queue.empty() and not stop_event.wait(0.01):
+    while host_queue.qsize() and not stop_event.wait(1):
         try:
             host = host_queue.get()
             host_logfile = host + '-' + next(tempfile._get_candidate_names())  # pylint: disable=protected-access
-            status = '[+] {1} {0} Processing ({2} to go)'.format(timestamp(),
+            status = '[+] {0} Processing {1} ({2} to go)'.format(timestamp(),
                                                                  host,
                                                                  host_queue.qsize())
             if not options['dry_run']:
                 print_line(status)
-            open_ports = do_portscan(host, options, host_logfile)
+            open_ports = do_portscan(host, options, host_logfile, stop_event)
             for port in open_ports:
                 if port in [80, 443, 8080]:
                     for tool in ['curl', 'nikto']:
@@ -526,12 +516,14 @@ def process_host(options, host_queue, stop_event):
                     for tool in ['testssl.sh']:
                         use_tool(tool, host, port, options, host_logfile)
                     download_cert(host, port, options, host_logfile)
-            if not len(open_ports):
-                append_logs(host_logfile, options, '[+] {1} {0} Nothing to report'.
-                            format(timestamp(), host, host_queue.qsize()))
-            else:
+            if len(open_ports):
                 append_logs(host_logfile, options, status + '\n')
-            status = '[-] {1} {0} Finished'.format(timestamp(), host)
+                status = '[-] {0} Finished processing {1}'.format(timestamp(),
+                                                                  host)
+            else:
+                status = '[+] {0} Nothing to report on {1}'.format(timestamp(),
+                                                                   host)
+            append_logs(host_logfile, options, status + '\n')
             if not options['dry_run']:
                 print_line(status)
             append_logs(host_logfile, options, status + '\n')
@@ -546,16 +538,32 @@ def loop_hosts(options, queue):
     """
     Main loop, iterate all hosts in queue and perform requested actions.
     """
-    global stop_event
-    worker_queue = Queue.Queue()
+    stop_event = threading.Event()
+    work_queue = Queue.Queue()
+
+    def stop_gracefully(signum, frame):  # pylint: disable=unused-argument
+        """
+        Handle interrupt (gracefully).
+        """
+        print('caught Ctrl-C - exiting gracefully')
+        stop_event.set()
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, stop_gracefully)
     for host in queue:
-        worker_queue.put(host)
-    for _ in range(min(options['threads'], worker_queue.qsize())):
-        thread = threading.Thread(target=process_host, args=(options,
-                                                             worker_queue,
-                                                             stop_event))
+        work_queue.put(host)
+    threads = [threading.Thread(target=process_host, args=(options, work_queue,
+                                                           stop_event))
+               for _ in range(min(options['threads'], work_queue.qsize()))]
+    print_status('Starting {0} threads'.format(len(threads)))
+    for thread in threads:
         thread.start()
-    worker_queue.join()
+    while threads and work_queue.qsize() and not stop_event.isSet():
+        try:
+            time.sleep(1)
+            threads.pop().join()
+        except IOError:
+            pass
 
 
 def read_queue(filename):
@@ -651,9 +659,6 @@ def main():
     """
     Main program loop.
     """
-    global stop_event
-    stop_event = threading.Event()
-    signal.signal(signal.SIGINT, stop_gracefully)
     banner = 'analyze_hosts.py version {0}'.format(VERSION)
     options = parse_arguments(banner)
     print_line(banner)
