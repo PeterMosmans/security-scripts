@@ -7,6 +7,8 @@ Note that it is highly recommended to use `analyze_hosts.py` as is the most rece
 
 
 ## analyze_hosts.py
+Build status for master branch: [![Build Status](https://travis-ci.org/PeterMosmans/security-scripts.svg?branch=master)](https://travis-ci.org/PeterMosmans/security-scripts)
+
 A simple wrapper script around several open source security tools to simplify scanning of hosts for network vulnerabilities. The script lets you analyze one or several hosts for common misconfiguration vulnerabilities and weaknesses.
 The main objectives for the script is to make it as easy as possible to perform generic security tests, without any heavy prerequisites, make the output as informative as possible, and use open source tools...
 
@@ -37,8 +39,7 @@ virtualenv .
 pip install -r requirements.txt
 ```
 
-
-Recommended one-time installation steps without virtualenv:
+One-time installation steps without virtualenv:
 ```
 git clone https://github.com/PeterMosmans/security-scripts
 pip install -r requirements.txt
