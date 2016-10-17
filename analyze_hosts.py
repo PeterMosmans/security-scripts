@@ -558,6 +558,8 @@ def loop_hosts(options, queue):
     print_status('Starting {0} threads'.format(len(threads)))
     for thread in threads:
         thread.start()
+    if not stop_event.isSet():
+        work_queue.join()  # block until the queue is empty
     while threads and work_queue.qsize() and not stop_event.isSet():
         try:
             time.sleep(1)
