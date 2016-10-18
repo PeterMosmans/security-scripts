@@ -456,7 +456,7 @@ def process_host(options, host_queue, output_queue, stop_event):
                             use_tool(tool, host, port, options, host_logfile)
                         download_cert(host, port, options, host_logfile)
             else:
-                logging.info('Nothing to report on {1}'.format(host))
+                logging.info('Nothing to report on %s', host)
             if os.path.isfile(host_logfile) and os.stat(host_logfile).st_size:
                 with open(host_logfile, 'r') as read_file:
                     output_queue.put(read_file.read())
@@ -576,6 +576,8 @@ the Free Software Foundation, either version 3 of the License, or
                         help='log as little as possible')
     parser.add_argument('--queuefile', action='store',
                         default='analyze_hosts.queue', help='the queuefile')
+    parser.add_argument('--quiet', action='store_true',
+                        help='do not show logfiles on the console')
     parser.add_argument('--resume', action='store_true',
                         help='resume working on the queue')
     parser.add_argument('--ssl', action='store_true',
