@@ -321,7 +321,7 @@ def do_portscan(host, options, logfile, stop_event):
                 logging.info('%s Found open ports %s', host, open_ports)
     except (AssertionError, nmap.PortScannerError) as exception:
         if stop_event.isSet():
-            logging.debug('Thread requested to stop')
+            logging.debug('nmap interrupted')
         else:
             logging.error('Issue with nmap ({0})'.format(exception))
         open_ports = [UNKNOWN]
@@ -468,19 +468,21 @@ def process_host(options, host_queue, output_queue, stop_event):
             host_queue.task_done()
         except Queue.Empty:
             break
+    logging.debug('Exiting process_host thread')
 
 
 def process_output(output_queue, stop_event):
     """
     Process logfiles synchronously.
     """
-    while not stop_event.wait(0.01) or not output_queue.empty():
+    while not stop_event.wait(1) or not output_queue.empty():
         try:
-            item = output_queue.get()
+            item = output_queue.get(block=False)
             logging.info(item)
             output_queue.task_done()
         except Queue.Empty:
             pass
+    logging.debug('Finished process_output')
 
 
 def loop_hosts(options, queue):
@@ -518,11 +520,12 @@ def loop_hosts(options, queue):
     if not stop_event.isSet():
         work_queue.join()  # block until the queue is empty
         stop_event.set()  # signal that the work_queue is empty
-        while threads:
-            threads.pop().join()
-    output_queue.join()  # always make sure that the output is properly processed
+    logging.debug('Waiting for threads to finish')
+    while threads:
+        threads.pop().join()
     if output_queue.qsize():
         process_output(output_queue, stop_event)
+    output_queue.join()  # always make sure that the output is properly processed
 
 
 def read_queue(filename):
@@ -646,7 +649,7 @@ def main():
     banner = 'analyze_hosts.py version {0}'.format(VERSION)
     options = parse_arguments(banner)
     setup_logging(options)
-    logging.info(banner + 'starting')
+    logging.info(banner + ' starting')
     preflight_checks(options)
     if not options['resume']:
         prepare_queue(options)
