@@ -99,7 +99,7 @@ def is_admin():
 
 def preflight_checks(options):
     """
-    Checks if all tools are there, and disables tools automatically.
+    Check if all tools are there, and disable tools automatically.
     """
     if options['resume']:
         if not os.path.isfile(options['queuefile']) or \
@@ -164,7 +164,7 @@ def execute_command(cmd, options):
         logging.debug(' '.join(cmd))
         return True, stdout, stderr
     try:
-        logging.debug('command: ' + ' '.join(cmd))
+        logging.debug(' '.join(cmd))
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE)
         stdout, stderr = process.communicate()
@@ -206,7 +206,7 @@ def append_logs(logfile, options, stdout, stderr=None):
 
 def append_file(logfile, options, input_file):
     """
-    Append file to logfile, and deletes @input_file.
+    Append file to logfile, and delete @input_file.
     """
     if options['dry_run']:
         return
@@ -221,7 +221,7 @@ def append_file(logfile, options, input_file):
 
 def compact_strings(strings, options):
     """
-    Removes as much unnecessary strings as possible.
+    Remove as much unnecessary strings as possible.
     """
     # remove ' (OK)'
     # remove ^SF:
@@ -392,7 +392,7 @@ def prepare_queue(options):
 
 def remove_from_queue(host, options):
     """
-    Removes a host from the queue file.
+    Remove a host from the queue file.
     """
     with open(options['queuefile'], 'r+') as queuefile:
         hosts = queuefile.read().splitlines()
@@ -507,7 +507,7 @@ def loop_hosts(options, queue):
                for _ in range(min(options['threads'] - 1, work_queue.qsize()))]
     threads.append(threading.Thread(target=process_output, args=(output_queue,
                                                                  stop_event)))
-    logging.debug('Starting %s threads', threads)
+    logging.debug('Starting %s threads', len(threads))
     for thread in threads:
         thread.start()
     while work_queue.qsize() and not stop_event.wait(1):
@@ -527,7 +527,7 @@ def loop_hosts(options, queue):
 
 def read_queue(filename):
     """
-    Returns a list of targets.
+    Return a list of targets.
     """
     queue = []
     try:
@@ -540,7 +540,7 @@ def read_queue(filename):
 
 def parse_arguments(banner):
     """
-    Parses command line arguments.
+    Parse command line arguments.
     """
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -618,7 +618,7 @@ the Free Software Foundation, either version 3 of the License, or
 
 def setup_logging(options):
     """
-    Sets up loghandlers according to options
+    Set up loghandlers according to options.
     """
     # DEBUG = verbose status messages
     # INFO = status messages and logfiles
