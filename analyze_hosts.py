@@ -42,7 +42,7 @@ except ImportError:
           'pip install -r requirements.txt')
 
 
-VERSION = '0.16'
+VERSION = '0.17'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
 SCRIPTS = """banner,dns-nsid,dns-recursion,http-cisco-anyconnect,\
 http-php-version,http-title,http-trace,ntp-info,ntp-monlist,nbstat,\
@@ -493,9 +493,9 @@ def use_tool(tool, host, port, options, logfile):
         do_testssl(host, port, options, logfile)
 
 
-def process_host(options, host_queue, stop_event):
+def process_host(options, host_queue, output_queue, stop_event):
     """
-    Worker thread: Process each host atomic, append to logfile
+    Worker thread: Process each host atomic, add output files to output_queue
     """
     while host_queue.qsize() and not stop_event.wait(1):
         try:
@@ -527,11 +527,24 @@ def process_host(options, host_queue, stop_event):
             if not options['dry_run']:
                 print_line(status)
             append_logs(host_logfile, options, status + '\n')
-            append_file(options['output_file'], options, host_logfile)
+            if os.path.isfile(host_logfile) and os.stat(host_logfile).st_size:
+                with open(host_logfile, 'r') as read_file:
+                    output_queue.put(read_file.read())
+                os.remove(host_logfile)
             remove_from_queue(host, options)
             host_queue.task_done()
         except Queue.Empty:
             break
+
+
+def process_output(options, output_queue, stop_event):
+    while not stop_event.wait(0.01) or not output_queue.empty():
+        try:
+            item = output_queue.get()
+            append_logs(options['output_file'], options, item)
+            output_queue.task_done()
+        except Queue.Empty:
+            pass
 
 
 def loop_hosts(options, queue):
@@ -540,6 +553,7 @@ def loop_hosts(options, queue):
     """
     stop_event = threading.Event()
     work_queue = Queue.Queue()
+    output_queue = Queue.Queue()
 
     def stop_gracefully(signum, frame):  # pylint: disable=unused-argument
         """
@@ -553,19 +567,28 @@ def loop_hosts(options, queue):
     for host in queue:
         work_queue.put(host)
     threads = [threading.Thread(target=process_host, args=(options, work_queue,
+                                                           output_queue,
                                                            stop_event))
-               for _ in range(min(options['threads'], work_queue.qsize()))]
+               for _ in range(min(options['threads'] - 1, work_queue.qsize()))]
+    threads.append(threading.Thread(target=process_output, args=(options,
+                                                                 output_queue,
+                                                                 stop_event)))
     print_status('Starting {0} threads'.format(len(threads)))
     for thread in threads:
         thread.start()
-    if not stop_event.isSet():
-        work_queue.join()  # block until the queue is empty
-    while threads and work_queue.qsize() and not stop_event.isSet():
+    while work_queue.qsize() and not stop_event.isSet():
         try:
             time.sleep(1)
-            threads.pop().join()
         except IOError:
             pass
+    if not stop_event.isSet():
+        work_queue.join()  # block until the queue is empty
+        stop_event.set()  # signal that the work_queue is empty
+    output_queue.join()  # always make sure that the output is properly processed
+    while threads:
+        threads.pop().join()
+    if output_queue.qsize():
+        process_output(options, output_queue, stop_event)    
 
 
 def read_queue(filename):
