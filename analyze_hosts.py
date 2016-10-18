@@ -341,7 +341,7 @@ def do_testssl(host, port, options, logfile):
         command = ['timeout', str(options['maxtime'])] + command
     if port == 25:
         command += ['--starttls', 'smtp']
-    logging.debug('{0} Starting testssl.sh on {0}:{1}'.format(host, port))
+    logging.debug('%s Starting testssl.sh on port %s', host, port)
     _result, stdout, stderr = execute_command(command +
                                               ['{0}:{1}'.format(host, port)],
                                               options)  # pylint: disable=unused-variable
@@ -444,30 +444,34 @@ def process_host(options, host_queue, output_queue, stop_event):
                                                               host_queue.qsize()))
             open_ports = do_portscan(host, options, host_logfile, stop_event)
             if len(open_ports):
-                append_logs(host_logfile, options, '{0} Open ports: {1}'.
-                            format(host, open_ports))
-                for port in open_ports:
-                    if port in [80, 443, 8080]:
-                        for tool in ['curl', 'nikto']:
-                            use_tool(tool, host, port, options, host_logfile)
-                        analyze_url(host, port, options, host_logfile)
-                    if port in [25, 443, 465, 993, 995]:
-                        for tool in ['testssl.sh']:
-                            use_tool(tool, host, port, options, host_logfile)
-                        download_cert(host, port, options, host_logfile)
+                if UNKNOWN in open_ports:
+                    logging.info('%s Scan interrupted ?', host)
+                else:
+                    append_logs(host_logfile, options, '{0} Open ports: {1}'.
+                                format(host, open_ports))
+                    for port in open_ports:
+                        if port in [80, 443, 8080]:
+                            for tool in ['curl', 'nikto']:
+                                use_tool(tool, host, port, options, host_logfile)
+                            analyze_url(host, port, options, host_logfile)
+                        if port in [25, 443, 465, 993, 995]:
+                            for tool in ['testssl.sh']:
+                                use_tool(tool, host, port, options, host_logfile)
+                            download_cert(host, port, options, host_logfile)
             else:
                 logging.info('%s Nothing to report', host)
             if os.path.isfile(host_logfile) and os.stat(host_logfile).st_size:
                 with open(host_logfile, 'r') as read_file:
                     output_queue.put(read_file.read())
                 os.remove(host_logfile)
-            remove_from_queue(host, options)
-            host_queue.task_done()
+            if UNKNOWN not in open_ports:
+                remove_from_queue(host, options)
+                host_queue.task_done()
         except Queue.Empty:
             break
 
 
-def process_output(options, output_queue, stop_event):
+def process_output(output_queue, stop_event):
     """
     Process logfiles synchronously.
     """
@@ -502,10 +506,9 @@ def loop_hosts(options, queue):
                                                            output_queue,
                                                            stop_event))
                for _ in range(min(options['threads'] - 1, work_queue.qsize()))]
-    threads.append(threading.Thread(target=process_output, args=(options,
-                                                                 output_queue,
+    threads.append(threading.Thread(target=process_output, args=(output_queue,
                                                                  stop_event)))
-    logging.debug('Starting {0} threads'.format(len(threads)))
+    logging.debug('Starting %s threads', threads)
     for thread in threads:
         thread.start()
     while work_queue.qsize() and not stop_event.isSet():
@@ -520,7 +523,7 @@ def loop_hosts(options, queue):
     while threads:
         threads.pop().join()
     if output_queue.qsize():
-        process_output(options, output_queue, stop_event)
+        process_output(output_queue, stop_event)
 
 
 def read_queue(filename):
@@ -532,7 +535,7 @@ def read_queue(filename):
         with open(filename, 'r') as queuefile:
             queue = queuefile.read().splitlines()
     except IOError:
-        logging.error('Could not read {0}'.format(filename))
+        logging.error('Could not read %s', filename)
     return queue
 
 
@@ -624,12 +627,12 @@ def setup_logging(options):
     logger.setLevel(logging.DEBUG)
     logfile = logging.FileHandler(options['output_file'])
     logfile.setFormatter(logging.Formatter('%(asctime)s %(message)s',
-                                  datefmt='%m-%d-%Y %H:%M'))
+                                           datefmt='%m-%d-%Y %H:%M'))
     logfile.setLevel(logging.INFO)
     logger.addHandler(logfile)
     console = logging.StreamHandler(stream=sys.stdout)
     console.setFormatter(logging.Formatter('%(asctime)s %(message)s',
-                                  datefmt='%H:%M:%S'))
+                                           datefmt='%H:%M:%S'))
     if options['verbose']:
         console.setLevel(logging.DEBUG)
     else:
