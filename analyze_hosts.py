@@ -43,7 +43,7 @@ except ImportError:
           'pip install -r requirements.txt')
 
 
-VERSION = '0.18'
+VERSION = '0.19'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
 SCRIPTS = """banner,dns-nsid,dns-recursion,http-cisco-anyconnect,\
 http-php-version,http-title,http-trace,ntp-info,ntp-monlist,nbstat,\
@@ -577,8 +577,8 @@ the Free Software Foundation, either version 3 of the License, or
                         help='log as little as possible')
     parser.add_argument('--queuefile', action='store',
                         default='analyze_hosts.queue', help='the queuefile')
-    parser.add_argument('--quiet', action='store_true',
-                        help='do not show logfiles on the console')
+    # parser.add_argument('--quiet', action='store_true',
+    #                     help='do not show logfiles on the console')
     parser.add_argument('--resume', action='store_true',
                         help='resume working on the queue')
     parser.add_argument('--ssl', action='store_true',
@@ -643,10 +643,10 @@ def main():
     """
     Main program loop.
     """
-    banner = 'analyze_hosts.py version {0} starting'.format(VERSION)
+    banner = 'analyze_hosts.py version {0}'.format(VERSION)
     options = parse_arguments(banner)
     setup_logging(options)
-    logging.info(banner)
+    logging.info(banner + 'starting')
     preflight_checks(options)
     if not options['resume']:
         prepare_queue(options)
