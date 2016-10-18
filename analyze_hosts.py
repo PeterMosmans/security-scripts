@@ -456,7 +456,7 @@ def process_host(options, host_queue, output_queue, stop_event):
                             use_tool(tool, host, port, options, host_logfile)
                         download_cert(host, port, options, host_logfile)
             else:
-                logging.info('Nothing to report on %s', host)
+                logging.info('%s Nothing to report', host)
             if os.path.isfile(host_logfile) and os.stat(host_logfile).st_size:
                 with open(host_logfile, 'r') as read_file:
                     output_queue.put(read_file.read())
@@ -494,7 +494,6 @@ def loop_hosts(options, queue):
         """
         print('caught Ctrl-C - exiting gracefully')
         stop_event.set()
-        sys.exit(0)
 
     signal.signal(signal.SIGINT, stop_gracefully)
     for host in queue:
