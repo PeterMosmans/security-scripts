@@ -510,7 +510,7 @@ def loop_hosts(options, queue):
     logging.debug('Starting %s threads', threads)
     for thread in threads:
         thread.start()
-    while work_queue.qsize() and not stop_event.isSet():
+    while work_queue.qsize() and not stop_event.wait(1):
         try:
             time.sleep(1)
         except IOError:
@@ -518,9 +518,9 @@ def loop_hosts(options, queue):
     if not stop_event.isSet():
         work_queue.join()  # block until the queue is empty
         stop_event.set()  # signal that the work_queue is empty
+        while threads:
+            threads.pop().join()
     output_queue.join()  # always make sure that the output is properly processed
-    while threads:
-        threads.pop().join()
     if output_queue.qsize():
         process_output(output_queue, stop_event)
 
