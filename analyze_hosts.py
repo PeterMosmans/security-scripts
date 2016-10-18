@@ -171,7 +171,8 @@ def execute_command(cmd, options):
         result = not process.returncode
     except OSError:
         pass
-    return result, unicode.replace(stdout.decode('utf-8'), '\r\n', '\n'), unicode.replace(stderr.decode('utf-8'), '\r\n', '\n')
+    return result, unicode.replace(stdout.decode('utf-8'), '\r\n', '\n'), \
+        unicode.replace(stderr.decode('utf-8'), '\r\n', '\n')
 
 
 def download_cert(host, port, options, logfile):
@@ -215,7 +216,7 @@ def append_file(logfile, options, input_file):
                 append_logs(logfile, options, read_file.read())
         os.remove(input_file)
     except (IOError, OSError) as exception:
-        logging.error('FAILED: Could not read %s (%s)'.input_file, exception)
+        logging.error('FAILED: Could not read %s (%s)', input_file, exception)
 
 
 def compact_strings(strings, options):
@@ -248,8 +249,7 @@ def do_droopescan(url, cms, options, logfile):
     Perform a droopescan of type @cmd
     """
     if options['droopescan']:
-        logging.debug('Performing droopescan on {0} of type {1}'.format(url,
-                                                                        cms))
+        logging.debug('Performing %s droopescan on %s', cms, url)
         command = ['droopescan', 'scan', cms, '--quiet', '--url', url]
         _result, stdout, stderr = execute_command(command, options)  # pylint: disable=unused-variable
         append_logs(logfile, options, stdout, stderr)
@@ -436,12 +436,11 @@ def process_host(options, host_queue, output_queue, stop_event):
     """
     Worker thread: Process each host atomic, add output files to output_queue
     """
-    while host_queue.qsize() and not stop_event.wait(1):
+    while host_queue.qsize() and not stop_event.wait(.01):
         try:
             host = host_queue.get()
             host_logfile = host + '-' + next(tempfile._get_candidate_names())  # pylint: disable=protected-access
-            logging.debug('Processing {0} ({1} to go)'.format(host,
-                                                              host_queue.qsize()))
+            logging.debug('%s Processing (%s in queue)', host, host_queue.qsize())
             open_ports = do_portscan(host, options, host_logfile, stop_event)
             if len(open_ports):
                 if UNKNOWN in open_ports:
@@ -466,7 +465,7 @@ def process_host(options, host_queue, output_queue, stop_event):
                 os.remove(host_logfile)
             if UNKNOWN not in open_ports:
                 remove_from_queue(host, options)
-                host_queue.task_done()
+            host_queue.task_done()
         except Queue.Empty:
             break
 
@@ -496,7 +495,7 @@ def loop_hosts(options, queue):
         """
         Handle interrupt (gracefully).
         """
-        print('caught Ctrl-C - exiting gracefully')
+        logging.error('caught Ctrl-C - exiting gracefully')
         stop_event.set()
 
     signal.signal(signal.SIGINT, stop_gracefully)
