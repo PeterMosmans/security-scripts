@@ -318,7 +318,7 @@ def do_portscan(host, options, logfile, stop_event):
         if options['no_portscan'] or len(open_ports):
             append_file(logfile, options, temp_file)
             if len(open_ports):
-                logging.info('    {1} Found open ports {0}'.format(open_ports, host))
+                logging.info('%s Found open ports %s', host, open_ports)
     except (AssertionError, nmap.PortScannerError) as exception:
         if stop_event.isSet():
             logging.debug('Thread requested to stop')
@@ -342,9 +342,9 @@ def do_testssl(host, port, options, logfile):
     if port == 25:
         command += ['--starttls', 'smtp']
     logging.debug('%s Starting testssl.sh on port %s', host, port)
-    _result, stdout, stderr = execute_command(command +
+    _result, stdout, stderr = execute_command(command +  # pylint: disable=unused-variable
                                               ['{0}:{1}'.format(host, port)],
-                                              options)  # pylint: disable=unused-variable
+                                              options)
     append_logs(logfile, options, stdout, stderr)
 
 
