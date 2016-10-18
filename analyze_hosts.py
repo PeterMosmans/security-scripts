@@ -15,6 +15,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import argparse
+import logging
 import os
 import Queue
 import re
@@ -38,11 +39,11 @@ try:
     import requests
     import Wappalyzer
 except ImportError:
-    print('[-] Please install the modules in requirements.txt, e.g. '
+    print('Please install the requests and Wappalyzer modules, e.g. '
           'pip install -r requirements.txt')
 
 
-VERSION = '0.17'
+VERSION = '0.18'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
 SCRIPTS = """banner,dns-nsid,dns-recursion,http-cisco-anyconnect,\
 http-php-version,http-title,http-trace,ntp-info,ntp-monlist,nbstat,\
@@ -69,10 +70,7 @@ def analyze_url(url, port, options, logfile):
             if page.status_code == 200:
                 webpage = Wappalyzer.WebPage(url, page.text, page.headers)
                 analysis = wappalyzer.analyze(webpage)
-                print_status('Analysis for {0}: {1}'.format(url, analysis),
-                             options)
-                append_logs(logfile, options,
-                            'Analysis for {0}: {1}'.format(url, analysis))
+                logging.debug('Analysis for %s: %s', url, analysis)
                 if 'Drupal' in analysis:
                     do_droopescan(url, 'drupal', options, logfile)
                 if 'Joomla' in analysis:
@@ -80,11 +78,9 @@ def analyze_url(url, port, options, logfile):
                 if 'WordPress' in analysis:
                     do_wpscan(url, options, logfile)
             else:
-                print_status('Got result {0} - cannot analyze that'.
-                             format(page.status_code))
+                logging.debug('Got result %s on %s - cannot analyze that', page.status_code, url)
         except requests.exceptions.ConnectionError as exception:
-            print_error('Could not connect to {0} ({1})'.
-                        format(url, exception))
+            logging.error('Could not connect to %s (%s)', url, exception)
 
 
 def is_admin():
@@ -101,51 +97,6 @@ def is_admin():
         return os.geteuid() == 0  # pylint: disable=no-member
 
 
-def timestamp():
-    """
-    Return timestamp.
-    """
-    return time.strftime("%H:%M:%S %d-%m-%Y")
-
-
-def print_error(text, exit_code=False):
-    """
-    Print error message to standard error.
-
-    Args:
-        text: Error message to print.
-        exit_code: If this is set, exit script immediately with exit_code.
-    """
-    if len(text):
-        print_line('[-] ' + text, True)
-    if exit_code:
-        sys.exit(exit_code)
-
-
-def print_line(text, error=False):
-    """
-    Print message to standard output (default) or standard error.
-
-    Args:
-        text: Message to print.
-        error: If True, print to standard error.
-    """
-    if not error:
-        print(text)
-        sys.stdout.flush()
-    else:
-        print(text, file=sys.stderr)
-        sys.stderr.flush()
-
-
-def print_status(text, options=False):
-    """
-    Print status message if options array is given and contains 'verbose'.
-    """
-    if options and options['verbose']:
-        print_line('[*] ' + text)
-
-
 def preflight_checks(options):
     """
     Checks if all tools are there, and disables tools automatically.
@@ -153,56 +104,54 @@ def preflight_checks(options):
     if options['resume']:
         if not os.path.isfile(options['queuefile']) or \
            not os.stat(options['queuefile']).st_size:
-            print_error('Cannot resume - queuefile {0} is empty'.
-                        format(options['queuefile']), True)
+            logging.error('Cannot resume - queuefile %s is empty',
+                          options['queuefile'])
+            sys.exit(-1)
     else:
         if os.path.isfile(options['queuefile']) and \
            os.stat(options['queuefile']).st_size:
-            print_error('WARNING: Queuefile {0} already exists.\n'.
-                        format(options['queuefile']) +
-                        '    Use --resume to resume with previous targets, ' +
-                        'or delete file manually', True)
+            logging.error('WARNING: Queuefile {0} already exists.\n'.
+                          format(options['queuefile']) +
+                          '    Use --resume to resume with previous targets, ' +
+                          'or delete file manually')
+            sys.exit(-1)
     for basic in ['nmap']:
         options[basic] = True
     if options['udp'] and not is_admin() and not options['dry_run']:
-        print_error('UDP portscan needs root permissions', True)
+        logging.error('UDP portscan needs root permissions')
     try:
         import requests
         import Wappalyzer
     except ImportError:
-        print_error('Disabling --framework due to missing Python libraries')
+        logging.error('Disabling --framework due to missing Python libraries')
         options['framework'] = False
     if options['framework']:
         options['droopescan'] = True
         options['wpscan'] = True
     if options['wpscan'] and not is_admin():
-        print_error('Disabling --wpscan as this option needs root permissions')
+        logging.error('Disabling --wpscan as this option needs root permissions')
         options['wpscan'] = False
     options['timeout'] = options['testssl.sh']
     for tool in ['curl', 'droopescan', 'nikto', 'nmap', 'testssl.sh',
                  'timeout', 'wpscan']:
         if options[tool]:
-            print_status('Checking whether {0} is present... '.
-                         format(tool), options)
-            result, _stdout, _stderr = execute_command([tool, '--help'],
-                                                       options, options['output_file'])  # pylint: disable=unused-variable
+            logging.debug('Checking whether %s is present... ', tool)
+            version = '--version'
+            if tool == 'nikto':
+                version = '-Version'
+            result, stdout, stderr = execute_command([tool, version], options)
             if not result:
-                print_error('FAILED: Could not execute {0}, disabling checks'.
-                            format(tool), False)
+                logging.error('FAILED: Could not execute %s, disabling checks (%s)',
+                              tool, stderr)
                 options[tool] = False
+            else:
+                logging.debug(stdout)
+    if not options['nmap']:
+        logging.error('nmap is necessary')
+        sys.exit(-1)
 
 
-def grab_versions(options):
-    """
-    Add version information of the tools to the logfile.
-    """
-    for tool in ['curl', 'droopescan', 'nikto', 'nmap', 'testssl.sh',
-                 'timeout', 'wpscan']:
-        if options[tool]:
-            result, _stdout, _stderr = execute_command([tool, '--version'],
-                                                       options, options['output_file'])  # pylint: disable=unused-variable
-
-def execute_command(cmd, options, logfile):
+def execute_command(cmd, options):
     """
     Execute command.
 
@@ -211,23 +160,18 @@ def execute_command(cmd, options, logfile):
     stdout = ''
     stderr = ''
     result = False
-    # global child
-    # child = []
     if options['dry_run']:
-        print_line(' '.join(cmd))
+        logging.debug(' '.join(cmd))
         return True, stdout, stderr
     try:
-        append_logs(logfile, options, 'command: ' + ' '.join(cmd) + '\n')
+        logging.debug('command: ' + ' '.join(cmd))
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE)
-        # child.append(process.pid)
-        # child.append(cmd[0])
         stdout, stderr = process.communicate()
         result = not process.returncode
     except OSError:
         pass
-    # child = []
-    return result, stdout, stderr
+    return result, unicode.replace(stdout.decode('utf-8'), '\r\n', '\n'), unicode.replace(stderr.decode('utf-8'), '\r\n', '\n')
 
 
 def download_cert(host, port, options, logfile):
@@ -256,8 +200,7 @@ def append_logs(logfile, options, stdout, stderr=None):
             with open(logfile, 'a+') as open_file:
                 open_file.write(compact_strings(str(stderr), options))
     except IOError:
-        print_error('FAILED: Could not write to {0}'.
-                    format(logfile), -1)
+        logging.error('FAILED: Could not write to %s', logfile)
 
 
 def append_file(logfile, options, input_file):
@@ -272,8 +215,7 @@ def append_file(logfile, options, input_file):
                 append_logs(logfile, options, read_file.read())
         os.remove(input_file)
     except (IOError, OSError) as exception:
-        print_error('FAILED: Could not read {0} ({1}'.
-                    format(input_file, exception), -1)
+        logging.error('FAILED: Could not read %s (%s)'.input_file, exception)
 
 
 def compact_strings(strings, options):
@@ -297,7 +239,7 @@ def do_curl(host, port, options, logfile):
         command = ['curl', '-qsIA', "'{0}'".format(options['header']),
                    '--connect-timeout', str(options['timeout']), '-X', 'TRACE',
                    '{0}:{1}'.format(host, port)]
-        _result, stdout, stderr = execute_command(command, options, logfile)  # pylint: disable=unused-variable
+        _result, stdout, stderr = execute_command(command, options)  # pylint: disable=unused-variable
         append_logs(logfile, options, stdout, stderr)
 
 
@@ -306,11 +248,10 @@ def do_droopescan(url, cms, options, logfile):
     Perform a droopescan of type @cmd
     """
     if options['droopescan']:
-        print_status('Performing droopescan on {0} of type {1}'.format(url,
-                                                                       cms),
-                     options)
+        logging.debug('Performing droopescan on {0} of type {1}'.format(url,
+                                                                        cms))
         command = ['droopescan', 'scan', cms, '--quiet', '--url', url]
-        _result, stdout, stderr = execute_command(command, options, logfile)  # pylint: disable=unused-variable
+        _result, stdout, stderr = execute_command(command, options)  # pylint: disable=unused-variable
         append_logs(logfile, options, stdout, stderr)
 
 
@@ -323,7 +264,7 @@ def do_nikto(host, port, options, logfile):
                '{0}:{1}'.format(host, port)]
     if port == 443:
         command.append('-ssl')
-    _result, stdout, stderr = execute_command(command, options, logfile)  # pylint: disable=unused-variable
+    _result, stdout, stderr = execute_command(command, options)  # pylint: disable=unused-variable
     append_logs(logfile, options, stdout, stderr)
 
 
@@ -362,13 +303,13 @@ def do_portscan(host, options, logfile, stop_event):
     if options['allports']:
         arguments += ' -p1-65535'
     if options['dry_run']:
-        print_line('nmap {0} {1}'.format(arguments, host))
         return ALLPORTS
-    print_line('[+] {0} Starting nmap'.format(host))
+    logging.info('%s Starting nmap', host)
     try:
         temp_file = 'nmap-{0}-{1}'.format(host, next(tempfile._get_candidate_names()))  # pylint: disable=protected-access
         arguments = '{0} -oN {1}'.format(arguments, temp_file)
         scanner = nmap.PortScanner()
+        logging.debug('nmap %s %s', arguments, host)
         scanner.scan(hosts=host, arguments=arguments)
         for ip_address in [x for x in scanner.all_hosts() if scanner[x] and
                            scanner[x].state() == 'up']:
@@ -377,12 +318,12 @@ def do_portscan(host, options, logfile, stop_event):
         if options['no_portscan'] or len(open_ports):
             append_file(logfile, options, temp_file)
             if len(open_ports):
-                print_line('    {1} Found open ports {0}'.format(open_ports, host))
+                logging.info('    {1} Found open ports {0}'.format(open_ports, host))
     except (AssertionError, nmap.PortScannerError) as exception:
         if stop_event.isSet():
-            print_error('Thread requested to stop')
+            logging.debug('Thread requested to stop')
         else:
-            print_error('Issue with nmap ({0})'.format(exception))
+            logging.error('Issue with nmap ({0})'.format(exception))
         open_ports = [UNKNOWN]
     finally:
         if os.path.isfile(temp_file):
@@ -400,22 +341,21 @@ def do_testssl(host, port, options, logfile):
         command = ['timeout', str(options['maxtime'])] + command
     if port == 25:
         command += ['--starttls', 'smtp']
-    print_status('{0} Starting testssl.sh on {0}:{1}'.format(host, port),
-                 options)
+    logging.debug('{0} Starting testssl.sh on {0}:{1}'.format(host, port))
     _result, stdout, stderr = execute_command(command +
                                               ['{0}:{1}'.format(host, port)],
-                                              options, logfile)  # pylint: disable=unused-variable
+                                              options)  # pylint: disable=unused-variable
     append_logs(logfile, options, stdout, stderr)
 
 
 def do_wpscan(url, options, logfile):
     """
-    Run WPscan.
+    Run WPscan/
     """
     if options['wpscan']:
-        print_status('Starting WPscan on ' + url, options)
+        logging.debug('Starting WPscan on ' + url)
         command = ['wpscan', '--batch', '--no-color', '--url', url]
-        _result, stdout, stderr = execute_command(command, options, logfile)  # pylint: disable=unused-variable
+        _result, stdout, stderr = execute_command(command, options)  # pylint: disable=unused-variable
         append_logs(logfile, options, stdout, stderr)
 
 
@@ -435,7 +375,7 @@ def prepare_queue(options):
         for host in hosts:
             if re.match(r'.*\.[0-9]+[-/][0-9]+', host) and not options['dry_run']:
                 if not options['nmap']:
-                    print_error('nmap is necessary for IP ranges', True)
+                    logging.error('nmap is necessary for IP ranges')
                 arguments = '-nsL'
                 scanner = nmap.PortScanner()
                 scanner.scan(hosts='{0}'.format(host), arguments=arguments)
@@ -483,8 +423,7 @@ def use_tool(tool, host, port, options, logfile):
     """
     if not options[tool]:
         return
-    print_status('starting {0} scan on {1}:{2}'.
-                 format(tool, host, port), options)
+    logging.debug('starting %s scan on %s:%s', tool, host, port)
     if tool == 'nikto':
         do_nikto(host, port, options, logfile)
     if tool == 'curl':
@@ -501,32 +440,23 @@ def process_host(options, host_queue, output_queue, stop_event):
         try:
             host = host_queue.get()
             host_logfile = host + '-' + next(tempfile._get_candidate_names())  # pylint: disable=protected-access
-            status = '[+] {0} Processing {1} ({2} to go)'.format(timestamp(),
-                                                                 host,
-                                                                 host_queue.qsize())
-            if not options['dry_run']:
-                print_line(status)
+            logging.debug('Processing {0} ({1} to go)'.format(host,
+                                                              host_queue.qsize()))
             open_ports = do_portscan(host, options, host_logfile, stop_event)
-            for port in open_ports:
-                if port in [80, 443, 8080]:
-                    for tool in ['curl', 'nikto']:
-                        use_tool(tool, host, port, options, host_logfile)
-                    analyze_url(host, port, options, host_logfile)
-                if port in [25, 443, 465, 993, 995]:
-                    for tool in ['testssl.sh']:
-                        use_tool(tool, host, port, options, host_logfile)
-                    download_cert(host, port, options, host_logfile)
             if len(open_ports):
-                append_logs(host_logfile, options, status + '\n')
-                status = '[-] {0} Finished processing {1}'.format(timestamp(),
-                                                                  host)
+                append_logs(host_logfile, options, '{0} Open ports: {1}'.
+                            format(host, open_ports))
+                for port in open_ports:
+                    if port in [80, 443, 8080]:
+                        for tool in ['curl', 'nikto']:
+                            use_tool(tool, host, port, options, host_logfile)
+                        analyze_url(host, port, options, host_logfile)
+                    if port in [25, 443, 465, 993, 995]:
+                        for tool in ['testssl.sh']:
+                            use_tool(tool, host, port, options, host_logfile)
+                        download_cert(host, port, options, host_logfile)
             else:
-                status = '[+] {0} Nothing to report on {1}'.format(timestamp(),
-                                                                   host)
-            append_logs(host_logfile, options, status + '\n')
-            if not options['dry_run']:
-                print_line(status)
-            append_logs(host_logfile, options, status + '\n')
+                logging.info('Nothing to report on {1}'.format(host))
             if os.path.isfile(host_logfile) and os.stat(host_logfile).st_size:
                 with open(host_logfile, 'r') as read_file:
                     output_queue.put(read_file.read())
@@ -538,10 +468,13 @@ def process_host(options, host_queue, output_queue, stop_event):
 
 
 def process_output(options, output_queue, stop_event):
+    """
+    Process logfiles synchronously.
+    """
     while not stop_event.wait(0.01) or not output_queue.empty():
         try:
             item = output_queue.get()
-            append_logs(options['output_file'], options, item)
+            logging.info(item)
             output_queue.task_done()
         except Queue.Empty:
             pass
@@ -573,7 +506,7 @@ def loop_hosts(options, queue):
     threads.append(threading.Thread(target=process_output, args=(options,
                                                                  output_queue,
                                                                  stop_event)))
-    print_status('Starting {0} threads'.format(len(threads)))
+    logging.debug('Starting {0} threads'.format(len(threads)))
     for thread in threads:
         thread.start()
     while work_queue.qsize() and not stop_event.isSet():
@@ -588,7 +521,7 @@ def loop_hosts(options, queue):
     while threads:
         threads.pop().join()
     if output_queue.qsize():
-        process_output(options, output_queue, stop_event)    
+        process_output(options, output_queue, stop_event)
 
 
 def read_queue(filename):
@@ -600,7 +533,7 @@ def read_queue(filename):
         with open(filename, 'r') as queuefile:
             queue = queuefile.read().splitlines()
     except IOError:
-        print_line('[-] could not read {0}'.format(filename), True)
+        logging.error('Could not read {0}'.format(filename))
     return queue
 
 
@@ -680,21 +613,44 @@ the Free Software Foundation, either version 3 of the License, or
     return options
 
 
+def setup_logging(options):
+    """
+    Sets up loghandlers according to options
+    """
+    # DEBUG = verbose status messages
+    # INFO = status messages and logfiles
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
+    logfile = logging.FileHandler(options['output_file'])
+    logfile.setFormatter(logging.Formatter('%(asctime)s %(message)s',
+                                  datefmt='%m-%d-%Y %H:%M'))
+    logfile.setLevel(logging.INFO)
+    logger.addHandler(logfile)
+    console = logging.StreamHandler(stream=sys.stdout)
+    console.setFormatter(logging.Formatter('%(asctime)s %(message)s',
+                                  datefmt='%H:%M:%S'))
+    if options['verbose']:
+        console.setLevel(logging.DEBUG)
+    else:
+        console.setLevel(logging.INFO)
+    logger.addHandler(console)
+
+
 def main():
     """
     Main program loop.
     """
-    banner = 'analyze_hosts.py version {0}'.format(VERSION)
+    banner = 'analyze_hosts.py version {0} starting'.format(VERSION)
     options = parse_arguments(banner)
-    print_line(banner)
+    setup_logging(options)
+    logging.info(banner)
     preflight_checks(options)
     if not options['resume']:
         prepare_queue(options)
     queue = read_queue(options['queuefile'])
     loop_hosts(options, queue)
     if not options['dry_run']:
-        print_line('{0} Output saved to {1}'.format(timestamp(),
-                                                    options['output_file']))
+        logging.debug('Output saved to %s', options['output_file'])
     sys.exit(0)
 
 
