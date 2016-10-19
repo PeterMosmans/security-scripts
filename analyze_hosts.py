@@ -456,8 +456,8 @@ def process_host(options, host_queue, output_queue, stop_event):
                             logging.info('%s Scan interrupted ?', host)
                             break
                         if port in [80, 443, 8080]:
+                            analyze_url(host, port, options, host_logfile)
                             for tool in ['curl', 'nikto']:
-                                analyze_url(host, port, options, host_logfile)
                                 use_tool(tool, host, port, options, host_logfile)
                         if port in [25, 443, 465, 993, 995]:
                             for tool in ['testssl.sh']:
