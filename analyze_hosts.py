@@ -56,6 +56,7 @@ def analyze_url(url, port, options, logfile):
     """
     Analyze an URL using wappalyzer and execute corresponding scans.
     """
+    orig_url = url
     if options['framework']:
         requests.packages.urllib3.disable_warnings(
             requests.packages.urllib3.exceptions.InsecureRequestWarning)
@@ -70,7 +71,7 @@ def analyze_url(url, port, options, logfile):
             if page.status_code == 200:
                 webpage = Wappalyzer.WebPage(url, page.text, page.headers)
                 analysis = wappalyzer.analyze(webpage)
-                logging.debug('Analysis for %s: %s', url, analysis)
+                logging.info('%s Analysis of %s: %s', orig_url, url, analysis)
                 if 'Drupal' in analysis:
                     do_droopescan(url, 'drupal', options, logfile)
                 if 'Joomla' in analysis:
@@ -78,9 +79,11 @@ def analyze_url(url, port, options, logfile):
                 if 'WordPress' in analysis:
                     do_wpscan(url, options, logfile)
             else:
-                logging.debug('Got result %s on %s - cannot analyze that', page.status_code, url)
+                logging.debug('Got result %s on %s - cannot analyze that',
+                              page.status_code, url)
         except requests.exceptions.ConnectionError as exception:
-            logging.error('Could not connect to %s (%s)', url, exception)
+            logging.error('%s Could not connect to %s (%s)', orig_url, url,
+                          exception)
 
 
 def is_admin():
@@ -451,8 +454,8 @@ def process_host(options, host_queue, output_queue, stop_event):
                     for port in open_ports:
                         if port in [80, 443, 8080]:
                             for tool in ['curl', 'nikto']:
+                                analyze_url(host, port, options, host_logfile)
                                 use_tool(tool, host, port, options, host_logfile)
-                            analyze_url(host, port, options, host_logfile)
                         if port in [25, 443, 465, 993, 995]:
                             for tool in ['testssl.sh']:
                                 use_tool(tool, host, port, options, host_logfile)
