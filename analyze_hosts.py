@@ -199,7 +199,7 @@ def append_logs(logfile, options, stdout, stderr=None):
     try:
         if stdout and len(stdout):
             with open(logfile, 'a+') as open_file:
-                open_file.write(compact_strings(stdout, options))
+                open_file.write(compact_strings(stdout, options).encode('utf-8'))
         if stderr and len(stderr):
             with open(logfile, 'a+') as open_file:
                 open_file.write(compact_strings(stderr, options))
@@ -326,7 +326,7 @@ def do_portscan(host, options, logfile, stop_event):
         if stop_event.isSet():
             logging.debug('nmap interrupted')
         else:
-            logging.error('Issue with nmap ({0})'.format(exception))
+            logging.error('Issue with nmap (%s)', exception)
         open_ports = [UNKNOWN]
     finally:
         if os.path.isfile(temp_file):
@@ -484,7 +484,7 @@ def process_output(output_queue, stop_event):
     while not stop_event.wait(1) or not output_queue.empty():
         try:
             item = output_queue.get(block=False)
-            logging.info(item)
+            logging.info(item.encode('ascii', 'ignore'))
             output_queue.task_done()
         except Queue.Empty:
             pass
