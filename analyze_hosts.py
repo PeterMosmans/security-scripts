@@ -197,12 +197,12 @@ def append_logs(logfile, options, stdout, stderr=None):
     if options['dry_run']:
         return
     try:
-        if stdout and len(stdout.encode('utf-8')):
+        if stdout and len(stdout):
             with open(logfile, 'a+') as open_file:
-                open_file.write(compact_strings(stdout.encode('utf-8'), options))
-        if stderr and len(stderr.encode('utf-8')):
+                open_file.write(compact_strings(stdout, options))
+        if stderr and len(stderr):
             with open(logfile, 'a+') as open_file:
-                open_file.write(compact_strings(stderr.encode('utf-8'), options))
+                open_file.write(compact_strings(stderr, options))
     except IOError:
         logging.error('FAILED: Could not write to %s', logfile)
 
@@ -232,7 +232,7 @@ def compact_strings(strings, options):
     if not options['compact']:
         return strings
     return '\n'.join([x for x in strings.splitlines() if x and
-                      not x.startswith('#')]) + '\n'
+                      not x.startswith('#')])
 
 
 def do_curl(host, port, options, logfile):
