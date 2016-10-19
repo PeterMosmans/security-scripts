@@ -199,10 +199,10 @@ def append_logs(logfile, options, stdout, stderr=None):
     try:
         if stdout and len(stdout.encode('utf-8')):
             with open(logfile, 'a+') as open_file:
-                open_file.write(compact_strings(stdout, options))
+                open_file.write(compact_strings(stdout.encode('utf-8'), options))
         if stderr and len(stderr.encode('utf-8')):
             with open(logfile, 'a+') as open_file:
-                open_file.write(compact_strings(stderr, options))
+                open_file.write(compact_strings(stderr.encode('utf-8'), options))
     except IOError:
         logging.error('FAILED: Could not write to %s', logfile)
 
