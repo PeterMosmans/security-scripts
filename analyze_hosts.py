@@ -113,7 +113,7 @@ def preflight_checks(options):
     else:
         if os.path.isfile(options['queuefile']) and \
            os.stat(options['queuefile']).st_size:
-            logging.error('WARNING: Queuefile {0} already exists.\n'.
+            logging.error('Queuefile {0} already exists.\n'.
                           format(options['queuefile']) +
                           '    Use --resume to resume with previous targets, ' +
                           'or delete file manually')
@@ -452,6 +452,9 @@ def process_host(options, host_queue, output_queue, stop_event):
                     append_logs(host_logfile, options, '{0} Open ports: {1}'.
                                 format(host, open_ports))
                     for port in open_ports:
+                        if stop_event.isSet():
+                            logging.info('%s Scan interrupted ?', host)
+                            break
                         if port in [80, 443, 8080]:
                             for tool in ['curl', 'nikto']:
                                 analyze_url(host, port, options, host_logfile)
@@ -500,7 +503,7 @@ def loop_hosts(options, queue):
         """
         Handle interrupt (gracefully).
         """
-        logging.error('caught Ctrl-C - exiting gracefully')
+        logging.error('Caught Ctrl-C - exiting gracefully (please be patient)')
         stop_event.set()
 
     signal.signal(signal.SIGINT, stop_gracefully)
