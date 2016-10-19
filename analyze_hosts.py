@@ -197,12 +197,12 @@ def append_logs(logfile, options, stdout, stderr=None):
     if options['dry_run']:
         return
     try:
-        if stdout and len(str(stdout)):
+        if stdout and len(stdout.encode('utf-8')):
             with open(logfile, 'a+') as open_file:
-                open_file.write(compact_strings(str(stdout), options))
-        if stderr and len(str(stderr)):
+                open_file.write(compact_strings(stdout, options))
+        if stderr and len(stderr.encode('utf-8')):
             with open(logfile, 'a+') as open_file:
-                open_file.write(compact_strings(str(stderr), options))
+                open_file.write(compact_strings(stderr, options))
     except IOError:
         logging.error('FAILED: Could not write to %s', logfile)
 
