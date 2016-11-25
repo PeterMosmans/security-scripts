@@ -44,7 +44,7 @@ except ImportError:
     sys.stderr.flush()
 
 
-VERSION = '0.21'
+VERSION = '0.22'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
 SCRIPTS = """banner,dns-nsid,dns-recursion,http-cisco-anyconnect,\
 http-php-version,http-title,http-trace,ntp-info,ntp-monlist,nbstat,\
@@ -567,7 +567,7 @@ def read_queue(filename):
     queue = []
     try:
         with open(filename, 'r') as queuefile:
-            queue = queuefile.read().splitlines()
+            queue = filter(None, queuefile.read().splitlines())
     except IOError:
         logging.error('Could not read %s', filename)
     return queue
