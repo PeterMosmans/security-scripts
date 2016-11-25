@@ -40,16 +40,39 @@ try:
     import Wappalyzer
 except ImportError:
     print('Please install the requests and Wappalyzer modules, e.g. '
-          'pip install -r requirements.txt')
+          'pip install -r requirements.txt', file=sys.stderr)
+    sys.stderr.flush()
 
 
-VERSION = '0.20'
+VERSION = '0.21'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
 SCRIPTS = """banner,dns-nsid,dns-recursion,http-cisco-anyconnect,\
 http-php-version,http-title,http-trace,ntp-info,ntp-monlist,nbstat,\
 rdp-enum-encryption,rpcinfo,sip-methods,smb-os-discovery,smb-security-mode,\
 smtp-open-relay,ssh2-enum-algos,vnc-info,xmlrpc-methods,xmpp-info"""
+STATUS = 25 # loglevel for 'generic' status messages
 UNKNOWN = -1
+
+
+class LogFormatter(logging.Formatter):
+    """
+    Format log messages according to their type.
+    """
+    # DEBUG   = (10) debug status messages
+    # INFO    = (20) verbose status messages
+    # STATUS  = (25) generic status messages
+    # WARNING = (30) warning messages (= security vulnerabilities found)
+    # ERROR   = (40) error messages (= program errors)
+    FORMATS = {logging.DEBUG :"DEBUG: %(module)s: %(lineno)d: %(message)s",
+               logging.INFO : "[*] %(message)s",
+               STATUS : "[+] %(message)s",
+               logging.WARN : "[-] %(message)s",
+               logging.ERROR : "ERROR: %(message)s",
+               'DEFAULT' : "%(message)s"}
+
+    def format(self, record):
+        self._fmt = self.FORMATS.get(record.levelno, self.FORMATS['DEFAULT'])
+        return logging.Formatter.format(self, record)
 
 
 def analyze_url(url, port, options, logfile):
@@ -122,36 +145,37 @@ def preflight_checks(options):
         options[basic] = True
     if options['udp'] and not is_admin() and not options['dry_run']:
         logging.error('UDP portscan needs root permissions')
-    try:
-        import requests
-        import Wappalyzer
-    except ImportError:
-        logging.error('Disabling --framework due to missing Python libraries')
-        options['framework'] = False
     if options['framework']:
-        options['droopescan'] = True
-        options['wpscan'] = True
+        try:
+            import requests
+            import Wappalyzer
+            options['droopescan'] = True
+            options['wpscan'] = True
+        except ImportError:
+            logging.error('Disabling --framework due to missing Python libraries')
+            options['framework'] = False
     if options['wpscan'] and not is_admin():
         logging.error('Disabling --wpscan as this option needs root permissions')
         options['wpscan'] = False
     options['timeout'] = options['testssl.sh']
-    for tool in ['curl', 'droopescan', 'nikto', 'nmap', 'testssl.sh',
+    for tool in ['nmap', 'curl', 'droopescan', 'nikto', 'testssl.sh',
                  'timeout', 'wpscan']:
         if options[tool]:
-            logging.debug('Checking whether %s is present... ', tool)
+            logging.info('Checking whether %s is present... ', tool)
             version = '--version'
             if tool == 'nikto':
                 version = '-Version'
             result, stdout, stderr = execute_command([tool, version], options)
             if not result:
-                logging.error('FAILED: Could not execute %s, disabling checks (%s)',
+                if tool == 'nmap':
+                    logging.error('Could not execute nmap, is necessary')
+                    sys.exit(-1)
+                logging.error('Could not execute %s, disabling checks (%s)',
                               tool, stderr)
                 options[tool] = False
             else:
                 logging.debug(stdout)
-    if not options['nmap']:
-        logging.error('nmap is necessary')
-        sys.exit(-1)
+
 
 
 def execute_command(cmd, options):
@@ -164,10 +188,10 @@ def execute_command(cmd, options):
     stderr = ''
     result = False
     if options['dry_run']:
-        logging.debug(' '.join(cmd))
+        logging.log(STATUS, ' '.join(cmd))
         return True, stdout, stderr
     try:
-        logging.debug(' '.join(cmd))
+        logging.info(' '.join(cmd))
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE)
         stdout, stderr = process.communicate()
@@ -635,24 +659,19 @@ def setup_logging(options):
     """
     Set up loghandlers according to options.
     """
-    # DEBUG = verbose status messages
-    # INFO = status messages
-    # WARNING = logfiles
-    # ERROR = error messages
     logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(0)
     logfile = logging.FileHandler(options['output_file'])
     logfile.setFormatter(logging.Formatter('%(asctime)s %(message)s',
                                            datefmt='%m-%d-%Y %H:%M'))
     logfile.setLevel(logging.INFO)
     logger.addHandler(logfile)
     console = logging.StreamHandler(stream=sys.stdout)
-    console.setFormatter(logging.Formatter('%(asctime)s %(message)s',
-                                           datefmt='%H:%M:%S'))
+    console.setFormatter(LogFormatter())
     if options['verbose']:
-        console.setLevel(logging.DEBUG)
-    else:
         console.setLevel(logging.INFO)
+    else:
+        console.setLevel(STATUS)
     logger.addHandler(console)
 
 
@@ -670,7 +689,7 @@ def main():
     queue = read_queue(options['queuefile'])
     loop_hosts(options, queue)
     if not options['dry_run']:
-        logging.debug('Output saved to %s', options['output_file'])
+        logging.log(STATUS, 'Output saved to %s', options['output_file'])
     sys.exit(0)
 
 
