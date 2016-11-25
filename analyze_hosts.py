@@ -43,7 +43,7 @@ except ImportError:
           'pip install -r requirements.txt')
 
 
-VERSION = '0.19'
+VERSION = '0.20'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
 SCRIPTS = """banner,dns-nsid,dns-recursion,http-cisco-anyconnect,\
 http-php-version,http-title,http-trace,ntp-info,ntp-monlist,nbstat,\
@@ -267,6 +267,8 @@ def do_nikto(host, port, options, logfile):
                '{0}:{1}'.format(host, port)]
     if port == 443:
         command.append('-ssl')
+    if options['username'] and options['password']:
+        command += ['-id', options['username'] + ':' + options['password']]
     _result, stdout, stderr = execute_command(command, options)  # pylint: disable=unused-variable
     append_logs(logfile, options, stdout, stderr)
 
@@ -608,6 +610,10 @@ the Free Software Foundation, either version 3 of the License, or
                         help='perform a whois lookup')
     parser.add_argument('--header', action='store', default='analyze_hosts',
                         help='custom header to use for scantools')
+    parser.add_argument('--password', action='store',
+                        help='Password for HTTP basic host authentication')
+    parser.add_argument('--username', action='store',
+                        help='Username for HTTP basic host authentication')
     parser.add_argument('--maxtime', action='store', default='1200', type=int,
                         help='timeout for scans in seconds (default 1200)')
     parser.add_argument('--timeout', action='store', default='10', type=int,
