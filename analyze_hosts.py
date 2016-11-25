@@ -630,7 +630,9 @@ def setup_logging(options):
     Set up loghandlers according to options.
     """
     # DEBUG = verbose status messages
-    # INFO = status messages and logfiles
+    # INFO = status messages
+    # WARNING = logfiles
+    # ERROR = error messages
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
     logfile = logging.FileHandler(options['output_file'])
