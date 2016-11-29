@@ -434,7 +434,6 @@ def remove_from_queue(finished_queue, stop_event, options):
     while not stop_event.wait(0.0011) or not finished_queue.empty():
         try:
             host = finished_queue.get(block=False)
-            logging.debug('Removing %s from queue', host)
             with open(options['queuefile'], 'r+') as queuefile:
                 hosts = queuefile.read().splitlines()
                 queuefile.seek(0)
@@ -445,6 +444,7 @@ def remove_from_queue(finished_queue, stop_event, options):
             if not os.stat(options['queuefile']).st_size:
                 os.remove(options['queuefile'])
             finished_queue.task_done()
+            logging.debug('%s Removed from queue', host)
         except Queue.Empty:
             pass
     logging.debug('Exiting remove_from_queue thread')
