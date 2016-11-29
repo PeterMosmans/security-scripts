@@ -44,35 +44,45 @@ except ImportError:
     sys.stderr.flush()
 
 
-VERSION = '0.22'
+VERSION = '0.23'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
 SCRIPTS = """banner,dns-nsid,dns-recursion,http-cisco-anyconnect,\
 http-php-version,http-title,http-trace,ntp-info,ntp-monlist,nbstat,\
 rdp-enum-encryption,rpcinfo,sip-methods,smb-os-discovery,smb-security-mode,\
 smtp-open-relay,ssh2-enum-algos,vnc-info,xmlrpc-methods,xmpp-info"""
-STATUS = 25 # loglevel for 'generic' status messages
 UNKNOWN = -1
+# The program has the following loglevels:
+# logging.DEBUG = 10    debug messages (module constant)
+# logging.INFO  = 20    verbose status messages (module constant)
+COMMAND         = 23  # tool command line pylint:disable=bad-whitespace
+STATUS          = 25  # generic status messages  pylint:disable=bad-whitespace
+LOGS            = 30  # scan output / logfiles   pylint:disable=bad-whitespace
+# ERROR         = 40    recoverable error messages (module constant)
+# CRITICAL      = 50    abort program (module constant)
 
 
 class LogFormatter(logging.Formatter):
     """
     Format log messages according to their type.
     """
-    # DEBUG   = (10) debug status messages
-    # INFO    = (20) verbose status messages
-    # STATUS  = (25) generic status messages
-    # WARNING = (30) warning messages (= security vulnerabilities found)
-    # ERROR   = (40) error messages (= program errors)
-    FORMATS = {logging.DEBUG :"DEBUG: %(module)s: %(lineno)d: %(message)s",
+    FORMATS = {logging.DEBUG :"[d] %(message)s",
                logging.INFO : "[*] %(message)s",
                STATUS : "[+] %(message)s",
-               logging.WARN : "[-] %(message)s",
-               logging.ERROR : "ERROR: %(message)s",
+               LOGS : "%(message)s",
+               logging.ERROR : "[-] %(message)s",
                'DEFAULT' : "%(message)s"}
 
     def format(self, record):
         self._fmt = self.FORMATS.get(record.levelno, self.FORMATS['DEFAULT'])
         return logging.Formatter.format(self, record)
+
+
+def abort_program(text, error_code=-1):
+    """
+    Log critical error @text and exit program with @error_code.
+    """
+    logging.critical(text)
+    sys.exit(error_code)
 
 
 def analyze_url(url, port, options, logfile):
@@ -94,7 +104,7 @@ def analyze_url(url, port, options, logfile):
             if page.status_code == 200:
                 webpage = Wappalyzer.WebPage(url, page.text, page.headers)
                 analysis = wappalyzer.analyze(webpage)
-                logging.info('%s Analysis of %s: %s', orig_url, url, analysis)
+                logging.log(LOGS, '%s Analysis of %s: %s', orig_url, url, analysis)
                 if 'Drupal' in analysis:
                     do_droopescan(url, 'drupal', options, logfile)
                 if 'Joomla' in analysis:
@@ -105,8 +115,8 @@ def analyze_url(url, port, options, logfile):
                 logging.debug('Got result %s on %s - cannot analyze that',
                               page.status_code, url)
         except requests.exceptions.ConnectionError as exception:
-            logging.error('%s Could not connect to %s (%s)', orig_url, url,
-                          exception)
+            logging.log(STATUS, '%s Could not connect to %s (%s)', orig_url, url,
+                        exception)
 
 
 def is_admin():
@@ -130,17 +140,14 @@ def preflight_checks(options):
     if options['resume']:
         if not os.path.isfile(options['queuefile']) or \
            not os.stat(options['queuefile']).st_size:
-            logging.error('Cannot resume - queuefile %s is empty',
-                          options['queuefile'])
-            sys.exit(-1)
+            abort_program('Queuefile {0} is empty'.format(options['queuefile']))
     else:
         if os.path.isfile(options['queuefile']) and \
            os.stat(options['queuefile']).st_size:
-            logging.error('Queuefile {0} already exists.\n'.
+            abort_program('Queuefile {0} already exists.\n'.
                           format(options['queuefile']) +
                           '    Use --resume to resume with previous targets, ' +
                           'or delete file manually')
-            sys.exit(-1)
     for basic in ['nmap']:
         options[basic] = True
     if options['udp'] and not is_admin() and not options['dry_run']:
@@ -161,21 +168,19 @@ def preflight_checks(options):
     for tool in ['nmap', 'curl', 'droopescan', 'nikto', 'testssl.sh',
                  'timeout', 'wpscan']:
         if options[tool]:
-            logging.info('Checking whether %s is present... ', tool)
+            logging.debug('Checking whether %s is present... ', tool)
             version = '--version'
             if tool == 'nikto':
                 version = '-Version'
             result, stdout, stderr = execute_command([tool, version], options)
             if not result:
                 if tool == 'nmap':
-                    logging.error('Could not execute nmap, is necessary')
-                    sys.exit(-1)
+                    abort_program('Could not execute nmap, is necessary')
                 logging.error('Could not execute %s, disabling checks (%s)',
                               tool, stderr)
                 options[tool] = False
             else:
                 logging.debug(stdout)
-
 
 
 def execute_command(cmd, options):
@@ -187,11 +192,10 @@ def execute_command(cmd, options):
     stdout = ''
     stderr = ''
     result = False
+    logging.log(COMMAND, ' '.join(cmd))
     if options['dry_run']:
-        logging.log(STATUS, ' '.join(cmd))
         return True, stdout, stderr
     try:
-        logging.info(' '.join(cmd))
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE)
         stdout, stderr = process.communicate()
@@ -228,7 +232,7 @@ def append_logs(logfile, options, stdout, stderr=None):
             with open(logfile, 'a+') as open_file:
                 open_file.write(compact_strings(stderr, options))
     except IOError:
-        logging.error('FAILED: Could not write to %s', logfile)
+        logging.error('Could not write to %s', logfile)
 
 
 def append_file(logfile, options, input_file):
@@ -664,11 +668,13 @@ def setup_logging(options):
     logfile = logging.FileHandler(options['output_file'])
     logfile.setFormatter(logging.Formatter('%(asctime)s %(message)s',
                                            datefmt='%m-%d-%Y %H:%M'))
-    logfile.setLevel(logging.INFO)
+    logfile.setLevel(COMMAND)
     logger.addHandler(logfile)
     console = logging.StreamHandler(stream=sys.stdout)
     console.setFormatter(LogFormatter())
-    if options['verbose']:
+    if options['dry_run']:
+        console.setLevel(COMMAND)
+    elif options['verbose']:
         console.setLevel(logging.INFO)
     else:
         console.setLevel(STATUS)
