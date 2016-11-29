@@ -407,7 +407,7 @@ def prepare_queue(options):
                 options['inputfile'] = expanded
         with open(options['inputfile'], 'r') as inputfile:
             targets = []
-            for host in [line for line in inputfile.read() if line.strip()]:
+            for host in [line for line in inputfile.read().splitlines() if line.strip()]:
                 if options['dry_run'] or not re.match(r'.*\.[0-9]+[-/][0-9]+', host):
                     targets.append(host)
                 else:
@@ -586,7 +586,7 @@ def read_queue(filename):
     queue = []
     try:
         with open(filename, 'r') as queuefile:
-            queue = [line for line in queuefile.read() if line.strip()]
+            queue = [line for line in queuefile.read().splitlines() if line.strip()]
     except IOError:
         logging.error('Could not read %s', filename)
     return queue
