@@ -481,6 +481,7 @@ def process_host(options, host_queue, output_queue, stop_event):
                 else:
                     append_logs(host_logfile, options, '{0} Open ports: {1}'.
                                 format(host, open_ports))
+                    logging.info('{0} Open ports: {1}'.format(host, open_ports))
                     for port in open_ports:
                         if stop_event.isSet():
                             logging.info('%s Scan interrupted ?', host)
@@ -666,8 +667,7 @@ def setup_logging(options):
     logger = logging.getLogger()
     logger.setLevel(0)
     logfile = logging.FileHandler(options['output_file'])
-    logfile.setFormatter(logging.Formatter('%(asctime)s %(message)s',
-                                           datefmt='%m-%d-%Y %H:%M'))
+    logfile.setFormatter(logging.Formatter('%(message)s'))
     logfile.setLevel(COMMAND)
     logger.addHandler(logfile)
     console = logging.StreamHandler(stream=sys.stdout)
