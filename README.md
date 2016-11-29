@@ -47,7 +47,16 @@ pip install -r requirements.txt
 
 ### usage
 ```
-analyze_hosts.py version 0.19 - scans one or more hosts for security misconfigurations
+usage: analyze_hosts.py [-h] [--dry-run] [-i INPUTFILE] [-o OUTPUT_FILE]
+                        [--nikto] [-n] [-p PORT] [--compact]
+                        [--queuefile QUEUEFILE] [--resume] [--ssl] [--sslcert]
+                        [--threads THREADS] [--udp] [--framework] [--allports]
+                        [-t] [-w] [--header HEADER] [--up]
+                        [--password PASSWORD] [--username USERNAME]
+                        [--maxtime MAXTIME] [--timeout TIMEOUT] [--debug] [-v]
+                        [target]
+
+analyze_hosts.py version 0.24 - scans one or more hosts for security misconfigurations
 
 Please note that this is NOT a stealthy scan tool: By default, a TCP and UDP
 portscan will be launched, using some of nmap's interrogation scripts.
@@ -87,8 +96,12 @@ optional arguments:
   -t, --trace           check webserver for HTTP TRACE method
   -w, --whois           perform a whois lookup
   --header HEADER       custom header to use for scantools
+  --up                  assume host is up (do not rely on ping probe)
+  --password PASSWORD   Password for HTTP basic host authentication
+  --username USERNAME   Username for HTTP basic host authentication
   --maxtime MAXTIME     timeout for scans in seconds (default 1200)
   --timeout TIMEOUT     timeout for requests in seconds (default 10)
+  --debug               Show debug information
   -v, --verbose         Be more verbose
 ```
 
