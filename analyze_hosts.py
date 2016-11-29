@@ -358,7 +358,7 @@ def do_portscan(host, options, logfile, stop_event):
         if stop_event.isSet():
             logging.debug('nmap interrupted')
         else:
-            logging.error('Issue with nmap (%s)', exception)
+            logging.error('Issue with nmap %s: %s', arguments, exception)
         open_ports = [UNKNOWN]
     finally:
         if os.path.isfile(temp_file):
