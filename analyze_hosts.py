@@ -44,7 +44,7 @@ except ImportError:
     sys.stderr.flush()
 
 
-VERSION = '0.23'
+VERSION = '0.24'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
 SCRIPTS = """banner,dns-nsid,dns-recursion,http-cisco-anyconnect,\
 http-php-version,http-title,http-trace,ntp-info,ntp-monlist,nbstat,\
@@ -329,7 +329,9 @@ def do_portscan(host, options, logfile, stop_event):
     if options['port']:
         arguments += ' -p' + options['port']
     if options['no_portscan']:
-        arguments = '-sn -Pn'
+        arguments = '-sn'
+    if options['no_portscan'] or options['up']:
+        arguments += ' -Pn'
     arguments += ' -sV --script=' + SCRIPTS
     if options['whois']:
         arguments += ',asn-query,fcrdns,whois-ip'
@@ -653,6 +655,8 @@ the Free Software Foundation, either version 3 of the License, or
                         help='perform a whois lookup')
     parser.add_argument('--header', action='store', default='analyze_hosts',
                         help='custom header to use for scantools')
+    parser.add_argument('--up', action='store_true',
+                        help='assume host is up (do not rely on ping probe)')
     parser.add_argument('--password', action='store',
                         help='Password for HTTP basic host authentication')
     parser.add_argument('--username', action='store',
