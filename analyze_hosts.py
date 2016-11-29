@@ -544,7 +544,7 @@ def loop_hosts(options, queue):
     threads = [threading.Thread(target=process_host, args=(options, work_queue,
                                                            output_queue,
                                                            stop_event))
-               for _ in range(min(options['threads'] - 1, work_queue.qsize()))]
+               for _ in range(min(options['threads'], work_queue.qsize()))]
     threads.append(threading.Thread(target=process_output, args=(output_queue,
                                                                  stop_event)))
     logging.debug('Starting %s threads', len(threads))
