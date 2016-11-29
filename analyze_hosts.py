@@ -67,9 +67,11 @@ class LogFormatter(logging.Formatter):
     """
     FORMATS = {logging.DEBUG :"[d] %(message)s",
                logging.INFO : "[*] %(message)s",
+               COMMAND : "%% %(message)s",
                STATUS : "[+] %(message)s",
                LOGS : "%(message)s",
                logging.ERROR : "[-] %(message)s",
+               logging.CRITICAL : "[-] FATAL: %(message)s",
                'DEFAULT' : "%(message)s"}
 
     def format(self, record):
@@ -115,8 +117,8 @@ def analyze_url(url, port, options, logfile):
                 logging.debug('Got result %s on %s - cannot analyze that',
                               page.status_code, url)
         except requests.exceptions.ConnectionError as exception:
-            logging.log(STATUS, '%s Could not connect to %s (%s)', orig_url, url,
-                        exception)
+            logging.error('%s Could not connect to %s: %s', orig_url, url,
+                          exception)
 
 
 def is_admin():
@@ -175,7 +177,7 @@ def preflight_checks(options):
             result, stdout, stderr = execute_command([tool, version], options)
             if not result:
                 if tool == 'nmap':
-                    abort_program('Could not execute nmap, is necessary')
+                    abort_program('Could not execute nmap, which is necessary')
                 logging.error('Could not execute %s, disabling checks (%s)',
                               tool, stderr)
                 options[tool] = False
@@ -481,7 +483,6 @@ def process_host(options, host_queue, output_queue, stop_event):
                 else:
                     append_logs(host_logfile, options, '{0} Open ports: {1}'.
                                 format(host, open_ports))
-                    logging.info('{0} Open ports: {1}'.format(host, open_ports))
                     for port in open_ports:
                         if stop_event.isSet():
                             logging.info('%s Scan interrupted ?', host)
@@ -647,6 +648,8 @@ the Free Software Foundation, either version 3 of the License, or
                         help='timeout for scans in seconds (default 1200)')
     parser.add_argument('--timeout', action='store', default='10', type=int,
                         help='timeout for requests in seconds (default 10)')
+    parser.add_argument('--debug', action='store_true',
+                        help='Show debug information')
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='Be more verbose')
     args = parser.parse_args()
@@ -674,6 +677,8 @@ def setup_logging(options):
     console.setFormatter(LogFormatter())
     if options['dry_run']:
         console.setLevel(COMMAND)
+    elif options['debug']:
+        console.setLevel(logging.DEBUG)        
     elif options['verbose']:
         console.setLevel(logging.INFO)
     else:
