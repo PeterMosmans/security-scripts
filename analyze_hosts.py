@@ -399,45 +399,53 @@ def prepare_queue(options):
     Prepare a queue file which holds all hosts to scan.
     """
     expanded = False
-    if not options['inputfile']:
-        expanded = next(tempfile._get_candidate_names())  # pylint: disable=protected-access
-        with open(expanded, 'a') as inputfile:
-            inputfile.write(options['target'])
-        options['inputfile'] = expanded
-    with open(options['inputfile'], 'r') as inputfile:
-        hosts = inputfile.read().splitlines()
-        targets = []
-        for host in hosts:
-            if re.match(r'.*\.[0-9]+[-/][0-9]+', host) and not options['dry_run']:
-                if not options['nmap']:
-                    logging.error('nmap is necessary for IP ranges')
-                arguments = '-nsL'
-                scanner = nmap.PortScanner()
-                scanner.scan(hosts='{0}'.format(host), arguments=arguments)
-                targets += sorted(scanner.all_hosts(),
-                                  key=lambda x: tuple(map(int, x.split('.'))))
-            else:
-                targets.append(host)
-        with open(options['queuefile'], 'a') as queuefile:
-            for target in targets:
-                queuefile.write(target + '\n')
-    if expanded:
-        os.remove(expanded)
+    try:
+        if not options['inputfile']:
+            expanded = next(tempfile._get_candidate_names())  # pylint: disable=protected-access
+            with open(expanded, 'a') as inputfile:
+                inputfile.write(options['target'])
+                options['inputfile'] = expanded
+        with open(options['inputfile'], 'r') as inputfile:
+            targets = []
+            for host in [line for line in inputfile.read() if line.strip()]:
+                if options['dry_run'] or not re.match(r'.*\.[0-9]+[-/][0-9]+', host):
+                    targets.append(host)
+                else:
+                    arguments = '-nsL'
+                    scanner = nmap.PortScanner()
+                    scanner.scan(hosts='{0}'.format(host), arguments=arguments)
+                    targets += sorted(scanner.all_hosts(),
+                                      key=lambda x: tuple(map(int, x.split('.'))))
+            with open(options['queuefile'], 'a') as queuefile:
+                for target in targets:
+                    queuefile.write(target + '\n')
+        if expanded:
+            os.remove(expanded)
+    except IOError as exception:
+        abort_program('Could not read/write file: {0}'.format(exception))
 
 
-def remove_from_queue(host, options):
+def remove_from_queue(finished_queue, stop_event, options):
     """
-    Remove a host from the queue file.
+    Remove a host from the queue file synchronously
     """
-    with open(options['queuefile'], 'r+') as queuefile:
-        hosts = queuefile.read().splitlines()
-        queuefile.seek(0)
-        for i in hosts:
-            if i != host:
-                queuefile.write(i + '\n')
-        queuefile.truncate()
-    if not os.stat(options['queuefile']).st_size:
-        os.remove(options['queuefile'])
+    while not stop_event.wait(0.0011) or not finished_queue.empty():
+        try:
+            host = finished_queue.get(block=False)
+            logging.debug('Removing {0} from queue'.format(host))
+            with open(options['queuefile'], 'r+') as queuefile:
+                hosts = queuefile.read().splitlines()
+                queuefile.seek(0)
+                for i in hosts:
+                    if i != host:
+                        queuefile.write(i + '\n')
+                queuefile.truncate()
+            if not os.stat(options['queuefile']).st_size:
+                os.remove(options['queuefile'])
+            finished_queue.task_done()
+        except Queue.Empty:
+            pass
+    logging.debug('Exiting remove_from_queue thread')
 
 
 def port_open(port, open_ports):
@@ -467,9 +475,10 @@ def use_tool(tool, host, port, options, logfile):
         do_testssl(host, port, options, logfile)
 
 
-def process_host(options, host_queue, output_queue, stop_event):
+def process_host(options, host_queue, output_queue, finished_queue, stop_event):
     """
-    Worker thread: Process each host atomic, add output files to output_queue
+    Worker thread: Process each host atomic, add output files to output_queue,
+    and finished hosts to finished_queue.
     """
     while host_queue.qsize() and not stop_event.wait(.01):
         try:
@@ -501,9 +510,8 @@ def process_host(options, host_queue, output_queue, stop_event):
                 with open(host_logfile, 'r') as read_file:
                     output_queue.put(read_file.read())
                 os.remove(host_logfile)
-            if UNKNOWN not in open_ports:
-                remove_from_queue(host, options)
             host_queue.task_done()
+            finished_queue.put(host)
         except Queue.Empty:
             break
     logging.debug('Exiting process_host thread')
@@ -513,14 +521,14 @@ def process_output(output_queue, stop_event):
     """
     Process logfiles synchronously.
     """
-    while not stop_event.wait(1) or not output_queue.empty():
+    while not stop_event.wait(0.0011) or not output_queue.empty():
         try:
             item = output_queue.get(block=False)
             logging.info(item.encode('ascii', 'ignore'))
             output_queue.task_done()
         except Queue.Empty:
-            pass
-    logging.debug('Finished process_output')
+            pass        
+    logging.debug('Exiting process_output thread')
 
 
 def loop_hosts(options, queue):
@@ -530,6 +538,7 @@ def loop_hosts(options, queue):
     stop_event = threading.Event()
     work_queue = Queue.Queue()
     output_queue = Queue.Queue()
+    finished_queue = Queue.Queue()
 
     def stop_gracefully(signum, frame):  # pylint: disable=unused-argument
         """
@@ -543,16 +552,20 @@ def loop_hosts(options, queue):
         work_queue.put(host)
     threads = [threading.Thread(target=process_host, args=(options, work_queue,
                                                            output_queue,
+                                                           finished_queue,
                                                            stop_event))
                for _ in range(min(options['threads'], work_queue.qsize()))]
     threads.append(threading.Thread(target=process_output, args=(output_queue,
                                                                  stop_event)))
+    threads.append(threading.Thread(target=remove_from_queue, args=(finished_queue,
+                                                                    stop_event,
+                                                                    options)))
     logging.debug('Starting %s threads', len(threads))
     for thread in threads:
         thread.start()
-    while work_queue.qsize() and not stop_event.wait(1):
+    while work_queue.qsize() and not stop_event.wait(0.0001):
         try:
-            time.sleep(1)
+            time.sleep(0.0001)
         except IOError:
             pass
     if not stop_event.isSet():
@@ -573,7 +586,7 @@ def read_queue(filename):
     queue = []
     try:
         with open(filename, 'r') as queuefile:
-            queue = filter(None, queuefile.read().splitlines())
+            queue = [line for line in queuefile.read() if line.strip()]
     except IOError:
         logging.error('Could not read %s', filename)
     return queue
@@ -675,12 +688,12 @@ def setup_logging(options):
     logger.addHandler(logfile)
     console = logging.StreamHandler(stream=sys.stdout)
     console.setFormatter(LogFormatter())
-    if options['dry_run']:
-        console.setLevel(COMMAND)
-    elif options['debug']:
-        console.setLevel(logging.DEBUG)        
+    if options['debug']:
+        console.setLevel(logging.DEBUG)
     elif options['verbose']:
         console.setLevel(logging.INFO)
+    elif options['dry_run']:
+        console.setLevel(COMMAND)
     else:
         console.setLevel(STATUS)
     logger.addHandler(console)
