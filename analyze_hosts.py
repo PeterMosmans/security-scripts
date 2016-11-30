@@ -433,7 +433,7 @@ def remove_from_queue(finished_queue, stop_event, options):
     """
     Remove a host from the queue file synchronously
     """
-    while not stop_event.wait(0.0011) or not finished_queue.empty():
+    while not stop_event.wait(1) or not finished_queue.empty():
         try:
             host = finished_queue.get(block=False)
             with open(options['queuefile'], 'r+') as queuefile:
@@ -525,7 +525,7 @@ def process_output(output_queue, stop_event):
     """
     Process logfiles synchronously.
     """
-    while not stop_event.wait(0.0011) or not output_queue.empty():
+    while not stop_event.wait(1) or not output_queue.empty():
         try:
             item = output_queue.get(block=False)
             logging.log(LOGS, item.encode('ascii', 'ignore'))
@@ -567,7 +567,7 @@ def loop_hosts(options, queue):
     logging.debug('Starting %s threads', len(threads))
     for thread in threads:
         thread.start()
-    while work_queue.qsize() and not stop_event.wait(0.0001):
+    while work_queue.qsize() and not stop_event.wait(1):
         try:
             time.sleep(0.0001)
         except IOError:
