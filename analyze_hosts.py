@@ -44,7 +44,7 @@ except ImportError:
     sys.stderr.flush()
 
 
-VERSION = '0.24'
+VERSION = '0.25'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
 SCRIPTS = """banner,dns-nsid,dns-recursion,http-cisco-anyconnect,\
 http-php-version,http-title,http-trace,ntp-info,ntp-monlist,nbstat,\
@@ -299,7 +299,9 @@ def do_nikto(host, port, options, logfile):
         command.append('-ssl')
     if options['username'] and options['password']:
         command += ['-id', options['username'] + ':' + options['password']]
-    _result, stdout, stderr = execute_command(command, options)  # pylint: disable=unused-variable
+    result, stdout, stderr = execute_command(command, options)
+    logging.debug('%s Received result %s from running nikto on port %s', host,
+                  result, port)
     append_logs(logfile, options, stdout, stderr)
 
 
@@ -526,7 +528,7 @@ def process_output(output_queue, stop_event):
     while not stop_event.wait(0.0011) or not output_queue.empty():
         try:
             item = output_queue.get(block=False)
-            logging.info(item.encode('ascii', 'ignore'))
+            logging.log(LOGS, item.encode('ascii', 'ignore'))
             output_queue.task_done()
         except Queue.Empty:
             pass
@@ -712,6 +714,7 @@ def main():
     setup_logging(options)
     logging.info(banner + ' starting')
     preflight_checks(options)
+    logging.debug(options)
     if not options['resume']:
         prepare_queue(options)
     queue = read_queue(options['queuefile'])
