@@ -44,7 +44,7 @@ except ImportError:
     sys.stderr.flush()
 
 
-VERSION = '0.25'
+VERSION = '0.25.1'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
 SCRIPTS = """banner,dns-nsid,dns-recursion,http-cisco-anyconnect,\
 http-php-version,http-title,http-trace,ntp-info,ntp-monlist,nbstat,\
@@ -256,13 +256,10 @@ def compact_strings(strings, options):
     """
     Remove as much unnecessary strings as possible.
     """
-    # remove ' (OK)'
-    # remove ^SF:
-    # remove
     if not options['compact']:
         return strings
     return '\n'.join([x for x in strings.splitlines() if x and
-                      not x.startswith('#')])
+                      not x.startswith('#')]) + '\n'
 
 
 def do_curl(host, port, options, logfile):
