@@ -700,6 +700,8 @@ def setup_logging(options):
     else:
         console.setLevel(STATUS)
     logger.addHandler(console)
+    # make sure requests library is, erm, less verbose
+    logging.getLogger('requests.packages.urllib3.connectionpool').setLevel(logging.ERROR)
 
 
 def main():
