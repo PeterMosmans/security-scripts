@@ -44,7 +44,7 @@ except ImportError:
     sys.stderr.flush()
 
 
-VERSION = '0.25.1'
+VERSION = '0.26'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
 SCRIPTS = """banner,dns-nsid,dns-recursion,http-cisco-anyconnect,\
 http-php-version,http-title,http-trace,ntp-info,ntp-monlist,nbstat,\
@@ -315,9 +315,11 @@ def do_portscan(host, options, logfile, stop_event):
     Returns:
         A list of open ports.
     """
-    if not options['nmap']:
+    if not options['nmap'] or (options['no_portscan'] and not options['port']):
         return ALLPORTS
     open_ports = []
+    if options['no_portscan'] and options['port']:
+        return [int(port) for port in options['port'].split(',') if port.isdigit()]
     arguments = '--open'
     if is_admin():
         arguments += ' -sS'
