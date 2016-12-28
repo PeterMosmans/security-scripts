@@ -48,15 +48,16 @@ pip install -r requirements.txt
 ### usage
 ```
 usage: analyze_hosts.py [-h] [--dry-run] [-i INPUTFILE] [-o OUTPUT_FILE]
-                        [--nikto] [-n] [-p PORT] [--compact]
-                        [--queuefile QUEUEFILE] [--resume] [--ssl] [--sslcert]
-                        [--threads THREADS] [--udp] [--framework] [--allports]
-                        [-t] [-w] [--header HEADER] [--up]
-                        [--password PASSWORD] [--username USERNAME]
-                        [--maxtime MAXTIME] [--timeout TIMEOUT] [--debug] [-v]
+                        [--compact] [--queuefile QUEUEFILE] [--resume]
+                        [--debug] [-v] [--allports] [-n] [-p PORT] [--up]
+                        [--udp] [--framework] [--check-redirect] [--nikto]
+                        [--ssl] [--sslcert] [-t] [-w] [--proxy PROXY]
+                        [--timeout TIMEOUT] [--threads THREADS]
+                        [--user-agent USER_AGENT] [--password PASSWORD]
+                        [--username USERNAME] [--maxtime MAXTIME]
                         [target]
 
-analyze_hosts.py version 0.24 - scans one or more hosts for security misconfigurations
+analyze_hosts.py version 0.29.2 - scans one or more hosts for security misconfigurations
 
 Please note that this is NOT a stealthy scan tool: By default, a TCP and UDP
 portscan will be launched, using some of nmap's interrogation scripts.
@@ -68,41 +69,46 @@ the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
 positional arguments:
-  target                [TARGET] can be a single (IP) address, an IP range,
-                        eg. 127.0.0.1-255, or multiple comma-separated
-                        addressess
+  target                [TARGET] can be a single (IP) address, an IP range, or
+                        multiple comma-separated addressess
 
 optional arguments:
   -h, --help            show this help message and exit
-  --dry-run             only show commands, don't actually do anything
+  --dry-run             Only show commands, don't actually do anything
   -i INPUTFILE, --inputfile INPUTFILE
-                        a file containing targets, one per line
+                        A file containing targets, one per line
   -o OUTPUT_FILE, --output-file OUTPUT_FILE
                         output file containing all scanresults (default
                         analyze_hosts.output
-  --nikto               run a nikto scan
-  -n, --no-portscan     do NOT run a nmap portscan
-  -p PORT, --port PORT  specific port(s) to scan
-  --compact             log as little as possible
+  --compact             Log as little as possible
   --queuefile QUEUEFILE
                         the queuefile
-  --resume              resume working on the queue
-  --ssl                 run a ssl scan
-  --sslcert             download SSL certificate
-  --threads THREADS     maximum number of threads
-  --udp                 check for open UDP ports as well
-  --framework           analyze the website and run webscans
-  --allports            run a full-blown nmap scan on all ports
-  -t, --trace           check webserver for HTTP TRACE method
-  -w, --whois           perform a whois lookup
-  --header HEADER       custom header to use for scantools
-  --up                  assume host is up (do not rely on ping probe)
-  --password PASSWORD   Password for HTTP basic host authentication
-  --username USERNAME   Username for HTTP basic host authentication
-  --maxtime MAXTIME     timeout for scans in seconds (default 1200)
-  --timeout TIMEOUT     timeout for requests in seconds (default 10)
+  --resume              Resume working on the queue
   --debug               Show debug information
   -v, --verbose         Be more verbose
+
+  --allports            Run a full-blown nmap scan on all ports
+  -n, --no-portscan     Do NOT run a nmap portscan
+  -p PORT, --port PORT  Specific port(s) to scan
+  --up                  Assume host is up (do not rely on ping probe)
+  --udp                 Check for open UDP ports as well
+
+  --framework           Analyze the website and run webscans
+  --check-redirect      Check for open insecure redirect
+  --nikto               Run a nikto scan
+  --ssl                 Run a ssl scan
+  --sslcert             Download SSL certificate
+  -t, --trace           Check webserver for HTTP TRACE method
+  -w, --whois           Perform a whois lookup
+
+  --proxy PROXY         Use proxy server (host:port)
+  --timeout TIMEOUT     Timeout for requests in seconds (default 10)
+  --threads THREADS     Maximum number of threads (default 5)
+  --user-agent USER_AGENT
+                        Custom User-Agent to use (default analyze_hosts)
+  --password PASSWORD   Password for HTTP basic host authentication
+  --username USERNAME   Username for HTTP basic host authentication
+  --maxtime MAXTIME     Timeout for scans in seconds (default 1200)
 ```
 
 ## analyze-hosts.sh

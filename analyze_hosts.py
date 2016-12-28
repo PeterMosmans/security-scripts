@@ -44,7 +44,7 @@ except ImportError:
     sys.stderr.flush()
 
 
-VERSION = '0.29.1'
+VERSION = '0.29.2'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
 SCRIPTS = """banner,dns-nsid,dns-recursion,http-cisco-anyconnect,\
 http-php-version,http-title,http-trace,ntp-info,ntp-monlist,nbstat,\
@@ -657,66 +657,63 @@ the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.'''))
     parser.add_argument('target', nargs='?', type=str,
                         help="""[TARGET] can be a single (IP) address, an IP
-                        range, eg. 127.0.0.1-255, or multiple comma-separated
-                        addressess""")
+                        range, or multiple comma-separated addressess""")
     parser.add_argument('--dry-run', action='store_true',
-                        help='only show commands, don\'t actually do anything')
+                        help='Only show commands, don\'t actually do anything')
     parser.add_argument('-i', '--inputfile', action='store', type=str,
-                        help='a file containing targets, one per line')
+                        help='A file containing targets, one per line')
     parser.add_argument('-o', '--output-file', action='store', type=str,
                         default='analyze_hosts.output',
                         help="""output file containing all scanresults
                         (default analyze_hosts.output""")
-    parser.add_argument('--nikto', action='store_true',
-                        help='run a nikto scan')
-    parser.add_argument('-n', '--no-portscan', action='store_true',
-                        help='do NOT run a nmap portscan')
-    parser.add_argument('-p', '--port', action='store',
-                        help='specific port(s) to scan')
-    parser.add_argument('--proxy', action='store',
-                        help='use proxy server (host:port)')
-    parser.add_argument('--check-redirect', action='store_true',
-                        help='check for open insecure redirect')
     parser.add_argument('--compact', action='store_true',
-                        help='log as little as possible')
+                        help='Log as little as possible')
     parser.add_argument('--queuefile', action='store',
                         default='analyze_hosts.queue', help='the queuefile')
-    # parser.add_argument('--quiet', action='store_true',
-    #                     help='do not show logfiles on the console')
     parser.add_argument('--resume', action='store_true',
-                        help='resume working on the queue')
-    parser.add_argument('--ssl', action='store_true',
-                        help='run a ssl scan')
-    parser.add_argument('--sslcert', action='store_true',
-                        help='download SSL certificate')
-    parser.add_argument('--threads', action='store', type=int, default=5,
-                        help='maximum number of threads')
-    parser.add_argument('--udp', action='store_true',
-                        help='check for open UDP ports as well')
-    parser.add_argument('--framework', action='store_true',
-                        help='analyze the website and run webscans')
+                        help='Resume working on the queue')
+    parser.add_argument('--debug', action='store_true',
+                        help='Show debug information')
+    parser.add_argument('-v', '--verbose', action='store_true',
+                        help='Be more verbose')
     parser.add_argument('--allports', action='store_true',
-                        help='run a full-blown nmap scan on all ports')
-    parser.add_argument('-t', '--trace', action='store_true',
-                        help='check webserver for HTTP TRACE method')
-    parser.add_argument('-w', '--whois', action='store_true',
-                        help='perform a whois lookup')
-    parser.add_argument('--user-agent', action='store', default='analyze_hosts',
-                        help='custom User-Agent to use for scantools')
+                        help='Run a full-blown nmap scan on all ports')
+    parser.add_argument('-n', '--no-portscan', action='store_true',
+                        help='Do NOT run a nmap portscan')
+    parser.add_argument('-p', '--port', action='store',
+                        help='Specific port(s) to scan')
     parser.add_argument('--up', action='store_true',
-                        help='assume host is up (do not rely on ping probe)')
+                        help='Assume host is up (do not rely on ping probe)')
+    parser.add_argument('--udp', action='store_true',
+                        help='Check for open UDP ports as well')
+    parser.add_argument('--framework', action='store_true',
+                        help='Analyze the website and run webscans')
+    parser.add_argument('--check-redirect', action='store_true',
+                        help='Check for open insecure redirect')
+    parser.add_argument('--nikto', action='store_true',
+                        help='Run a nikto scan')
+    parser.add_argument('--ssl', action='store_true',
+                        help='Run a ssl scan')
+    parser.add_argument('--sslcert', action='store_true',
+                        help='Download SSL certificate')
+    parser.add_argument('-t', '--trace', action='store_true',
+                        help='Check webserver for HTTP TRACE method')
+    parser.add_argument('-w', '--whois', action='store_true',
+                        help='Perform a whois lookup')
+    parser.add_argument('--proxy', action='store',
+                        help='Use proxy server (host:port)')
+    parser.add_argument('--timeout', action='store', default='10', type=int,
+                        help='Timeout for requests in seconds (default 10)')
+    parser.add_argument('--threads', action='store', type=int, default=5,
+                        help='Maximum number of threads (default 5)')
+    parser.add_argument('--user-agent', action='store', default='analyze_hosts',
+                        help='Custom User-Agent to use (default analyze_hosts)')
     parser.add_argument('--password', action='store',
                         help='Password for HTTP basic host authentication')
     parser.add_argument('--username', action='store',
                         help='Username for HTTP basic host authentication')
     parser.add_argument('--maxtime', action='store', default='1200', type=int,
-                        help='timeout for scans in seconds (default 1200)')
-    parser.add_argument('--timeout', action='store', default='10', type=int,
-                        help='timeout for requests in seconds (default 10)')
-    parser.add_argument('--debug', action='store_true',
-                        help='Show debug information')
-    parser.add_argument('-v', '--verbose', action='store_true',
-                        help='Be more verbose')
+                        help='Timeout for scans in seconds (default 1200)')
     args = parser.parse_args()
     if not (args.inputfile or args.target or args.resume):
         parser.error('Specify either a target or input file')
