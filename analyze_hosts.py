@@ -44,7 +44,7 @@ except ImportError:
     sys.stderr.flush()
 
 
-VERSION = '0.27'
+VERSION = '0.28'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
 SCRIPTS = """banner,dns-nsid,dns-recursion,http-cisco-anyconnect,\
 http-php-version,http-title,http-trace,ntp-info,ntp-monlist,nbstat,\
@@ -91,34 +91,71 @@ def analyze_url(url, port, options, logfile):
     """
     Analyze an URL using wappalyzer and execute corresponding scans.
     """
+    if not options['framework']:
+        return
     orig_url = url
-    if options['framework']:
+    if not urlparse.urlparse(url).scheme:
+        if port == 443:
+            url = 'https://{0}:{1}'.format(url, port)
+        else:
+            url = 'http://{0}:{1}'.format(url, port)
+        wappalyzer = Wappalyzer.Wappalyzer.latest()
+    try:
+        page = requests_get(url, options)
+        if page.status_code == 200:
+            webpage = Wappalyzer.WebPage(url, page.text, page.headers)
+            analysis = wappalyzer.analyze(webpage)
+            logging.log(LOGS, '%s Analysis of %s: %s', orig_url, url, analysis)
+            if 'Drupal' in analysis:
+                do_droopescan(url, 'drupal', options, logfile)
+            if 'Joomla' in analysis:
+                do_droopescan(url, 'joomla', options, logfile)
+            if 'WordPress' in analysis:
+                do_wpscan(url, options, logfile)
+        else:
+            logging.debug('Got result %s on %s - cannot analyze that',
+                          page.status_code, url)
+    except requests.exceptions.ConnectionError as exception:
+        logging.error('%s Could not connect to %s: %s', orig_url, url,
+                      exception)
+
+
+def requests_get(url, options, headers=None):
+    """
+    Generic wrapper around requests object.
+    """
+    # Don't try this at home, kids! Disabling SSL verification
+    verify = False
+    if not headers:
+        headers = {'User-Agent': options['user_agent']}
+    if not verify:
         requests.packages.urllib3.disable_warnings(
             requests.packages.urllib3.exceptions.InsecureRequestWarning)
-        if not urlparse.urlparse(url).scheme:
-            if port == 443:
-                url = 'https://{0}:{1}'.format(url, port)
-            else:
-                url = 'http://{0}:{1}'.format(url, port)
-        wappalyzer = Wappalyzer.Wappalyzer.latest()
-        try:
-            page = requests.get(url, auth=None, proxies={}, verify=False)
-            if page.status_code == 200:
-                webpage = Wappalyzer.WebPage(url, page.text, page.headers)
-                analysis = wappalyzer.analyze(webpage)
-                logging.log(LOGS, '%s Analysis of %s: %s', orig_url, url, analysis)
-                if 'Drupal' in analysis:
-                    do_droopescan(url, 'drupal', options, logfile)
-                if 'Joomla' in analysis:
-                    do_droopescan(url, 'joomla', options, logfile)
-                if 'WordPress' in analysis:
-                    do_wpscan(url, options, logfile)
-            else:
-                logging.debug('Got result %s on %s - cannot analyze that',
-                              page.status_code, url)
-        except requests.exceptions.ConnectionError as exception:
-            logging.error('%s Could not connect to %s: %s', orig_url, url,
-                          exception)
+    proxies = None
+    if options['proxy']:
+        proxies = {'http': 'http://' + options['proxy'],
+                   'https': 'https://' + options['proxy']}
+    return requests.get(url, headers=headers, proxies=proxies,
+                        verify=verify, allow_redirects=False)
+
+
+def check_redirect(host, port, options, logfile):
+    """
+    Check for insecure open redirect
+    """
+    if not options['check_redirect']:
+        return
+    if port == 443:
+        url = 'https://{0}:{1}'.format(host, port)
+    else:
+        url = 'http://{0}:{1}'.format(host, port)
+    request = requests_get(url, options, headers={'Host': 'EVIL-INSERTED-HOST',
+                                                  'User-Agent': options['user_agent']})
+    if request.status_code == 302:
+        if 'Location' in request.headers:
+            if 'EVIL-INSERTED-HOST' in request.headers['Location']:
+                logging.log(LOGS, '%s Host vulnerable to open insecure redirect: %s',
+                            host, request.headers['Location'])
 
 
 def is_admin():
@@ -503,6 +540,7 @@ def process_host(options, host_queue, output_queue, finished_queue, stop_event):
                             analyze_url(host, port, options, host_logfile)
                             for tool in ['curl', 'nikto']:
                                 use_tool(tool, host, port, options, host_logfile)
+                            check_redirect(host, port, options, host_logfile)
                         if port in [25, 443, 465, 993, 995]:
                             for tool in ['testssl.sh']:
                                 use_tool(tool, host, port, options, host_logfile)
@@ -630,6 +668,10 @@ the Free Software Foundation, either version 3 of the License, or
                         help='do NOT run a nmap portscan')
     parser.add_argument('-p', '--port', action='store',
                         help='specific port(s) to scan')
+    parser.add_argument('--proxy', action='store',
+                        help='use proxy server (host:port)')
+    parser.add_argument('--check-redirect', action='store_true',
+                        help='check for open insecure redirect')
     parser.add_argument('--compact', action='store_true',
                         help='log as little as possible')
     parser.add_argument('--queuefile', action='store',
