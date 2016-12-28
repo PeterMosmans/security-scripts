@@ -44,7 +44,7 @@ except ImportError:
     sys.stderr.flush()
 
 
-VERSION = '0.28'
+VERSION = '0.29'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
 SCRIPTS = """banner,dns-nsid,dns-recursion,http-cisco-anyconnect,\
 http-php-version,http-title,http-trace,ntp-info,ntp-monlist,nbstat,\
@@ -143,7 +143,7 @@ def check_redirect(host, port, options, logfile):
     """
     Check for insecure open redirect
     """
-    if not options['check_redirect']:
+    if not options['check_redirect'] or options['dry_run']:
         return
     if port == 443:
         url = 'https://{0}:{1}'.format(host, port)
