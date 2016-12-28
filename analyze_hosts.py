@@ -44,7 +44,7 @@ except ImportError:
     sys.stderr.flush()
 
 
-VERSION = '0.26'
+VERSION = '0.27'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
 SCRIPTS = """banner,dns-nsid,dns-recursion,http-cisco-anyconnect,\
 http-php-version,http-title,http-trace,ntp-info,ntp-monlist,nbstat,\
@@ -267,7 +267,7 @@ def do_curl(host, port, options, logfile):
     Check for HTTP TRACE method.
     """
     if options['trace']:
-        command = ['curl', '-qsIA', "'{0}'".format(options['header']),
+        command = ['curl', '-qsIA', "'{0}'".format(options['user_agent']),
                    '--connect-timeout', str(options['timeout']), '-X', 'TRACE',
                    '{0}:{1}'.format(host, port)]
         _result, stdout, stderr = execute_command(command, options)  # pylint: disable=unused-variable
@@ -654,8 +654,8 @@ the Free Software Foundation, either version 3 of the License, or
                         help='check webserver for HTTP TRACE method')
     parser.add_argument('-w', '--whois', action='store_true',
                         help='perform a whois lookup')
-    parser.add_argument('--header', action='store', default='analyze_hosts',
-                        help='custom header to use for scantools')
+    parser.add_argument('--user-agent', action='store', default='analyze_hosts',
+                        help='custom User-Agent to use for scantools')
     parser.add_argument('--up', action='store_true',
                         help='assume host is up (do not rely on ping probe)')
     parser.add_argument('--password', action='store',
