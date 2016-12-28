@@ -44,7 +44,7 @@ except ImportError:
     sys.stderr.flush()
 
 
-VERSION = '0.29'
+VERSION = '0.29.1'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
 SCRIPTS = """banner,dns-nsid,dns-recursion,http-cisco-anyconnect,\
 http-php-version,http-title,http-trace,ntp-info,ntp-monlist,nbstat,\
@@ -331,6 +331,11 @@ def do_nikto(host, port, options, logfile):
                '{0}:{1}'.format(host, port)]
     if port == 443:
         command.append('-ssl')
+        if options['proxy']:
+            command += ['-useproxy', 'https://' + options['proxy']]
+    else:
+        if options['proxy']:
+            command += ['-useproxy', 'http://' + options['proxy']]
     if options['username'] and options['password']:
         command += ['-id', options['username'] + ':' + options['password']]
     result, stdout, stderr = execute_command(command, options)
