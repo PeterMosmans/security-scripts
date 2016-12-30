@@ -87,25 +87,17 @@ def abort_program(text, error_code=-1):
     sys.exit(error_code)
 
 
-def analyze_url(url, port, options, logfile):
+def analyze_url(url, port, options):
     """
     Analyze an URL using wappalyzer and execute corresponding scans.
     """
-    if not options['framework']:
-        return
-    orig_url = url
-    if not urlparse.urlparse(url).scheme:
-        if port == 443:
-            url = 'https://{0}:{1}'.format(url, port)
-        else:
-            url = 'http://{0}:{1}'.format(url, port)
-        wappalyzer = Wappalyzer.Wappalyzer.latest()
+    wappalyzer = Wappalyzer.Wappalyzer.latest()
     try:
         page = requests_get(url, options)
         if page.status_code == 200:
             webpage = Wappalyzer.WebPage(url, page.text, page.headers)
             analysis = wappalyzer.analyze(webpage)
-            logging.log(LOGS, '%s Analysis of %s: %s', orig_url, url, analysis)
+            logging.log(LOGS, '%s Analysis: %s', url, analysis)
             if 'Drupal' in analysis:
                 do_droopescan(url, 'drupal', options, logfile)
             if 'Joomla' in analysis:
@@ -116,11 +108,10 @@ def analyze_url(url, port, options, logfile):
             logging.debug('Got result %s on %s - cannot analyze that',
                           page.status_code, url)
     except requests.exceptions.ConnectionError as exception:
-        logging.error('%s Could not connect to %s: %s', orig_url, url,
-                      exception)
+        logging.error('%s Could not connect: %s', url, exception)
 
 
-def requests_get(url, options, headers=None):
+def requests_get(url, options, headers=None, allow_redirects=True):
     """
     Generic wrapper around requests object.
     """
@@ -136,26 +127,68 @@ def requests_get(url, options, headers=None):
         proxies = {'http': 'http://' + options['proxy'],
                    'https': 'https://' + options['proxy']}
     return requests.get(url, headers=headers, proxies=proxies,
-                        verify=verify, allow_redirects=False)
+                        verify=verify, allow_redirects=allow_redirects)
 
 
-def check_redirect(host, port, options, logfile):
+def http_checks(host, port, options, host_logfile):
     """
-    Check for insecure open redirect
+    Perform various HTTP checks.
     """
-    if not options['check_redirect'] or options['dry_run']:
-        return
     if port == 443:
         url = 'https://{0}:{1}'.format(host, port)
     else:
         url = 'http://{0}:{1}'.format(host, port)
-    request = requests_get(url, options, headers={'Host': 'EVIL-INSERTED-HOST',
-                                                  'User-Agent': options['user_agent']})
+    for tool in ['curl', 'nikto']:
+        use_tool(tool, host, port, options, host_logfile)
+    if options['dry_run']:
+        return
+    if options['framework']:
+        analyze_url(url, port, options)
+    if options['check_redirect']:
+        check_redirect(url, port, options)
+    if options['check_headers']:
+        check_headers(url, port, options)
+
+
+def tls_checks(host, port, options, host_logfile):
+    """
+    Perform various SSL/TLS checks.
+    """
+    for tool in ['testssl.sh']:
+        use_tool(tool, host, port, options, host_logfile)
+    if options['sslcert']:
+        download_cert(host, port, options, host_logfile)
+
+
+def check_redirect(url, port, options):
+    """
+    Check for insecure open redirect.
+    """
+    request = requests_get(url, options,
+                           headers={'Host': 'EVIL-INSERTED-HOST',
+                                    'User-Agent': options['user_agent']},
+                           allow_redirects=False)
     if request.status_code == 302:
         if 'Location' in request.headers:
             if 'EVIL-INSERTED-HOST' in request.headers['Location']:
-                logging.log(LOGS, '%s Host vulnerable to open insecure redirect: %s',
+                logging.log(LOGS, '%s vulnerable to open insecure redirect: %s',
                             host, request.headers['Location'])
+
+
+def check_headers(url, port, options):
+    """
+    Check HTTP headers for omissions / insecure settings.
+    """
+    request = requests_get(url, options, headers={'User-Agent': options['user_agent']},
+                           allow_redirects=False)
+    logging.debug("%s Received status %s and the following headers: %s", url,
+                  request.status_code, request.headers)
+    if request.status_code == 200:
+        if 'X-Frame-Options' not in request.headers:
+            logging.log(LOGS, '%s lacks an X-Frame-Options header', url)
+        elif '*' in request.headers['X-Frame-Options']:
+            logging.log(LOGS, '%s has an insecure X-Frame-Options header: %s',
+                    url, request.headers['X-Frame-Options'])
 
 
 def is_admin():
@@ -250,12 +283,11 @@ def download_cert(host, port, options, logfile):
     """
     Download an SSL certificate and append it to the logfile.
     """
-    if options['sslcert']:
-        try:
-            cert = ssl.get_server_certificate((host, port))
-            append_logs(logfile, options, cert)
-        except ssl.SSLError:
-            pass
+    try:
+        cert = ssl.get_server_certificate((host, port))
+        append_logs(logfile, options, cert)
+    except ssl.SSLError:
+        pass
 
 
 def append_logs(logfile, options, stdout, stderr=None):
@@ -543,14 +575,9 @@ def process_host(options, host_queue, output_queue, finished_queue, stop_event):
                             logging.info('%s Scan interrupted ?', host)
                             break
                         if port in [80, 443, 8080]:
-                            analyze_url(host, port, options, host_logfile)
-                            for tool in ['curl', 'nikto']:
-                                use_tool(tool, host, port, options, host_logfile)
-                            check_redirect(host, port, options, host_logfile)
+                            http_checks(host, port, options, host_logfile)
                         if port in [25, 443, 465, 993, 995]:
-                            for tool in ['testssl.sh']:
-                                use_tool(tool, host, port, options, host_logfile)
-                            download_cert(host, port, options, host_logfile)
+                            tls_checks(host, port, options, host_logfile)
             else:
                 logging.info('%s Nothing to report', host)
             if os.path.isfile(host_logfile) and os.stat(host_logfile).st_size:
@@ -689,6 +716,8 @@ the Free Software Foundation, either version 3 of the License, or
                         help='Check for open UDP ports as well')
     parser.add_argument('--framework', action='store_true',
                         help='Analyze the website and run webscans')
+    parser.add_argument('--check-headers', action='store_true',
+                        help='Check HTTP headers')
     parser.add_argument('--check-redirect', action='store_true',
                         help='Check for open insecure redirect')
     parser.add_argument('--nikto', action='store_true',
