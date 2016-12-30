@@ -214,7 +214,8 @@ def preflight_checks(options):
             result, stdout, stderr = execute_command([tool, version], options)
             if not result:
                 if tool == 'nmap':
-                    abort_program('Could not execute nmap, which is necessary')
+                    if not options['dry_run'] and not options['no_portscan']:
+                        abort_program('Could not execute nmap, which is necessary')
                 logging.error('Could not execute %s, disabling checks (%s)',
                               tool, stderr)
                 options[tool] = False
