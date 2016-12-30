@@ -183,12 +183,18 @@ def check_headers(url, port, options):
                            allow_redirects=False)
     logging.debug("%s Received status %s and the following headers: %s", url,
                   request.status_code, request.headers)
+    security_headers = ['X-Content-Type-Options', 'X-XSS-Protection']
+    if port == 443:
+        security_headers.append('Strict-Transport-Security')
     if request.status_code == 200:
         if 'X-Frame-Options' not in request.headers:
-            logging.log(LOGS, '%s lacks an X-Frame-Options header', url)
+            logging.log(LOGS, '%s lacks a X-Frame-Options header', url)
         elif '*' in request.headers['X-Frame-Options']:
             logging.log(LOGS, '%s has an insecure X-Frame-Options header: %s',
                     url, request.headers['X-Frame-Options'])
+        for header in security_headers:
+            if header not in request.headers:
+                logging.log(LOGS, '%s lacks a %s header', url, header)
 
 
 def is_admin():
