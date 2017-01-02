@@ -44,7 +44,7 @@ except ImportError:
     sys.stderr.flush()
 
 
-VERSION = '0.31.0'
+VERSION = '0.32.0'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
 SCRIPTS = """banner,dns-nsid,dns-recursion,http-cisco-anyconnect,\
 http-php-version,http-title,http-trace,ntp-info,ntp-monlist,nbstat,\
@@ -63,6 +63,8 @@ STATUS          = 25  # generic status messages  pylint:disable=bad-whitespace
 LOGS            = 30  # scan output / logfiles   pylint:disable=bad-whitespace
 ALERT           = 35  # vulnerabilities found    pylint:disable=bad-whitespace
 
+TESTSSL_ALERTS = [['Secure Client-Initiated Renegotiation     VULNERABLE (NOT ok)',
+                   'secure client-initiated renegotiation']]
 
 class LogFormatter(logging.Formatter):
     """
@@ -479,6 +481,9 @@ def do_testssl(host, port, options, logfile):
     _result, stdout, stderr = execute_command(command +  # pylint: disable=unused-variable
                                               ['{0}:{1}'.format(host, port)],
                                               options)
+    for alert, message in TESTSSL_ALERTS:
+        if alert in stdout:
+            logging.log(ALERT, '%s:%s vulnerable to %s', host, port, message)
     append_logs(logfile, options, stdout, stderr)
 
 
