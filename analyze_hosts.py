@@ -117,7 +117,7 @@ def abort_program(text, error_code=-1):
     sys.exit(error_code)
 
 
-def analyze_url(url, port, options):
+def analyze_url(url, options, logfile):
     """
     Analyze an URL using wappalyzer and execute corresponding scans.
     """
@@ -160,7 +160,7 @@ def requests_get(url, options, headers=None, allow_redirects=True):
                         verify=verify, allow_redirects=allow_redirects)
 
 
-def http_checks(host, port, options, host_logfile):
+def http_checks(host, port, options, logfile):
     """
     Perform various HTTP checks.
     """
@@ -169,28 +169,28 @@ def http_checks(host, port, options, host_logfile):
     else:
         url = 'http://{0}:{1}'.format(host, port)
     for tool in ['curl', 'nikto']:
-        use_tool(tool, host, port, options, host_logfile)
+        use_tool(tool, host, port, options, logfile)
     if options['dry_run']:
         return
     if options['framework']:
-        analyze_url(url, port, options)
+        analyze_url(url, options, logfile)
     if options['check_redirect']:
-        check_redirect(url, port, options)
+        check_redirect(url, options)
     if options['check_headers']:
         check_headers(url, port, options)
 
 
-def tls_checks(host, port, options, host_logfile):
+def tls_checks(host, port, options, logfile):
     """
     Perform various SSL/TLS checks.
     """
     for tool in ['testssl.sh']:
-        use_tool(tool, host, port, options, host_logfile)
+        use_tool(tool, host, port, options, logfile)
     if options['sslcert']:
-        download_cert(host, port, options, host_logfile)
+        download_cert(host, port, options, logfile)
 
 
-def check_redirect(url, port, options):
+def check_redirect(url, options):
     """
     Check for insecure open redirect.
     """
