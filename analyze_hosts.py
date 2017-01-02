@@ -27,7 +27,6 @@ import tempfile
 import threading
 import textwrap
 import time
-import urlparse
 
 try:
     import nmap
