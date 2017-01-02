@@ -62,22 +62,6 @@ STATUS          = 25  # generic status messages  pylint:disable=bad-whitespace
 LOGS            = 30  # scan output / logfiles   pylint:disable=bad-whitespace
 ALERT           = 35  # vulnerabilities found    pylint:disable=bad-whitespace
 
-TESTSSL_ALERTS = [['"Medium" grade encryption    offered (NOT ok)',
-                   'offers insecure ciphers (medium encryption)'],
-                  ['Anonymous DH Ciphers         offered (NOT ok)',
-                   'offers unauthenticated key agreement ciphers (anonymous Diffie-Hellman)'],
-                  ['Anonymous NULL Ciphers       offered (NOT ok)',
-                   'offers cipher suites without authentication (aNULL allowed)'],
-                  ['DROWN (2016-0800, CVE-2016-0703)          VULNERABLE (NOT ok)',
-                   'vulnerable to DROWN attack (SSLv2 offered with 2 ciphers)'],
-                  ['Null Ciphers                offered (NOT ok)',
-                   'offers ciphers having no encryption'],
-                  ['SSLv2               offered (NOT ok)',
-                   'offers insecure SSLv2 protocol'],
-                  ['SSLv3               offered (NOT ok)',
-                   'offers insecure SSLv3 protocol'],
-                  ['Secure Client-Initiated Renegotiation     VULNERABLE (NOT ok)',
-                   'vulnerable to secure client-initiated renegotiation']]
 
 class LogFormatter(logging.Formatter):
     """
@@ -494,9 +478,9 @@ def do_testssl(host, port, options, logfile):
     _result, stdout, stderr = execute_command(command +  # pylint: disable=unused-variable
                                               ['{0}:{1}'.format(host, port)],
                                               options)
-    for alert, message in TESTSSL_ALERTS:
-        if alert in stdout:
-            logging.log(ALERT, '%s:%s %s', host, port, message)
+    for line in stdout.splitlines():
+        if 'NOT ok' in line:
+            logging.log(ALERT, '%s:%s %s', host, port, line)
     append_logs(logfile, options, stdout, stderr)
 
 
