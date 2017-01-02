@@ -63,21 +63,21 @@ LOGS            = 30  # scan output / logfiles   pylint:disable=bad-whitespace
 ALERT           = 35  # vulnerabilities found    pylint:disable=bad-whitespace
 
 TESTSSL_ALERTS = [['"Medium" grade encryption    offered (NOT ok)',
-                   'using insecure ciphers (medium encryption)'],
+                   'offers insecure ciphers (medium encryption)'],
                   ['Anonymous DH Ciphers         offered (NOT ok)',
-                   'unauthenticated key agreement (anonymous Diffie-Hellman allowed)'],
+                   'offers unauthenticated key agreement ciphers (anonymous Diffie-Hellman)'],
                   ['Anonymous NULL Ciphers       offered (NOT ok)',
-                   'using cipher suites without authentication (aNULL allowed)'],
+                   'offers cipher suites without authentication (aNULL allowed)'],
                   ['DROWN (2016-0800, CVE-2016-0703)          VULNERABLE (NOT ok)',
-                   'DROWN attack (SSLv2 offered with 2 ciphers)'],
+                   'vulnerable to DROWN attack (SSLv2 offered with 2 ciphers)'],
                   ['Null Ciphers                offered (NOT ok)',
-                   'using ciphers that offer no encryption'],
+                   'offers ciphers having no encryption'],
                   ['SSLv2               offered (NOT ok)',
-                   'using insecure SSLv2 protocol'],
+                   'offers insecure SSLv2 protocol'],
                   ['SSLv3               offered (NOT ok)',
-                   'using insecure SSLv2 protocol'],
+                   'offers insecure SSLv3 protocol'],
                   ['Secure Client-Initiated Renegotiation     VULNERABLE (NOT ok)',
-                   'secure client-initiated renegotiation']]
+                   'vulnerable to secure client-initiated renegotiation']]
 
 class LogFormatter(logging.Formatter):
     """
@@ -496,7 +496,7 @@ def do_testssl(host, port, options, logfile):
                                               options)
     for alert, message in TESTSSL_ALERTS:
         if alert in stdout:
-            logging.log(ALERT, '%s:%s vulnerable to %s', host, port, message)
+            logging.log(ALERT, '%s:%s %s', host, port, message)
     append_logs(logfile, options, stdout, stderr)
 
 
