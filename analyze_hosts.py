@@ -202,7 +202,7 @@ def check_redirect(url, options):
         if 'Location' in request.headers:
             if 'EVIL-INSERTED-HOST' in request.headers['Location']:
                 logging.log(ALERT, '%s vulnerable to open insecure redirect: %s',
-                            host, request.headers['Location'])
+                            url, request.headers['Location'])
 
 
 def check_headers(url, port, options):
@@ -221,7 +221,7 @@ def check_headers(url, port, options):
             logging.log(ALERT, '%s lacks a X-Frame-Options header', url)
         elif '*' in request.headers['X-Frame-Options']:
             logging.log(ALERT, '%s has an insecure X-Frame-Options header: %s',
-                    url, request.headers['X-Frame-Options'])
+                        url, request.headers['X-Frame-Options'])
         for header in security_headers:
             if header not in request.headers:
                 logging.log(ALERT, '%s lacks a %s header', url, header)
