@@ -39,12 +39,12 @@ try:
     import requests
     import Wappalyzer
 except ImportError:
-    print('Please install the requests and Wappalyzer modules, e.g. '
+    print('[-] Please install the requests and Wappalyzer modules, e.g. '
           'pip install -r requirements.txt', file=sys.stderr)
     sys.stderr.flush()
 
 
-VERSION = '0.30.0'
+VERSION = '0.31.0'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
 SCRIPTS = """banner,dns-nsid,dns-recursion,http-cisco-anyconnect,\
 http-php-version,http-title,http-trace,ntp-info,ntp-monlist,nbstat,\
@@ -81,6 +81,17 @@ class LogFormatter(logging.Formatter):
     def format(self, record):
         self._fmt = self.FORMATS.get(record.levelno, self.FORMATS['DEFAULT'])
         return logging.Formatter.format(self, record)
+
+
+class LogFilter(object):
+    """
+    Class to remove certain log levels.
+    """
+    def __init__(self, level):
+        self.__level = level
+
+    def filter(self, logRecord):
+        return logRecord.levelno != self.__level
 
 
 def abort_program(text, error_code=-1):
@@ -705,7 +716,7 @@ the Free Software Foundation, either version 3 of the License, or
                         help="""output file containing all scanresults
                         (default analyze_hosts.output""")
     parser.add_argument('--compact', action='store_true',
-                        help='Log as little as possible')
+                        help='Only log raw logfiles and alerts to file')
     parser.add_argument('--queuefile', action='store',
                         default='analyze_hosts.queue', help='the queuefile')
     parser.add_argument('--resume', action='store_true',
@@ -714,6 +725,8 @@ the Free Software Foundation, either version 3 of the License, or
                         help='Show debug information')
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='Be more verbose')
+    parser.add_argument('-q', '--quiet', action='store_true',
+                        help='Do not show scan outputs on the console')
     parser.add_argument('--allports', action='store_true',
                         help='Run a full-blown nmap scan on all ports')
     parser.add_argument('-n', '--no-portscan', action='store_true',
@@ -786,6 +799,10 @@ def setup_logging(options):
     else:
         console.setLevel(STATUS)
     logger.addHandler(console)
+    if options['compact']:
+        logfile.setLevel(LOGS)
+    if options['quiet']:
+        console.addFilter(LogFilter(LOGS))
     # make sure requests library is, erm, less verbose
     logging.getLogger('requests.packages.urllib3.connectionpool').setLevel(logging.ERROR)
 
