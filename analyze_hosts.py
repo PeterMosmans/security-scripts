@@ -54,22 +54,26 @@ UNKNOWN = -1
 # The program has the following loglevels:
 # logging.DEBUG = 10    debug messages (module constant)
 # logging.INFO  = 20    verbose status messages (module constant)
-COMMAND         = 23  # tool command line pylint:disable=bad-whitespace
+COMMAND         = 23  # tool command line        pylint:disable=bad-whitespace
 STATUS          = 25  # generic status messages  pylint:disable=bad-whitespace
-LOGS            = 30  # scan output / logfiles   pylint:disable=bad-whitespace
 # ERROR         = 40    recoverable error messages (module constant)
 # CRITICAL      = 50    abort program (module constant)
+
+# The following levels are used for the actual scanning output:
+LOGS            = 30  # scan output / logfiles   pylint:disable=bad-whitespace
+ALERT           = 35  # vulnerabilities found    pylint:disable=bad-whitespace
 
 
 class LogFormatter(logging.Formatter):
     """
-    Format log messages according to their type.
+    Class to format log messages based on their type.
     """
     FORMATS = {logging.DEBUG :"[d] %(message)s",
                logging.INFO : "[*] %(message)s",
                COMMAND : "%% %(message)s",
                STATUS : "[+] %(message)s",
                LOGS : "%(message)s",
+               ALERT : "%(message)s",
                logging.ERROR : "[-] %(message)s",
                logging.CRITICAL : "[-] FATAL: %(message)s",
                'DEFAULT' : "%(message)s"}
@@ -171,7 +175,7 @@ def check_redirect(url, port, options):
     if request.status_code == 302:
         if 'Location' in request.headers:
             if 'EVIL-INSERTED-HOST' in request.headers['Location']:
-                logging.log(LOGS, '%s vulnerable to open insecure redirect: %s',
+                logging.log(ALERT, '%s vulnerable to open insecure redirect: %s',
                             host, request.headers['Location'])
 
 
@@ -188,13 +192,13 @@ def check_headers(url, port, options):
         security_headers.append('Strict-Transport-Security')
     if request.status_code == 200:
         if 'X-Frame-Options' not in request.headers:
-            logging.log(LOGS, '%s lacks a X-Frame-Options header', url)
+            logging.log(ALERT, '%s lacks a X-Frame-Options header', url)
         elif '*' in request.headers['X-Frame-Options']:
-            logging.log(LOGS, '%s has an insecure X-Frame-Options header: %s',
+            logging.log(ALERT, '%s has an insecure X-Frame-Options header: %s',
                     url, request.headers['X-Frame-Options'])
         for header in security_headers:
             if header not in request.headers:
-                logging.log(LOGS, '%s lacks a %s header', url, header)
+                logging.log(ALERT, '%s lacks a %s header', url, header)
 
 
 def is_admin():
