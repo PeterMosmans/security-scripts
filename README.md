@@ -111,6 +111,11 @@ optional arguments:
   --maxtime MAXTIME     Timeout for scans in seconds (default 1200)
 ```
 
+You can use the following environment variables (all uppercase) to specify the tools if they cannot be found in the standard paths:
+
+CURL, DROOPESCAN, NIKTO, OPENSSL, TESTSSL, WPSCAN
+
+
 ## analyze-hosts.sh
 A simple wrapper script around several open source security tools to simplify scanning of hosts for network vulnerabilities. The script lets you analyze one or several hosts for common misconfiguration vulnerabilities and weaknesses.
 The main objectives for the script is to make it as easy as possible to perform generic security tests, without any heavy prerequisites, make the output as informative as possible, and use open source tools....

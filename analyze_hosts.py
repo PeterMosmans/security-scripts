@@ -264,7 +264,7 @@ def preflight_checks(options):
             version = '--version'
             if tool == 'nikto':
                 version = '-Version'
-            result, stdout, stderr = execute_command([tool, version], options)
+            result, stdout, stderr = execute_command([get_binary(tool), version], options)
             if not result:
                 if tool == 'nmap':
                     if not options['dry_run'] and not options['no_portscan']:
@@ -357,7 +357,7 @@ def do_curl(host, port, options, logfile):
     Check for HTTP TRACE method.
     """
     if options['trace']:
-        command = ['curl', '-qsIA', "'{0}'".format(options['user_agent']),
+        command = [get_binary('curl'), '-qsIA', "'{0}'".format(options['user_agent']),
                    '--connect-timeout', str(options['timeout']), '-X', 'TRACE',
                    '{0}:{1}'.format(host, port)]
         _result, stdout, stderr = execute_command(command, options)  # pylint: disable=unused-variable
@@ -370,7 +370,7 @@ def do_droopescan(url, cms, options, logfile):
     """
     if options['droopescan']:
         logging.debug('Performing %s droopescan on %s', cms, url)
-        command = ['droopescan', 'scan', cms, '--quiet', '--url', url]
+        command = [get_binary('droopescan'), 'scan', cms, '--quiet', '--url', url]
         _result, stdout, stderr = execute_command(command, options)  # pylint: disable=unused-variable
         append_logs(logfile, options, stdout, stderr)
 
@@ -379,7 +379,7 @@ def do_nikto(host, port, options, logfile):
     """
     Perform a nikto scan.
     """
-    command = ['nikto', '-vhost', '{0}'.format(host), '-maxtime',
+    command = [get_binary('nikto'), '-vhost', '{0}'.format(host), '-maxtime',
                '{0}s'.format(options['maxtime']), '-host',
                '{0}:{1}'.format(host, port)]
     if port == 443:
@@ -464,14 +464,23 @@ def do_portscan(host, options, logfile, stop_event):
     return open_ports
 
 
+def get_binary(tool):
+    """
+    Convert tool to environment variable, if it is set.
+    """
+    if tool.split('.')[0].upper() in os.environ:
+        tool = os.environ[tool.split('.')[0].upper()]
+    return tool
+
+
 def do_testssl(host, port, options, logfile):
     """
     Check SSL/TLS configuration and vulnerabilities.
     """
-    command = ['testssl.sh', '--quiet', '--warnings', 'off', '--color', '0',
+    command = [get_binary('testssl.sh'), '--quiet', '--warnings', 'off', '--color', '0',
                '-p', '-f', '-U', '-S']
     if options['timeout']:
-        command = ['timeout', str(options['maxtime'])] + command
+        command = [get_binary('timeout'), str(options['maxtime'])] + command
     if port == 25:
         command += ['--starttls', 'smtp']
     logging.debug('%s Starting testssl.sh on port %s', host, port)
@@ -490,7 +499,7 @@ def do_wpscan(url, options, logfile):
     """
     if options['wpscan']:
         logging.debug('Starting WPscan on ' + url)
-        command = ['wpscan', '--batch', '--no-color', '--url', url]
+        command = [get_binary('wpscan'), '--batch', '--no-color', '--url', url]
         _result, stdout, stderr = execute_command(command, options)  # pylint: disable=unused-variable
         append_logs(logfile, options, stdout, stderr)
 
