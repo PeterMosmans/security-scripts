@@ -450,6 +450,7 @@ def do_portscan(host, options, logfile, stop_event):
                            scanner[x].state() == 'up']:
             open_ports = [port for port in scanner[ip_address].all_tcp() if
                           scanner[ip_address]['tcp'][port]['state'] == 'open']
+        append_logs(logfile, options, arguments)
         if options['no_portscan'] or len(open_ports):
             append_file(logfile, options, temp_file)
             if len(open_ports):
@@ -599,8 +600,6 @@ def process_host(options, host_queue, output_queue, finished_queue, stop_event):
                 if UNKNOWN in open_ports:
                     logging.info('%s Scan interrupted ?', host)
                 else:
-                    append_logs(host_logfile, options, '{0} Open ports: {1}'.
-                                format(host, open_ports))
                     for port in open_ports:
                         if stop_event.isSet():
                             logging.info('%s Scan interrupted ?', host)
