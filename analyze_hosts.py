@@ -276,16 +276,19 @@ def preflight_checks(options):
                 logging.debug(stdout)
 
 
-def execute_command(cmd, options):
+def execute_command(cmd, options, logfile=False):
     """
     Execute command.
+
+    If logfile is provided, will add the command as well as stdout and stderr to
+    the logfile.
 
     Returns result, stdout, stderr.
     """
     stdout = ''
     stderr = ''
     result = False
-    logging.log(COMMAND, ' '.join(cmd))
+    logging.debug(' '.join(cmd))
     if options['dry_run']:
         return True, stdout, stderr
     try:
@@ -295,8 +298,12 @@ def execute_command(cmd, options):
         result = not process.returncode
     except OSError:
         pass
-    return result, unicode.replace(stdout.decode('utf-8'), '\r\n', '\n'), \
-        unicode.replace(stderr.decode('utf-8'), '\r\n', '\n')
+    stdout = unicode.replace(stdout.decode('utf-8'), '\r\n', '\n')
+    stderr = unicode.replace(stderr.decode('utf-8'), '\r\n', '\n')
+    if logfile:
+        append_logs(logfile, options, ' '.join(command))
+        append_logs(logfile, options, stdout, stderr)
+    return result, stdout, stderr
 
 
 def download_cert(host, port, options, logfile):
@@ -360,8 +367,7 @@ def do_curl(host, port, options, logfile):
         command = [get_binary('curl'), '-qsIA', "'{0}'".format(options['user_agent']),
                    '--connect-timeout', str(options['timeout']), '-X', 'TRACE',
                    '{0}:{1}'.format(host, port)]
-        _result, stdout, stderr = execute_command(command, options)  # pylint: disable=unused-variable
-        append_logs(logfile, options, stdout, stderr)
+        _result, stdout, stderr = execute_command(command, options, logfile)  # pylint: disable=unused-variable
 
 
 def do_droopescan(url, cms, options, logfile):
@@ -371,8 +377,7 @@ def do_droopescan(url, cms, options, logfile):
     if options['droopescan']:
         logging.debug('Performing %s droopescan on %s', cms, url)
         command = [get_binary('droopescan'), 'scan', cms, '--quiet', '--url', url]
-        _result, stdout, stderr = execute_command(command, options)  # pylint: disable=unused-variable
-        append_logs(logfile, options, stdout, stderr)
+        _result, stdout, stderr = execute_command(command, options, logfile)  # pylint: disable=unused-variable
 
 
 def do_nikto(host, port, options, logfile):
@@ -391,10 +396,7 @@ def do_nikto(host, port, options, logfile):
             command += ['-useproxy', 'http://' + options['proxy']]
     if options['username'] and options['password']:
         command += ['-id', options['username'] + ':' + options['password']]
-    result, stdout, stderr = execute_command(command, options)
-    logging.debug('%s Received result %s from running nikto on port %s', host,
-                  result, port)
-    append_logs(logfile, options, stdout, stderr)
+    result, stdout, stderr = execute_command(command, options, logfile)
 
 
 def do_portscan(host, options, logfile, stop_event):
@@ -483,14 +485,13 @@ def do_testssl(host, port, options, logfile):
         command = [get_binary('timeout'), str(options['maxtime'])] + command
     if port == 25:
         command += ['--starttls', 'smtp']
-    logging.debug('%s Starting testssl.sh on port %s', host, port)
+    logging.verbose('%s Starting testssl.sh on port %s', host, port)
     _result, stdout, stderr = execute_command(command +  # pylint: disable=unused-variable
                                               ['{0}:{1}'.format(host, port)],
-                                              options)
+                                              options, logfile)
     for line in stdout.splitlines():
         if 'NOT ok' in line:
             logging.log(ALERT, '%s:%s %s', host, port, line)
-    append_logs(logfile, options, stdout, stderr)
 
 
 def do_wpscan(url, options, logfile):
@@ -500,8 +501,7 @@ def do_wpscan(url, options, logfile):
     if options['wpscan']:
         logging.debug('Starting WPscan on ' + url)
         command = [get_binary('wpscan'), '--batch', '--no-color', '--url', url]
-        _result, stdout, stderr = execute_command(command, options)  # pylint: disable=unused-variable
-        append_logs(logfile, options, stdout, stderr)
+        _result, stdout, stderr = execute_command(command, options, logfile)  # pylint: disable=unused-variable
 
 
 def prepare_queue(options):
