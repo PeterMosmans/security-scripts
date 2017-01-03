@@ -119,8 +119,8 @@ def analyze_url(url, options, logfile):
             if 'WordPress' in analysis:
                 do_wpscan(url, options, logfile)
         else:
-            logging.debug('Got result %s on %s - cannot analyze that',
-                          page.status_code, url)
+            logging.debug('%s Got result %s - cannot analyze that', url,
+                          page.status_code)
     except requests.exceptions.ConnectionError as exception:
         logging.error('%s Could not connect: %s', url, exception)
 
@@ -456,9 +456,9 @@ def do_portscan(host, options, logfile, stop_event):
                 logging.info('%s Found open ports %s', host, open_ports)
     except (AssertionError, nmap.PortScannerError) as exception:
         if stop_event.isSet():
-            logging.debug('nmap interrupted')
+            logging.debug('%s nmap interrupted', host)
         else:
-            logging.error('Issue with nmap %s: %s', arguments, exception)
+            logging.error('%s Issue with nmap %s: %s', host, arguments, exception)
         open_ports = [UNKNOWN]
     finally:
         if os.path.isfile(temp_file):
@@ -485,7 +485,7 @@ def do_testssl(host, port, options, logfile):
         command = [get_binary('timeout'), str(options['maxtime'])] + command
     if port == 25:
         command += ['--starttls', 'smtp']
-    logging.verbose('%s Starting testssl.sh on port %s', host, port)
+    logging.info('%s Starting testssl.sh on port %s', host, port)
     _result, stdout, stderr = execute_command(command +  # pylint: disable=unused-variable
                                               ['{0}:{1}'.format(host, port)],
                                               options, logfile)
@@ -499,7 +499,7 @@ def do_wpscan(url, options, logfile):
     Run WPscan/
     """
     if options['wpscan']:
-        logging.debug('Starting WPscan on ' + url)
+        logging.log('Starting WPscan on ' + url)
         command = [get_binary('wpscan'), '--batch', '--no-color', '--url', url]
         _result, stdout, stderr = execute_command(command, options, logfile)  # pylint: disable=unused-variable
 
@@ -576,7 +576,6 @@ def use_tool(tool, host, port, options, logfile):
     """
     if not options[tool]:
         return
-    logging.debug('starting %s scan on %s:%s', tool, host, port)
     if tool == 'nikto':
         do_nikto(host, port, options, logfile)
     if tool == 'curl':
