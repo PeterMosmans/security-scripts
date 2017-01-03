@@ -72,7 +72,7 @@ class LogFormatter(logging.Formatter):
                COMMAND : "%% %(message)s",
                STATUS : "[+] %(message)s",
                LOGS : "%(message)s",
-               ALERT : "%(message)s",
+               ALERT : "[!] %(message)s",
                logging.ERROR : "[-] %(message)s",
                logging.CRITICAL : "[-] FATAL: %(message)s",
                'DEFAULT' : "%(message)s"}
