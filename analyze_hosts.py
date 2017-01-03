@@ -301,7 +301,7 @@ def execute_command(cmd, options, logfile=False):
     stdout = unicode.replace(stdout.decode('utf-8'), '\r\n', '\n')
     stderr = unicode.replace(stderr.decode('utf-8'), '\r\n', '\n')
     if logfile:
-        append_logs(logfile, options, ' '.join(command))
+        append_logs(logfile, options, ' '.join(cmd))
         append_logs(logfile, options, stdout, stderr)
     return result, stdout, stderr
 
