@@ -43,7 +43,7 @@ except ImportError:
     sys.stderr.flush()
 
 
-VERSION = '0.32.0'
+VERSION = '0.33.0'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
 SCRIPTS = """banner,dns-nsid,dns-recursion,http-cisco-anyconnect,\
 http-php-version,http-title,http-trace,ntp-info,ntp-monlist,nbstat,\
@@ -148,7 +148,9 @@ def http_checks(host, port, options, logfile):
     """
     Perform various HTTP checks.
     """
-    if port == 443:
+    # TODO: this check is shoddy, as it relies on port number and not on protocol
+    ssl = (port == 443)
+    if ssl:
         url = 'https://{0}:{1}'.format(host, port)
     else:
         url = 'http://{0}:{1}'.format(host, port)
@@ -158,18 +160,18 @@ def http_checks(host, port, options, logfile):
         return
     if options['framework']:
         analyze_url(url, options, logfile)
-    if options['check_redirect']:
+    if options['http']:
         check_redirect(url, options)
-    if options['check_headers']:
-        check_headers(url, port, options)
+        check_headers(url, options, ssl=ssl)
+        check_compression(url, options, ssl=ssl)
 
 
 def tls_checks(host, port, options, logfile):
     """
     Perform various SSL/TLS checks.
     """
-    for tool in ['testssl.sh']:
-        use_tool(tool, host, port, options, logfile)
+    if options['ssl']:
+        use_tool('testssl.sh', host, port, options, logfile)
     if options['sslcert']:
         download_cert(host, port, options, logfile)
 
@@ -189,7 +191,7 @@ def check_redirect(url, options):
                             url, request.headers['Location'])
 
 
-def check_headers(url, port, options):
+def check_headers(url, options, ssl=False):
     """
     Check HTTP headers for omissions / insecure settings.
     """
@@ -198,7 +200,7 @@ def check_headers(url, port, options):
     logging.debug("%s Received status %s and the following headers: %s", url,
                   request.status_code, request.headers)
     security_headers = ['X-Content-Type-Options', 'X-XSS-Protection']
-    if port == 443:
+    if ssl:
         security_headers.append('Strict-Transport-Security')
     if request.status_code == 200:
         if 'X-Frame-Options' not in request.headers:
@@ -209,6 +211,30 @@ def check_headers(url, port, options):
         for header in security_headers:
             if header not in request.headers:
                 logging.log(ALERT, '%s lacks a %s header', url, header)
+
+
+def check_compression(url, options, ssl=False):
+    """
+    Check which compression methods are supported.
+    """
+    request = requests_get(url, options, allow_redirects=True)
+    if request.history:
+        # check if protocol was changed: if so, abort checks
+        if (not ssl and 'https' in request.url) or (ssl and 'https' not in request.url):
+            logging.debug('%s protocol has changed while testing to %s - aborting compression test',
+                          url, request.url)
+            return
+        url = request.url
+    for compression in ['br', 'bzip2', 'compress', 'deflate', 'exi', 'gzip',
+                        'identity', 'lzma', 'pack200-gzip', 'peerdist', 'sdch',
+                        'xpress', 'xz']:
+        request = requests_get(url, options, headers={'User-Agent': options['user_agent'],
+                                                      'Accept-Encoding': compression},
+                               allow_redirects=False)
+        if request.status_code == 200:
+            if 'Content-Encoding' in request.headers:
+                if compression in request.headers['Content-Encoding']:
+                    logging.log(ALERT, '%s supports %s compression', url, compression)
 
 
 def is_admin():
@@ -748,14 +774,12 @@ the Free Software Foundation, either version 3 of the License, or
                         help='Check for open UDP ports as well')
     parser.add_argument('--framework', action='store_true',
                         help='Analyze the website and run webscans')
-    parser.add_argument('--check-headers', action='store_true',
-                        help='Check HTTP headers')
-    parser.add_argument('--check-redirect', action='store_true',
-                        help='Check for open insecure redirect')
+    parser.add_argument('--http', action='store_true',
+                        help='Check for various HTTP vulnerabilities')
+    parser.add_argument('--ssl', action='store_true',
+                        help='Check for various SSL/TLS vulnerabilities')
     parser.add_argument('--nikto', action='store_true',
                         help='Run a nikto scan')
-    parser.add_argument('--ssl', action='store_true',
-                        help='Run a ssl scan')
     parser.add_argument('--sslcert', action='store_true',
                         help='Download SSL certificate')
     parser.add_argument('-t', '--trace', action='store_true',
