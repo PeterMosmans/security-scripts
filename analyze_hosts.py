@@ -408,7 +408,7 @@ def do_curl(host, port, options, logfile):
         command = [get_binary('curl'), '-qsIA', "'{0}'".format(options['user_agent']),
                    '--connect-timeout', str(options['timeout']), '-X', 'TRACE',
                    '{0}:{1}'.format(host, port)]
-        _result, stdout, stderr = execute_command(command, options, logfile)  # pylint: disable=unused-variable
+        _result, _stdout, _stderr = execute_command(command, options, logfile)  # pylint: disable=unused-variable
 
 
 def do_droopescan(url, cms, options, logfile):
@@ -437,7 +437,7 @@ def do_nikto(host, port, options, logfile):
             command += ['-useproxy', 'http://' + options['proxy']]
     if options['username'] and options['password']:
         command += ['-id', options['username'] + ':' + options['password']]
-    result, stdout, stderr = execute_command(command, options, logfile)
+    _result, _stdout, _stderr = execute_command(command, options, logfile)  # pylint: disable=unused-variable
 
 
 def do_portscan(host, options, logfile, stop_event):
@@ -528,9 +528,9 @@ def do_testssl(host, port, options, logfile):
     if port == 25:
         command += ['--starttls', 'smtp']
     logging.info('%s Starting testssl.sh on port %s', host, port)
-    _result, stdout, stderr = execute_command(command +  # pylint: disable=unused-variable
-                                              ['{0}:{1}'.format(host, port)],
-                                              options, logfile)
+    _result, stdout, _stderr = execute_command(command +  # pylint: disable=unused-variable
+                                               ['{0}:{1}'.format(host, port)],
+                                               options, logfile)
     for line in stdout.splitlines():
         if 'NOT ok' in line:
             logging.log(ALERT, '%s:%s %s', host, port, line)
@@ -541,9 +541,9 @@ def do_wpscan(url, options, logfile):
     Run WPscan/
     """
     if options['wpscan']:
-        logging.log('Starting WPscan on ' + url)
+        logging.info('Starting WPscan on ' + url)
         command = [get_binary('wpscan'), '--batch', '--no-color', '--url', url]
-        _result, stdout, stderr = execute_command(command, options, logfile)  # pylint: disable=unused-variable
+        _result, _stdout, _stderr = execute_command(command, options, logfile)  # pylint: disable=unused-variable
 
 
 def prepare_queue(options):
