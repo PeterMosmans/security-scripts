@@ -69,7 +69,7 @@ class LogFormatter(logging.Formatter):
     """
     FORMATS = {logging.DEBUG :"[d] %(message)s",
                logging.INFO : "[*] %(message)s",
-               COMMAND : "%% %(message)s",
+               COMMAND : "%(message)s",
                STATUS : "[+] %(message)s",
                LOGS : "%(message)s",
                ALERT : "[!] %(message)s",
@@ -491,7 +491,8 @@ def do_portscan(host, options, logfile, stop_event):
                            scanner[x].state() == 'up']:
             open_ports = [port for port in scanner[ip_address].all_tcp() if
                           scanner[ip_address]['tcp'][port]['state'] == 'open']
-        append_logs(logfile, options, arguments)
+        if (options['compact'] and len(open_ports)) or not options['compact']:
+            append_logs(logfile, options, 'nmap ' + arguments)
         if options['no_portscan'] or len(open_ports):
             append_file(logfile, options, temp_file)
             if len(open_ports):
