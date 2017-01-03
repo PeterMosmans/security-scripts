@@ -106,23 +106,22 @@ def analyze_url(url, options, logfile):
     Analyze an URL using wappalyzer and execute corresponding scans.
     """
     wappalyzer = Wappalyzer.Wappalyzer.latest()
-    try:
-        page = requests_get(url, options)
-        if page.status_code == 200:
-            webpage = Wappalyzer.WebPage(url, page.text, page.headers)
-            analysis = wappalyzer.analyze(webpage)
-            logging.log(LOGS, '%s Analysis: %s', url, analysis)
-            if 'Drupal' in analysis:
-                do_droopescan(url, 'drupal', options, logfile)
-            if 'Joomla' in analysis:
-                do_droopescan(url, 'joomla', options, logfile)
-            if 'WordPress' in analysis:
-                do_wpscan(url, options, logfile)
-        else:
-            logging.debug('%s Got result %s - cannot analyze that', url,
-                          page.status_code)
-    except requests.exceptions.ConnectionError as exception:
-        logging.error('%s Could not connect: %s', url, exception)
+    page = requests_get(url, options)
+    if not page:
+        return
+    if page.status_code == 200:
+        webpage = Wappalyzer.WebPage(url, page.text, page.headers)
+        analysis = wappalyzer.analyze(webpage)
+        logging.log(LOGS, '%s Analysis: %s', url, analysis)
+        if 'Drupal' in analysis:
+            do_droopescan(url, 'drupal', options, logfile)
+        if 'Joomla' in analysis:
+            do_droopescan(url, 'joomla', options, logfile)
+        if 'WordPress' in analysis:
+            do_wpscan(url, options, logfile)
+    else:
+        logging.debug('%s Got result %s - cannot analyze that', url,
+                      page.status_code)
 
 
 def requests_get(url, options, headers=None, allow_redirects=True):
@@ -140,8 +139,12 @@ def requests_get(url, options, headers=None, allow_redirects=True):
     if options['proxy']:
         proxies = {'http': 'http://' + options['proxy'],
                    'https': 'https://' + options['proxy']}
-    return requests.get(url, headers=headers, proxies=proxies,
-                        verify=verify, allow_redirects=allow_redirects)
+    try:
+        request = requests.get(url, headers=headers, proxies=proxies,
+                               verify=verify, allow_redirects=allow_redirects)
+    except (requests.exceptions.ConnectionError, requests.exceptions.RequestException) as exception:
+        logging.error('%s Could not connect: %s', url, exception)
+    return request
 
 
 def http_checks(host, port, options, logfile):
@@ -184,7 +187,7 @@ def check_redirect(url, options):
                            headers={'Host': 'EVIL-INSERTED-HOST',
                                     'User-Agent': options['user_agent']},
                            allow_redirects=False)
-    if request.status_code == 302:
+    if request and request.status_code == 302:
         if 'Location' in request.headers:
             if 'EVIL-INSERTED-HOST' in request.headers['Location']:
                 logging.log(ALERT, '%s vulnerable to open insecure redirect: %s',
@@ -197,6 +200,8 @@ def check_headers(url, options, ssl=False):
     """
     request = requests_get(url, options, headers={'User-Agent': options['user_agent']},
                            allow_redirects=False)
+    if not request:
+        return
     logging.debug("%s Received status %s and the following headers: %s", url,
                   request.status_code, request.headers)
     security_headers = ['X-Content-Type-Options', 'X-XSS-Protection']
@@ -218,6 +223,8 @@ def check_compression(url, options, ssl=False):
     Check which compression methods are supported.
     """
     request = requests_get(url, options, allow_redirects=True)
+    if not request:
+        return
     if request.history:
         # check if protocol was changed: if so, abort checks
         if (not ssl and 'https' in request.url) or (ssl and 'https' not in request.url):
@@ -231,7 +238,7 @@ def check_compression(url, options, ssl=False):
         request = requests_get(url, options, headers={'User-Agent': options['user_agent'],
                                                       'Accept-Encoding': compression},
                                allow_redirects=False)
-        if request.status_code == 200:
+        if request and request.status_code == 200:
             if 'Content-Encoding' in request.headers:
                 if compression in request.headers['Content-Encoding']:
                     logging.log(ALERT, '%s supports %s compression', url, compression)
