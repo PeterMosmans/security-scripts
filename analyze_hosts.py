@@ -264,17 +264,23 @@ def preflight_checks(options):
     """
     Check if all tools are there, and disable tools automatically.
     """
-    if options['resume']:
-        if not os.path.isfile(options['queuefile']) or \
-           not os.stat(options['queuefile']).st_size:
-            abort_program('Queuefile {0} is empty'.format(options['queuefile']))
-    else:
-        if os.path.isfile(options['queuefile']) and \
-           os.stat(options['queuefile']).st_size:
-            abort_program('Queuefile {0} already exists.\n'.
-                          format(options['queuefile']) +
-                          '    Use --resume to resume with previous targets, ' +
-                          'or delete file manually')
+    try:
+        if options['resume']:
+            if not os.path.isfile(options['queuefile']) or \
+               not os.stat(options['queuefile']).st_size:
+                abort_program('Queuefile {0} is empty'.format(options['queuefile']))
+        else:
+            if os.path.isfile(options['queuefile']) and \
+               os.stat(options['queuefile']).st_size:
+                if options['force']:
+                    os.remove(options['queuefile'])
+                else:
+                    abort_program('Queuefile {0} already exists.\n'.
+                                  format(options['queuefile']) +
+                                  '    Use --resume to resume with previous targets, ' +
+                                  'or use --force to overwrite the queuefile')
+    except (IOError, OSError) as exception:
+        logging.error('FAILED: Could not read %s (%s)', options['queuefile'], exception)
     for basic in ['nmap']:
         options[basic] = True
     if options['udp'] and not is_admin() and not options['dry_run']:
@@ -765,6 +771,8 @@ the Free Software Foundation, either version 3 of the License, or
                         default='analyze_hosts.queue', help='the queuefile')
     parser.add_argument('--resume', action='store_true',
                         help='Resume working on the queue')
+    parser.add_argument('--force', action='store_true',
+                        help='Ignore / overwrite the queuefile')
     parser.add_argument('--debug', action='store_true',
                         help='Show debug information')
     parser.add_argument('-v', '--verbose', action='store_true',
