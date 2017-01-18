@@ -43,12 +43,15 @@ except ImportError:
     sys.stderr.flush()
 
 
-VERSION = '0.33.0'
+VERSION = '0.33.1'
 ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
-SCRIPTS = """banner,dns-nsid,dns-recursion,http-cisco-anyconnect,\
-http-php-version,http-title,http-trace,ntp-info,ntp-monlist,nbstat,\
-rdp-enum-encryption,rpcinfo,sip-methods,smb-os-discovery,smb-security-mode,\
-smtp-open-relay,ssh2-enum-algos,vnc-info,xmlrpc-methods,xmpp-info"""
+NMAP_ARGUMENTS = ['--open', '-sV']
+NMAP_SCRIPTS = ['banner', 'dns-nsid', 'dns-recursion', 'http-cisco-anyconnect',
+                'http-php-version', 'http-title', 'http-trace', 'ntp-info',
+                'ntp-monlist', 'nbstat', 'rdp-enum-encryption', 'rpcinfo',
+                'sip-methods', 'smb-os-discovery', 'smb-security-mode',
+                'smtp-open-relay', 'ssh2-enum-algos', 'vnc-info', 'xmlrpc-methods',
+                'xmpp-info']
 UNKNOWN = -1
 # The program has the following loglevels:
 # logging.DEBUG = 10    debug messages (module constant)
@@ -454,38 +457,40 @@ def do_portscan(host, options, logfile, stop_event):
         A list of open ports.
     """
     open_ports = []
+    arguments = NMAP_ARGUMENTS
+    scripts = NMAP_SCRIPTS
     if options['no_portscan'] and options['port']:
         return [int(port) for port in options['port'].split(',') if port.isdigit()]
     if not options['nmap'] or (options['no_portscan'] and not options['port']):
         return ALLPORTS
-    arguments = '--open'
     if is_admin():
-        arguments += ' -sS'
+        arguments.append('-sS')
         if options['udp']:
-            arguments += ' -sU'
+            arguments.append('-sU')
     else:
-        arguments += ' -sT'
-    if options['port']:
-        arguments += ' -p' + options['port']
-    if options['no_portscan']:
-        arguments = '-sn'
-    if options['no_portscan'] or options['up']:
-        arguments += ' -Pn'
-    arguments += ' -sV --script=' + SCRIPTS
-    if options['whois']:
-        arguments += ',asn-query,fcrdns,whois-ip'
-        if re.match('.*[a-z].*', host):
-            arguments += ',whois-domain'
+        arguments.append('-sT')
     if options['allports']:
-        arguments += ' -p1-65535'
+        arguments.append('-p1-65535')
+    elif options['port']:
+        arguments.append('-p' + options['port'])
+    if options['no_portscan']:
+        arguments.append('-sn')
+    if options['no_portscan'] or options['up']:
+        arguments.append('-Pn')
+    if options['whois']:
+        scripts += 'asn-query', 'fcrdns,whois-ip'
+        if re.match('.*[a-z].*', host):
+            scripts.append('whois-domain')
+    if len(scripts):
+        arguments.append('--script=' + ','.join(scripts))
+    logging.info('%s Starting nmap', host)
+    logging.debug('nmap %s %s', ' '.join(arguments), host)
     if options['dry_run']:
         return ALLPORTS
-    logging.info('%s Starting nmap', host)
     try:
         temp_file = 'nmap-{0}-{1}'.format(host, next(tempfile._get_candidate_names()))  # pylint: disable=protected-access
-        arguments = '{0} -oN {1}'.format(arguments, temp_file)
+        arguments = '{0} -oN {1}'.format(' '.join(arguments), temp_file)
         scanner = nmap.PortScanner()
-        logging.debug('nmap %s %s', arguments, host)
         scanner.scan(hosts=host, arguments=arguments)
         for ip_address in [x for x in scanner.all_hosts() if scanner[x] and
                            scanner[x].state() == 'up']:
