@@ -484,7 +484,7 @@ def do_portscan(host, options, logfile, stop_event):
     if len(scripts):
         arguments.append('--script=' + ','.join(scripts))
     logging.info('%s Starting nmap', host)
-    logging.debug('nmap %s %s', ' '.join(arguments), host)
+    logging.log(COMMAND, 'nmap %s %s', ' '.join(arguments), host)
     if options['dry_run']:
         return ALLPORTS
     try:
@@ -496,8 +496,6 @@ def do_portscan(host, options, logfile, stop_event):
                            scanner[x].state() == 'up']:
             open_ports = [port for port in scanner[ip_address].all_tcp() if
                           scanner[ip_address]['tcp'][port]['state'] == 'open']
-        if (options['compact'] and len(open_ports)) or not options['compact']:
-            append_logs(logfile, options, 'nmap ' + arguments)
         if options['no_portscan'] or len(open_ports):
             append_file(logfile, options, temp_file)
             if len(open_ports):
