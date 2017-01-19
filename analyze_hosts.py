@@ -440,6 +440,7 @@ def do_nikto(host, port, options, logfile):
             command += ['-useproxy', 'http://' + options['proxy']]
     if options['username'] and options['password']:
         command += ['-id', options['username'] + ':' + options['password']]
+    logging.info('%s Starting nikto on port %s', host, port)
     _result, _stdout, _stderr = execute_command(command, options, logfile)  # pylint: disable=unused-variable
 
 
