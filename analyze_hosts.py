@@ -3,7 +3,7 @@
 """
 analyze_hosts - scans one or more hosts for security misconfigurations
 
-Copyright (C) 2015-2016 Peter Mosmans [Go Forward]
+Copyright (C) 2015-2017 Peter Mosmans [Go Forward]
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
@@ -43,8 +43,10 @@ except ImportError:
     sys.stderr.flush()
 
 
-VERSION = '0.33.1'
-ALLPORTS = [25, 80, 443, 465, 993, 995, 8080]
+VERSION = '0.34.0'
+ALLPORTS = [(22, 'ssh'), (25, 'smtp'), (80, 'http'), (443, 'https'),
+            (465, 'smtps'), (993, 'imaps'), (995, 'pop3s') , (8080, 'http-proxy')]
+SSL_PORTS = [25, 443, 465, 993, 995]
 NMAP_ARGUMENTS = ['--open', '-sV']
 NMAP_SCRIPTS = ['banner', 'dns-nsid', 'dns-recursion', 'http-cisco-anyconnect',
                 'http-php-version', 'http-title', 'http-trace', 'ntp-info',
@@ -151,18 +153,16 @@ def requests_get(url, options, headers=None, allow_redirects=True):
     return request
 
 
-def http_checks(host, port, options, logfile):
+def http_checks(host, port, protocol, options, logfile):
     """
     Perform various HTTP checks.
     """
-    # TODO: this check is shoddy, as it relies on port number and not on protocol
-    ssl_proto = (port == 443)
-    if ssl_proto:
+    if 'ssl' in protocol or 'https' in protocol:
         url = 'https://{0}:{1}'.format(host, port)
     else:
         url = 'http://{0}:{1}'.format(host, port)
     for tool in ['curl', 'nikto']:
-        use_tool(tool, host, port, options, logfile)
+        use_tool(tool, host, port, protocol, options, logfile)
     if options['dry_run']:
         return
     if options['framework']:
@@ -173,12 +173,12 @@ def http_checks(host, port, options, logfile):
         check_compression(url, options, ssl_proto=ssl_proto)
 
 
-def tls_checks(host, port, options, logfile):
+def tls_checks(host, port, protocol, options, logfile):
     """
     Perform various SSL/TLS checks.
     """
     if options['ssl']:
-        use_tool('testssl.sh', host, port, options, logfile)
+        use_tool('testssl.sh', host, port, protocol, options, logfile)
     if options['sslcert']:
         download_cert(host, port, options, logfile)
 
@@ -454,13 +454,14 @@ def do_portscan(host, options, logfile, stop_event):
         stop_event: Event handler for stop event
 
     Returns:
-        A list of open ports.
+        A list with tuples of open ports and the protocol.
     """
     open_ports = []
     arguments = NMAP_ARGUMENTS
     scripts = NMAP_SCRIPTS
     if options['no_portscan'] and options['port']:
-        return [int(port) for port in options['port'].split(',') if port.isdigit()]
+        ports = [int(port) for port in options['port'].split(',') if port.isdigit()]
+        return zip(ports, ['unknown'] * len(ports))
     if not options['nmap'] or (options['no_portscan'] and not options['port']):
         return ALLPORTS
     if is_admin():
@@ -494,8 +495,10 @@ def do_portscan(host, options, logfile, stop_event):
         scanner.scan(hosts=host, arguments=arguments)
         for ip_address in [x for x in scanner.all_hosts() if scanner[x] and
                            scanner[x].state() == 'up']:
-            open_ports = [port for port in scanner[ip_address].all_tcp() if
+            ports = [port for port in scanner[ip_address].all_tcp() if
                           scanner[ip_address]['tcp'][port]['state'] == 'open']
+            for port in ports:
+                open_ports.append([port, scanner[ip_address]['tcp'][port]['name']])
         if options['no_portscan'] or len(open_ports):
             append_file(logfile, options, temp_file)
             if len(open_ports):
@@ -521,7 +524,7 @@ def get_binary(tool):
     return tool
 
 
-def do_testssl(host, port, options, logfile):
+def do_testssl(host, port, protocol, options, logfile):
     """
     Check SSL/TLS configuration and vulnerabilities.
     """
@@ -529,7 +532,7 @@ def do_testssl(host, port, options, logfile):
                '-p', '-f', '-U', '-S']
     if options['timeout']:
         command = [get_binary('timeout'), str(options['maxtime'])] + command
-    if port == 25:
+    if 'smtp' in protocol:
         command += ['--starttls', 'smtp']
     logging.info('%s Starting testssl.sh on port %s', host, port)
     _result, stdout, _stderr = execute_command(command +  # pylint: disable=unused-variable
@@ -604,19 +607,7 @@ def remove_from_queue(finished_queue, stop_event, options):
     logging.debug('Exiting remove_from_queue thread')
 
 
-def port_open(port, open_ports):
-    """
-    Check whether a port has been flagged as open.
-    Returns True if the port was open, or hasn't been scanned.
-
-    Arguments:
-    - `port`: the port to look up
-    - `open_ports`: a list of open ports, or -1 if it hasn't been scanned.
-    """
-    return (UNKNOWN in open_ports) or (port in open_ports)
-
-
-def use_tool(tool, host, port, options, logfile):
+def use_tool(tool, host, port, protocol, options, logfile):
     """
     Wrapper to see if tool is available, and to start correct tool.
     """
@@ -627,7 +618,7 @@ def use_tool(tool, host, port, options, logfile):
     if tool == 'curl':
         do_curl(host, port, options, logfile)
     if tool == 'testssl.sh':
-        do_testssl(host, port, options, logfile)
+        do_testssl(host, port, protocol, options, logfile)
 
 
 def process_host(options, host_queue, output_queue, finished_queue, stop_event):
@@ -645,14 +636,14 @@ def process_host(options, host_queue, output_queue, finished_queue, stop_event):
                 if UNKNOWN in open_ports:
                     logging.info('%s Scan interrupted ?', host)
                 else:
-                    for port in open_ports:
+                    for port, protocol in open_ports:
                         if stop_event.isSet():
                             logging.info('%s Scan interrupted ?', host)
                             break
-                        if port in [80, 443, 8080]:
-                            http_checks(host, port, options, host_logfile)
-                        if port in [25, 443, 465, 993, 995]:
-                            tls_checks(host, port, options, host_logfile)
+                        if 'http' in protocol:
+                            http_checks(host, port, protocol, options, host_logfile)
+                        if 'ssl' in protocol or port in SSL_PORTS:
+                            tls_checks(host, port, protocol, options, host_logfile)
             else:
                 logging.info('%s Nothing to report', host)
             if os.path.isfile(host_logfile) and os.stat(host_logfile).st_size:
