@@ -91,11 +91,14 @@ class LogFilter(object):
     """
     Class to remove certain log levels.
     """
-    def __init__(self, level):
-        self.__level = level
+    def __init__(self, filterlist):
+        self.__filterlist = filterlist
 
     def filter(self, logRecord):
-        return logRecord.levelno != self.__level
+        """
+        Remove logRecord if it is part of filterlist
+        """
+        return logRecord.levelno not in self.__filterlist
 
 
 def abort_program(text, error_code=-1):
@@ -849,7 +852,7 @@ def setup_logging(options):
     if options['compact']:
         logfile.setLevel(LOGS)
     if options['quiet']:
-        console.addFilter(LogFilter(LOGS))
+        console.addFilter(LogFilter([COMMAND, LOGS]))
     # make sure requests library is, erm, less verbose
     logging.getLogger('requests.packages.urllib3.connectionpool').setLevel(logging.ERROR)
 
