@@ -43,7 +43,7 @@ except ImportError:
     sys.stderr.flush()
 
 
-VERSION = '0.34.0'
+VERSION = '0.34.1'
 ALLPORTS = [(22, 'ssh'), (25, 'smtp'), (80, 'http'), (443, 'https'),
             (465, 'smtps'), (993, 'imaps'), (995, 'pop3s'), (8080, 'http-proxy')]
 SSL_PORTS = [25, 443, 465, 993, 995]
@@ -496,9 +496,9 @@ def do_portscan(host, options, logfile, stop_event):
         return ALLPORTS
     try:
         temp_file = 'nmap-{0}-{1}'.format(host, next(tempfile._get_candidate_names()))  # pylint: disable=protected-access
-        arguments = '{0} -oN {1}'.format(' '.join(arguments), temp_file)
+        args = '{0} -oN {1}'.format(' '.join(arguments), temp_file)
         scanner = nmap.PortScanner()
-        scanner.scan(hosts=host, arguments=arguments)
+        scanner.scan(hosts=host, arguments=args)
         for ip_address in [x for x in scanner.all_hosts() if scanner[x] and
                            scanner[x].state() == 'up']:
             ports = [port for port in scanner[ip_address].all_tcp() if
