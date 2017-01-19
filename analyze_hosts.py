@@ -158,6 +158,7 @@ def http_checks(host, port, protocol, options, logfile):
     Perform various HTTP checks.
     """
     if 'ssl' in protocol or 'https' in protocol:
+        ssl_proto = True
         url = 'https://{0}:{1}'.format(host, port)
     else:
         url = 'http://{0}:{1}'.format(host, port)
