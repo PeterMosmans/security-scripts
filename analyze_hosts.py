@@ -43,7 +43,7 @@ except ImportError:
     sys.stderr.flush()
 
 
-VERSION = '0.34.1'
+VERSION = '0.35.0'
 ALLPORTS = [(22, 'ssh'), (25, 'smtp'), (80, 'http'), (443, 'https'),
             (465, 'smtps'), (993, 'imaps'), (995, 'pop3s'), (8080, 'http-proxy')]
 SSL_PORTS = [25, 443, 465, 993, 995]
@@ -325,6 +325,35 @@ def preflight_checks(options):
                 logging.debug(stdout)
 
 
+def prepare_nmap_arguments(options):
+    """
+    Prepare nmap command line arguments
+    """
+    arguments = NMAP_ARGUMENTS
+    scripts = NMAP_SCRIPTS
+    if is_admin():
+        arguments.append('-sS')
+        if options['udp']:
+            arguments.append('-sU')
+    else:
+        arguments.append('-sT')
+    if options['no_portscan']:
+        arguments.append('-sn')
+    elif options['allports']:
+        arguments.append('-p1-65535')
+    elif options['port']:
+        arguments.append('-p' + options['port'])
+    if options['no_portscan'] or options['up']:
+        arguments.append('-Pn')
+    if options['whois']:
+        scripts += 'asn-query', 'fcrdns,whois-ip'
+        if re.match('.*[a-z].*', host):
+            scripts.append('whois-domain')
+    if len(scripts):
+        arguments.append('--script=' + ','.join(scripts))
+    options['nmap_arguments'] = ' '.join(arguments)
+
+
 def execute_command(cmd, options, logfile=False):
     """
     Execute command.
@@ -463,42 +492,19 @@ def do_portscan(host, options, logfile, stop_event):
         A list with tuples of open ports and the protocol.
     """
     open_ports = []
-    arguments = NMAP_ARGUMENTS
-    scripts = NMAP_SCRIPTS
+    if not options['nmap'] or (options['no_portscan'] and not options['port']):
+        return ALLPORTS
     if options['no_portscan'] and options['port']:
         ports = [int(port) for port in options['port'].split(',') if port.isdigit()]
         return zip(ports, ['unknown'] * len(ports))
-    if not options['nmap'] or (options['no_portscan'] and not options['port']):
-        return ALLPORTS
-    if is_admin():
-        arguments.append('-sS')
-        if options['udp']:
-            arguments.append('-sU')
-    else:
-        arguments.append('-sT')
-    if options['allports']:
-        arguments.append('-p1-65535')
-    elif options['port']:
-        arguments.append('-p' + options['port'])
-    if options['no_portscan']:
-        arguments.append('-sn')
-    if options['no_portscan'] or options['up']:
-        arguments.append('-Pn')
-    if options['whois']:
-        scripts += 'asn-query', 'fcrdns,whois-ip'
-        if re.match('.*[a-z].*', host):
-            scripts.append('whois-domain')
-    if len(scripts):
-        arguments.append('--script=' + ','.join(scripts))
     logging.info('%s Starting nmap', host)
-    logging.log(COMMAND, 'nmap %s %s', ' '.join(arguments), host)
+    logging.log(COMMAND, 'nmap %s %s', options['nmap_arguments'], host)
     if options['dry_run']:
         return ALLPORTS
     try:
         temp_file = 'nmap-{0}-{1}'.format(host, next(tempfile._get_candidate_names()))  # pylint: disable=protected-access
-        args = '{0} -oN {1}'.format(' '.join(arguments), temp_file)
         scanner = nmap.PortScanner()
-        scanner.scan(hosts=host, arguments=args)
+        scanner.scan(hosts=host, arguments='{0} -oN {1}'.format(options['nmap_arguments'], temp_file))
         for ip_address in [x for x in scanner.all_hosts() if scanner[x] and
                            scanner[x].state() == 'up']:
             ports = [port for port in scanner[ip_address].all_tcp() if
@@ -513,7 +519,7 @@ def do_portscan(host, options, logfile, stop_event):
         if stop_event.isSet():
             logging.debug('%s nmap interrupted', host)
         else:
-            logging.error('%s Issue with nmap %s: %s', host, arguments, exception)
+            logging.error('%s Issue with nmap %s: %s', host, options['nmap_arguments'], exception)
         open_ports = [UNKNOWN]
     finally:
         if os.path.isfile(temp_file):
@@ -867,6 +873,7 @@ def main():
     setup_logging(options)
     logging.info(banner + ' starting')
     preflight_checks(options)
+    prepare_nmap_arguments(options)
     logging.debug(options)
     if not options['resume']:
         prepare_queue(options)
