@@ -160,8 +160,9 @@ def http_checks(host, port, protocol, options, logfile):
     """
     Perform various HTTP checks.
     """
+    ssl = False
     if 'ssl' in protocol or 'https' in protocol:
-        ssl_proto = True
+        ssl = True
         url = 'https://{0}:{1}'.format(host, port)
     else:
         url = 'http://{0}:{1}'.format(host, port)
@@ -173,8 +174,8 @@ def http_checks(host, port, protocol, options, logfile):
         analyze_url(url, options, logfile)
     if options['http']:
         check_redirect(url, options)
-        check_headers(url, options, ssl_proto=ssl_proto)
-        check_compression(url, options, ssl_proto=ssl_proto)
+        check_headers(url, options, ssl=ssl)
+        check_compression(url, options, ssl=ssl)
 
 
 def tls_checks(host, port, protocol, options, logfile):
@@ -202,7 +203,7 @@ def check_redirect(url, options):
                             url, request.headers['Location'])
 
 
-def check_headers(url, options, ssl_proto=False):
+def check_headers(url, options, ssl=False):
     """
     Check HTTP headers for omissions / insecure settings.
     """
@@ -213,7 +214,7 @@ def check_headers(url, options, ssl_proto=False):
     logging.debug("%s Received status %s and the following headers: %s", url,
                   request.status_code, request.headers)
     security_headers = ['X-Content-Type-Options', 'X-XSS-Protection']
-    if ssl_proto:
+    if ssl:
         security_headers.append('Strict-Transport-Security')
     if request.status_code == 200:
         if 'X-Frame-Options' not in request.headers:
@@ -226,7 +227,7 @@ def check_headers(url, options, ssl_proto=False):
                 logging.log(ALERT, '%s lacks a %s header', url, header)
 
 
-def check_compression(url, options, ssl_proto=False):
+def check_compression(url, options, ssl=False):
     """
     Check which compression methods are supported.
     """
@@ -235,8 +236,8 @@ def check_compression(url, options, ssl_proto=False):
         return
     if request.history:
         # check if protocol was changed: if so, abort checks
-        if (not ssl_proto and 'https' in request.url) or \
-           (ssl_proto and 'https' not in request.url):
+        if (not ssl and 'https' in request.url) or \
+           (ssl and 'https' not in request.url):
             logging.debug('%s protocol has changed while testing to %s - aborting compression test',
                           url, request.url)
             return
