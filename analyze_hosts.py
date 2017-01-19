@@ -45,7 +45,7 @@ except ImportError:
 
 VERSION = '0.34.0'
 ALLPORTS = [(22, 'ssh'), (25, 'smtp'), (80, 'http'), (443, 'https'),
-            (465, 'smtps'), (993, 'imaps'), (995, 'pop3s') , (8080, 'http-proxy')]
+            (465, 'smtps'), (993, 'imaps'), (995, 'pop3s'), (8080, 'http-proxy')]
 SSL_PORTS = [25, 443, 465, 993, 995]
 NMAP_ARGUMENTS = ['--open', '-sV']
 NMAP_SCRIPTS = ['banner', 'dns-nsid', 'dns-recursion', 'http-cisco-anyconnect',
@@ -421,7 +421,7 @@ def do_droopescan(url, cms, options, logfile):
     if options['droopescan']:
         logging.debug('Performing %s droopescan on %s', cms, url)
         command = [get_binary('droopescan'), 'scan', cms, '--quiet', '--url', url]
-        _result, stdout, stderr = execute_command(command, options, logfile)  # pylint: disable=unused-variable
+        _result, _stdout, _stderr = execute_command(command, options, logfile)  # pylint: disable=unused-variable
 
 
 def do_nikto(host, port, options, logfile):
@@ -497,7 +497,7 @@ def do_portscan(host, options, logfile, stop_event):
         for ip_address in [x for x in scanner.all_hosts() if scanner[x] and
                            scanner[x].state() == 'up']:
             ports = [port for port in scanner[ip_address].all_tcp() if
-                          scanner[ip_address]['tcp'][port]['state'] == 'open']
+                     scanner[ip_address]['tcp'][port]['state'] == 'open']
             for port in ports:
                 open_ports.append([port, scanner[ip_address]['tcp'][port]['name']])
         if options['no_portscan'] or len(open_ports):
