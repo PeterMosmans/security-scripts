@@ -151,7 +151,7 @@ def requests_get(url, options, headers=None, allow_redirects=True):
         request = requests.get(url, headers=headers, proxies=proxies,
                                verify=verify, allow_redirects=allow_redirects)
     except (requests.exceptions.ConnectionError, requests.exceptions.RequestException) as exception:
-        logging.error('%s Could not connect: %s', url, exception)
+        logging.status('%s Could not connect: %s', url, exception)
         request = None
     return request
 
@@ -519,7 +519,7 @@ def do_portscan(host, options, logfile, stop_event):
         if stop_event.isSet():
             logging.debug('%s nmap interrupted', host)
         else:
-            logging.error('%s Issue with nmap %s: %s', host, options['nmap_arguments'], exception)
+            logging.status('%s Issue with nmap %s: %s', host, options['nmap_arguments'], exception)
         open_ports = [UNKNOWN]
     finally:
         if os.path.isfile(temp_file):
@@ -845,6 +845,8 @@ def setup_logging(options):
     logfile.setFormatter(logging.Formatter('%(message)s'))
     logfile.setLevel(COMMAND)
     logger.addHandler(logfile)
+    # Don't log the asynchronous commands or status messages in the logfile
+    logfile.addFilter(LogFilter([COMMAND, STATUS]))
     console = logging.StreamHandler(stream=sys.stdout)
     console.setFormatter(LogFormatter())
     if options['debug']:
