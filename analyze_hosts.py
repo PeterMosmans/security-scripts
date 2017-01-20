@@ -871,7 +871,7 @@ def main():
     banner = 'analyze_hosts.py version {0}'.format(VERSION)
     options = parse_arguments(banner)
     setup_logging(options)
-    logging.info(banner + ' starting')
+    logging.log(STATUS, '%s starting', banner)
     preflight_checks(options)
     prepare_nmap_arguments(options)
     logging.debug(options)
