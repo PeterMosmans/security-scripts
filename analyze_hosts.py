@@ -43,11 +43,11 @@ except ImportError:
     sys.stderr.flush()
 
 
-VERSION = '0.35.0'
+VERSION = '0.35.1'
 ALLPORTS = [(22, 'ssh'), (25, 'smtp'), (80, 'http'), (443, 'https'),
             (465, 'smtps'), (993, 'imaps'), (995, 'pop3s'), (8080, 'http-proxy')]
 SSL_PORTS = [25, 443, 465, 993, 995]
-NMAP_ARGUMENTS = ['--open', '-sV']
+NMAP_ARGUMENTS = ['-sV']
 NMAP_SCRIPTS = ['banner', 'dns-nsid', 'dns-recursion', 'http-cisco-anyconnect',
                 'http-php-version', 'http-title', 'http-trace', 'ntp-info',
                 'ntp-monlist', 'nbstat', 'rdp-enum-encryption', 'rpcinfo',
@@ -335,20 +335,18 @@ def prepare_nmap_arguments(options):
         arguments.append('-sS')
         if options['udp']:
             arguments.append('-sU')
+    elif options['no_portscan']:
+        arguments.append('-sn')
     else:
         arguments.append('-sT')
-    if options['no_portscan']:
-        arguments.append('-sn')
-    elif options['allports']:
+    if options['allports']:
         arguments.append('-p1-65535')
     elif options['port']:
         arguments.append('-p' + options['port'])
     if options['no_portscan'] or options['up']:
         arguments.append('-Pn')
     if options['whois']:
-        scripts += 'asn-query', 'fcrdns,whois-ip'
-        if re.match('.*[a-z].*', host):
-            scripts.append('whois-domain')
+        scripts += 'asn-query', 'fcrdns,whois-ip', 'whois-domain'
     if len(scripts):
         arguments.append('--script=' + ','.join(scripts))
     options['nmap_arguments'] = ' '.join(arguments)
@@ -492,11 +490,12 @@ def do_portscan(host, options, logfile, stop_event):
         A list with tuples of open ports and the protocol.
     """
     open_ports = []
-    if not options['nmap'] or (options['no_portscan'] and not options['port']):
-        return ALLPORTS
-    if options['no_portscan'] and options['port']:
-        ports = [int(port) for port in options['port'].split(',') if port.isdigit()]
-        return zip(ports, ['unknown'] * len(ports))
+    if not options['nmap']:
+        if options['port']:
+            ports = [int(port) for port in options['port'].split(',') if port.isdigit()]
+            return zip(ports, ['unknown'] * len(ports))
+        else:
+            return ALLPORTS
     logging.info('%s Starting nmap', host)
     logging.log(COMMAND, 'nmap %s %s', options['nmap_arguments'], host)
     if options['dry_run']:
