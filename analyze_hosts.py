@@ -43,7 +43,7 @@ except ImportError:
     sys.stderr.flush()
 
 
-VERSION = '0.35.1'
+VERSION = '0.36.0'
 ALLPORTS = [(22, 'ssh'), (25, 'smtp'), (80, 'http'), (443, 'https'),
             (465, 'smtps'), (993, 'imaps'), (995, 'pop3s'), (8080, 'http-proxy')]
 SSL_PORTS = [25, 443, 465, 993, 995]
@@ -510,10 +510,9 @@ def do_portscan(host, options, logfile, stop_event):
                      scanner[ip_address]['tcp'][port]['state'] == 'open']
             for port in ports:
                 open_ports.append([port, scanner[ip_address]['tcp'][port]['name']])
-        if options['no_portscan'] or len(open_ports):
-            append_file(logfile, options, temp_file)
-            if len(open_ports):
-                logging.info('%s Found open ports %s', host, open_ports)
+        append_file(logfile, options, temp_file)
+        if len(open_ports):
+            logging.info('%s Found open TCP ports %s', host, open_ports)
     except (AssertionError, nmap.PortScannerError) as exception:
         if stop_event.isSet():
             logging.debug('%s nmap interrupted', host)
