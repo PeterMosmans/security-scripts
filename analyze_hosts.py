@@ -17,7 +17,6 @@ from __future__ import unicode_literals
 import argparse
 import logging
 import os
-import Queue
 import re
 import signal
 import ssl
@@ -27,6 +26,12 @@ import tempfile
 import threading
 import textwrap
 import time
+
+# Python 2/3 compatibility
+if sys.version[0] == '2':
+    import Queue as queue
+else:
+    import queue as queue
 
 try:
     import nmap
@@ -43,7 +48,7 @@ except ImportError:
     sys.stderr.flush()
 
 
-VERSION = '0.36.0'
+VERSION = '0.37.0'
 ALLPORTS = [(22, 'ssh'), (25, 'smtp'), (80, 'http'), (443, 'https'),
             (465, 'smtps'), (993, 'imaps'), (995, 'pop3s'), (8080, 'http-proxy')]
 SSL_PORTS = [25, 443, 465, 993, 995]
@@ -565,7 +570,7 @@ def do_wpscan(url, options, logfile):
 
 def prepare_queue(options):
     """
-    Prepare a queue file which holds all hosts to scan.
+    Prepare a file which holds all hosts (targets) to scan.
     """
     expanded = False
     try:
@@ -612,7 +617,7 @@ def remove_from_queue(finished_queue, stop_event, options):
                 os.remove(options['queuefile'])
             finished_queue.task_done()
             logging.debug('%s Removed from queue', host)
-        except Queue.Empty:
+        except queue.Empty:
             pass
     logging.debug('Exiting remove_from_queue thread')
 
@@ -662,7 +667,7 @@ def process_host(options, host_queue, output_queue, finished_queue, stop_event):
                 os.remove(host_logfile)
             host_queue.task_done()
             finished_queue.put(host)
-        except Queue.Empty:
+        except queue.Empty:
             break
     logging.debug('Exiting process_host thread')
 
@@ -676,19 +681,19 @@ def process_output(output_queue, stop_event):
             item = output_queue.get(block=False)
             logging.log(LOGS, item.encode('ascii', 'ignore'))
             output_queue.task_done()
-        except Queue.Empty:
+        except queue.Empty:
             pass
     logging.debug('Exiting process_output thread')
 
 
-def loop_hosts(options, queue):
+def loop_hosts(options, target_list):
     """
-    Main loop, iterate all hosts in queue and perform requested actions.
+    Main loop, iterate all hosts in target_list and perform requested actions.
     """
     stop_event = threading.Event()
-    work_queue = Queue.Queue()
-    output_queue = Queue.Queue()
-    finished_queue = Queue.Queue()
+    work_queue = queue.Queue()
+    output_queue = queue.Queue()
+    finished_queue = queue.Queue()
 
     def stop_gracefully(signum, frame):  # pylint: disable=unused-argument
         """
@@ -698,8 +703,8 @@ def loop_hosts(options, queue):
         stop_event.set()
 
     signal.signal(signal.SIGINT, stop_gracefully)
-    for host in queue:
-        work_queue.put(host)
+    for target in target_list:
+        work_queue.put(target)
     threads = [threading.Thread(target=process_host, args=(options, work_queue,
                                                            output_queue,
                                                            finished_queue,
@@ -729,17 +734,17 @@ def loop_hosts(options, queue):
     output_queue.join()  # always make sure that the output is properly processed
 
 
-def read_queue(filename):
+def read_targets(filename):
     """
     Return a list of targets.
     """
-    queue = []
+    target_list = []
     try:
         with open(filename, 'r') as queuefile:
-            queue = [line for line in queuefile.read().splitlines() if line.strip()]
+            target_list = [line for line in queuefile.read().splitlines() if line.strip()]
     except IOError:
         logging.error('Could not read %s', filename)
-    return queue
+    return target_list
 
 
 def parse_arguments(banner):
@@ -877,8 +882,7 @@ def main():
     logging.debug(options)
     if not options['resume']:
         prepare_queue(options)
-    queue = read_queue(options['queuefile'])
-    loop_hosts(options, queue)
+    loop_hosts(options, read_targets(options['queuefile']))
     if not options['dry_run']:
         logging.log(STATUS, 'Output saved to %s', options['output_file'])
     sys.exit(0)
