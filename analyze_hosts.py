@@ -509,7 +509,8 @@ def do_portscan(host, options, logfile, stop_event):
     try:
         temp_file = 'nmap-{0}-{1}'.format(host, next(tempfile._get_candidate_names()))  # pylint: disable=protected-access
         scanner = nmap.PortScanner()
-        scanner.scan(hosts=host, arguments='{0} -oN {1}'.format(options['nmap_arguments'], temp_file))
+        scanner.scan(hosts=host, arguments='{0} -oN {1}'.
+                     format(options['nmap_arguments'], temp_file))
         for ip_address in [x for x in scanner.all_hosts() if scanner[x] and
                            scanner[x].state() == 'up']:
             ports = [port for port in scanner[ip_address].all_tcp() if
@@ -523,7 +524,8 @@ def do_portscan(host, options, logfile, stop_event):
         if stop_event.isSet():
             logging.debug('%s nmap interrupted', host)
         else:
-            logging.log(STATUS, '%s Issue with nmap %s: %s', host, options['nmap_arguments'], exception)
+            logging.log(STATUS, '%s Issue with nmap %s: %s', host,
+                        options['nmap_arguments'], exception)
         open_ports = [UNKNOWN]
     finally:
         if os.path.isfile(temp_file):
