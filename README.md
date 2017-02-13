@@ -12,8 +12,10 @@ Build status for master branch: [![Build Status](https://travis-ci.org/PeterMosm
 A simple wrapper script around several open source security tools to simplify scanning of hosts for network vulnerabilities. The script lets you analyze one or several hosts for common misconfiguration vulnerabilities and weaknesses.
 The main objectives for the script is to make it as easy as possible to perform generic security tests, without any heavy prerequisites, make the output as informative as possible, and use open source tools...
 
+The script runs under Python 2 as well as Python 3.
+
 ### installation
-The only prerequisites are Python, with the modules (see requirements.txt):
+The only prerequisites are Python (2 or 3), with the modules (see requirements.txt):
 ```
 python-nmap
 python-wappalyzer
@@ -57,12 +59,12 @@ usage: analyze_hosts.py [-h] [--dry-run] [-i INPUTFILE] [-o OUTPUT_FILE]
                         [--username USERNAME] [--maxtime MAXTIME]
                         [target]
 
-analyze_hosts.py version 0.29.2 - scans one or more hosts for security misconfigurations
+analyze_hosts.py version 0.37.0 - scans one or more hosts for security misconfigurations
 
 Please note that this is NOT a stealthy scan tool: By default, a TCP and UDP
 portscan will be launched, using some of nmap's interrogation scripts.
 
-Copyright (C) 2015-2016  Peter Mosmans [Go Forward]
+Copyright (C) 2015-2017  Peter Mosmans [Go Forward]
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or

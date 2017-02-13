@@ -759,7 +759,7 @@ def parse_arguments(banner):
 Please note that this is NOT a stealthy scan tool: By default, a TCP and UDP
 portscan will be launched, using some of nmap's interrogation scripts.
 
-Copyright (C) 2015-2016  Peter Mosmans [Go Forward]
+Copyright (C) 2015-2017  Peter Mosmans [Go Forward]
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
