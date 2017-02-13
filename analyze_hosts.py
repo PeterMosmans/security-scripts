@@ -13,6 +13,7 @@ the Free Software Foundation, either version 3 of the License, or
 
 from __future__ import print_function
 from __future__ import unicode_literals
+from __future__ import absolute_import
 
 import argparse
 import logging
@@ -379,8 +380,8 @@ def execute_command(cmd, options, logfile=False):
         result = not process.returncode
     except OSError:
         pass
-    stdout = unicode.replace(stdout.decode('utf-8'), '\r\n', '\n')
-    stderr = unicode.replace(stderr.decode('utf-8'), '\r\n', '\n')
+    stdout = stdout.replace('\r\n', '\n')
+    stderr = stderr.replace('\r\n', '\n')
     if logfile:
         append_logs(logfile, options, ' '.join(cmd))
         append_logs(logfile, options, stdout, stderr)
@@ -400,16 +401,16 @@ def download_cert(host, port, options, logfile):
 
 def append_logs(logfile, options, stdout, stderr=None):
     """
-    Append text strings to logfile.
+    Append unicode text strings to logfile.
     """
     if options['dry_run']:
         return
     try:
         if stdout and len(stdout):
-            with open(logfile, 'a+') as open_file:
-                open_file.write(compact_strings(stdout, options).encode('utf-8'))
+            with open(logfile, encoding='utf-8', mode='a+') as open_file:
+                open_file.write(compact_strings(stdout, options))
         if stderr and len(stderr):
-            with open(logfile, 'a+') as open_file:
+            with open(logfile, encoding='utf-8', mode='a+') as open_file:
                 open_file.write(compact_strings(stderr, options))
     except IOError:
         logging.error('Could not write to %s', logfile)
