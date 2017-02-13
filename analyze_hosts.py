@@ -846,10 +846,10 @@ def setup_logging(options):
     logger = logging.getLogger()
     logger.setLevel(0)
     logfile = logging.FileHandler(options['output_file'])
-    logfile.setFormatter(logging.Formatter('%(message)s'))
+    logfile.setFormatter(logFormatter())
     logfile.setLevel(COMMAND)
     logger.addHandler(logfile)
-    # Don't log the asynchronous commands or status messages in the logfile
+    # Don't log the asynchronous commands in the logfile
     logfile.addFilter(LogFilter([COMMAND, STATUS]))
     console = logging.StreamHandler(stream=sys.stdout)
     console.setFormatter(LogFormatter())
