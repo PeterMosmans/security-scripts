@@ -16,6 +16,7 @@ from __future__ import unicode_literals
 from __future__ import absolute_import
 
 import argparse
+import io
 import logging
 import os
 import re
@@ -49,7 +50,7 @@ except ImportError:
     sys.stderr.flush()
 
 
-VERSION = '0.37.1'
+VERSION = '0.37.2'
 ALLPORTS = [(22, 'ssh'), (25, 'smtp'), (80, 'http'), (443, 'https'),
             (465, 'smtps'), (993, 'imaps'), (995, 'pop3s'), (8080, 'http-proxy')]
 SSL_PORTS = [25, 443, 465, 993, 995]
@@ -375,13 +376,12 @@ def execute_command(cmd, options, logfile=False):
         return True, stdout, stderr
     try:
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                                   stderr=subprocess.PIPE)
+                                   stderr=subprocess.PIPE,
+                                   universal_newlines=True)
         stdout, stderr = process.communicate()
         result = not process.returncode
     except OSError:
         pass
-    stdout = stdout.replace('\r\n', '\n')
-    stderr = stderr.replace('\r\n', '\n')
     if logfile:
         append_logs(logfile, options, ' '.join(cmd))
         append_logs(logfile, options, stdout, stderr)
@@ -407,10 +407,10 @@ def append_logs(logfile, options, stdout, stderr=None):
         return
     try:
         if stdout and len(stdout):
-            with open(logfile, encoding='utf-8', mode='a+') as open_file:
+            with io.open(logfile, encoding='utf-8', mode='a+') as open_file:
                 open_file.write(compact_strings(stdout, options))
         if stderr and len(stderr):
-            with open(logfile, encoding='utf-8', mode='a+') as open_file:
+            with io.open(logfile, encoding='utf-8', mode='a+') as open_file:
                 open_file.write(compact_strings(stderr, options))
     except IOError:
         logging.error('Could not write to %s', logfile)
