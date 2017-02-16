@@ -49,7 +49,7 @@ except ImportError:
     sys.stderr.flush()
 
 
-VERSION = '0.37.0'
+VERSION = '0.37.1'
 ALLPORTS = [(22, 'ssh'), (25, 'smtp'), (80, 'http'), (443, 'https'),
             (465, 'smtps'), (993, 'imaps'), (995, 'pop3s'), (8080, 'http-proxy')]
 SSL_PORTS = [25, 443, 465, 993, 995]
@@ -848,7 +848,7 @@ def setup_logging(options):
     logger = logging.getLogger()
     logger.setLevel(0)
     logfile = logging.FileHandler(options['output_file'])
-    logfile.setFormatter(logFormatter())
+    logfile.setFormatter(LogFormatter())
     logfile.setLevel(COMMAND)
     logger.addHandler(logfile)
     # Don't log the asynchronous commands in the logfile
