@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 """
 analyze_hosts - scans one or more hosts for security misconfigurations
@@ -50,7 +51,7 @@ except ImportError:
     sys.stderr.flush()
 
 
-VERSION = '0.37.2'
+VERSION = '0.37.3'
 ALLPORTS = [(22, 'ssh'), (25, 'smtp'), (80, 'http'), (443, 'https'),
             (465, 'smtps'), (993, 'imaps'), (995, 'pop3s'), (8080, 'http-proxy')]
 SSL_PORTS = [25, 443, 465, 993, 995]
@@ -366,7 +367,7 @@ def execute_command(cmd, options, logfile=False):
     If logfile is provided, will add the command as well as stdout and stderr to
     the logfile.
 
-    Returns result, stdout, stderr.
+    Returns result, and the Unicode strings stdout, stderr.
     """
     stdout = ''
     stderr = ''
@@ -382,6 +383,9 @@ def execute_command(cmd, options, logfile=False):
         result = not process.returncode
     except OSError:
         pass
+    # stdout and stderr are byte strings - convert them to unicode strings
+    stdout = unicode(stdout, 'utf-8')
+    stderr = unicode(stderr, 'utf-8')
     if logfile:
         append_logs(logfile, options, ' '.join(cmd))
         append_logs(logfile, options, stdout, stderr)
@@ -401,7 +405,7 @@ def download_cert(host, port, options, logfile):
 
 def append_logs(logfile, options, stdout, stderr=None):
     """
-    Append unicode text strings to logfile.
+    Append unicode text strings to unicode type logfile.
     """
     if options['dry_run']:
         return
@@ -418,14 +422,14 @@ def append_logs(logfile, options, stdout, stderr=None):
 
 def append_file(logfile, options, input_file):
     """
-    Append file to logfile, and delete @input_file.
+    Append unicode strings from logfile to input_file, and delete input_file.
     """
     if options['dry_run']:
         return
     try:
         if os.path.isfile(input_file) and os.stat(input_file).st_size:
             with open(input_file, 'r') as read_file:
-                append_logs(logfile, options, read_file.read())
+                append_logs(logfile, options, unicode(read_file.read(), 'utf-8'))
         os.remove(input_file)
     except (IOError, OSError) as exception:
         logging.error('FAILED: Could not read %s (%s)', input_file, exception)
