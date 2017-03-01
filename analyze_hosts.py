@@ -51,17 +51,18 @@ except ImportError:
     sys.stderr.flush()
 
 
-VERSION = '0.37.3'
+VERSION = '0.37.4'
 ALLPORTS = [(22, 'ssh'), (25, 'smtp'), (80, 'http'), (443, 'https'),
-            (465, 'smtps'), (993, 'imaps'), (995, 'pop3s'), (8080, 'http-proxy')]
+            (465, 'smtps'), (993, 'imaps'), (995, 'pop3s'),
+            (8080, 'http-proxy')]
 SSL_PORTS = [25, 443, 465, 993, 995]
 NMAP_ARGUMENTS = ['-sV']
 NMAP_SCRIPTS = ['banner', 'dns-nsid', 'dns-recursion', 'http-cisco-anyconnect',
                 'http-php-version', 'http-title', 'http-trace', 'ntp-info',
                 'ntp-monlist', 'nbstat', 'rdp-enum-encryption', 'rpcinfo',
                 'sip-methods', 'smb-os-discovery', 'smb-security-mode',
-                'smtp-open-relay', 'ssh2-enum-algos', 'vnc-info', 'xmlrpc-methods',
-                'xmpp-info']
+                'smtp-open-relay', 'ssh2-enum-algos', 'vnc-info',
+                'xmlrpc-methods', 'xmpp-info']
 UNKNOWN = -1
 # The program has the following loglevels:
 # logging.DEBUG = 10    debug messages (module constant)
@@ -80,15 +81,15 @@ class LogFormatter(logging.Formatter):
     """
     Class to format log messages based on their type.
     """
-    FORMATS = {logging.DEBUG :"[d] %(message)s",
-               logging.INFO : "[*] %(message)s",
-               COMMAND : "%(message)s",
-               STATUS : "[+] %(message)s",
-               LOGS : "%(message)s",
-               ALERT : "[!] %(message)s",
-               logging.ERROR : "[-] %(message)s",
-               logging.CRITICAL : "[-] FATAL: %(message)s",
-               'DEFAULT' : "%(message)s"}
+    FORMATS = {logging.DEBUG: "[d] %(message)s",
+               logging.INFO: "[*] %(message)s",
+               COMMAND: "%(message)s",
+               STATUS: "[+] %(message)s",
+               LOGS: "%(message)s",
+               ALERT: "[!] %(message)s",
+               logging.ERROR: "[-] %(message)s",
+               logging.CRITICAL: "[-] FATAL: %(message)s",
+               'DEFAULT': "%(message)s"}
 
     def format(self, record):
         self._fmt = self.FORMATS.get(record.levelno, self.FORMATS['DEFAULT'])
@@ -158,7 +159,8 @@ def requests_get(url, options, headers=None, allow_redirects=True):
     try:
         request = requests.get(url, headers=headers, proxies=proxies,
                                verify=verify, allow_redirects=allow_redirects)
-    except (requests.exceptions.ConnectionError, requests.exceptions.RequestException) as exception:
+    except (requests.exceptions.ConnectionError,
+            requests.exceptions.RequestException) as exception:
         logging.log(STATUS, '%s Could not connect: %s', url, exception)
         request = None
     return request
