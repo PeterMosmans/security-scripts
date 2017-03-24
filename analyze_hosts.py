@@ -51,7 +51,7 @@ except ImportError:
     sys.stderr.flush()
 
 
-VERSION = '0.37.4'
+VERSION = '0.37.5'
 ALLPORTS = [(22, 'ssh'), (25, 'smtp'), (80, 'http'), (443, 'https'),
             (465, 'smtps'), (993, 'imaps'), (995, 'pop3s'),
             (8080, 'http-proxy')]
@@ -853,7 +853,11 @@ def setup_logging(options):
     """
     logger = logging.getLogger()
     logger.setLevel(0)
-    logfile = logging.FileHandler(options['output_file'])
+    try:
+        logfile = logging.FileHandler(options['output_file'])
+    except IOError:
+        print('[-] Could not log to {0}, exiting'.format(options['output_file']))
+        sys.exit(-1)
     logfile.setFormatter(LogFormatter())
     logfile.setLevel(COMMAND)
     logger.addHandler(logfile)
