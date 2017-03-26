@@ -59,7 +59,7 @@ usage: analyze_hosts.py [-h] [--dry-run] [-i INPUTFILE] [-o OUTPUT_FILE]
                         [--username USERNAME] [--maxtime MAXTIME]
                         [target]
 
-analyze_hosts.py version 0.37.0 - scans one or more hosts for security misconfigurations
+analyze_hosts.py version 0.37.5 - scans one or more hosts for security misconfigurations
 
 Please note that this is NOT a stealthy scan tool: By default, a TCP and UDP
 portscan will be launched, using some of nmap's interrogation scripts.
@@ -116,6 +116,21 @@ optional arguments:
 You can use the following environment variables (all uppercase) to specify the tools if they cannot be found in the standard paths:
 
 CURL, DROOPESCAN, NIKTO, OPENSSL, TESTSSL, WPSCAN
+
+## Roadmap
+
+The current version (0.37.5) will soon be upgraded / tagged as release-ready (1.0).
+
+Roadmap for version 1.1:
+
+- [ ] #35 - Remove python-nmap dependency and create own XML parsing routines
+- [ ] #34 - Create unique identifiers per run to simplify identification of temporary files
+- [ ] #33 - Add detection rule for weak SSH algorithms
+- [ ] #21 - Detect whether nmap supports (certain) scripts
+- [ ] #12 - Add test for zone transfer
+
+
+
 
 
 ## analyze-hosts.sh
