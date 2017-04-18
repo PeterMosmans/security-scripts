@@ -51,7 +51,7 @@ except ImportError:
     sys.stderr.flush()
 
 
-VERSION = '0.37.5'
+VERSION = '0.37.6'
 ALLPORTS = [(22, 'ssh'), (25, 'smtp'), (80, 'http'), (443, 'https'),
             (465, 'smtps'), (993, 'imaps'), (995, 'pop3s'),
             (8080, 'http-proxy')]
@@ -366,8 +366,8 @@ def execute_command(cmd, options, logfile=False):
     """
     Execute command.
 
-    If logfile is provided, will add the command as well as stdout and stderr to
-    the logfile.
+    If logfile is provided, will add the command as well as stdout and stderr
+    to the logfile.
 
     Returns result, and the Unicode strings stdout, stderr.
     """
@@ -385,9 +385,6 @@ def execute_command(cmd, options, logfile=False):
         result = not process.returncode
     except OSError:
         pass
-    # stdout and stderr are byte strings - convert them to unicode strings
-    stdout = unicode(stdout, 'utf-8')
-    stderr = unicode(stderr, 'utf-8')
     if logfile:
         append_logs(logfile, options, ' '.join(cmd))
         append_logs(logfile, options, stdout, stderr)
