@@ -51,7 +51,7 @@ except ImportError:
     sys.stderr.flush()
 
 
-VERSION = '0.37.6'
+VERSION = '0.37.7'
 ALLPORTS = [(22, 'ssh'), (25, 'smtp'), (80, 'http'), (443, 'https'),
             (465, 'smtps'), (993, 'imaps'), (995, 'pop3s'),
             (8080, 'http-proxy')]
@@ -382,6 +382,9 @@ def execute_command(cmd, options, logfile=False):
                                    stderr=subprocess.PIPE,
                                    universal_newlines=True)
         stdout, stderr = process.communicate()
+        # Convert bytestrings correctly according to system's encoding
+        stdout = stdout.decode(sys.getfilesystemencoding())
+        stderr = stderr.decode(sys.getfilesystemencoding())
         result = not process.returncode
     except OSError:
         pass
