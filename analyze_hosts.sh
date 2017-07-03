@@ -34,7 +34,7 @@
 unset CDPATH
 
 NAME="analyze_hosts"
-VERSION="0.93"
+VERSION="0.93.1"
 
 # statuses
 declare ERROR=-1
@@ -122,9 +122,9 @@ usage() {
     echo " usage: $0 [OPTION]... [HOST]"
     echo ""
     echo "Scanning options:"
-    echo " -a, --all               perform all basic scans" 
-    echo "     --max               perform all advanced scans (more thorough)" 
-    echo " -b, --basic             perform basic scans (fingerprint, ssl, trace)" 
+    echo " -a, --all               perform all basic scans"
+    echo "     --max               perform all advanced scans (more thorough)"
+    echo " -b, --basic             perform basic scans (fingerprint, ssl, trace)"
     echo "                         results of HOST matches regexp FILTER"
     echo "     --dns               test for recursive query and version string"
     echo " -f                      perform web fingerprinting (all webports)"
@@ -154,7 +154,7 @@ usage() {
     echo " -d, --directory=DIR     location of temporary files (default /tmp)"
     echo " -i, --inputfile=FILE    use a file containing hostnames"
     echo " -l, --log               log each scan in a separate logfile"
-    echo "     --nocolor           don't use fancy colors in screen output" 
+    echo "     --nocolor           don't use fancy colors in screen output"
     echo " -o, --output=FILE       concatenate all OK and WARNING messages into FILE"
     echo " -q, --quiet             quiet"
     echo " -v, --verbose           show server responses"
@@ -385,7 +385,7 @@ do_redirect() {
     endtool
 }
 
-    
+
 do_dnstest() {
     starttool "dig"
     local status=$UNKNOWN
@@ -648,7 +648,7 @@ do_trace() {
         starttool "nmap"
         showstatus "trying nmap TRACE method on $target ports $webports... " $NONEWLINE
         nmap -p$webports --open --script http-trace -oN $logfile $target 1>/dev/null 2>&1 </dev/null
-	if [[ -s $logfile ]]; then
+        if [[ -s $logfile ]]; then
             status="$(awk '{FS="/";a[++i]=$1}/TRACE is enabled/{print "TRACE enabled on port "a[NR-1]}' $logfile)"
             if [[ -z "$status" ]]; then
                 grep -q " open " $logfile && status=$OPEN
@@ -702,7 +702,7 @@ execute_all() {
             ip=$target
             local reverse=$(host $target|awk '{print $5}'|sed s'/[.]$//')
             if [[ "$reverse" == "3(NXDOMAIN)" ]] ; then
-                showstatus "$target does not resolve to a PTR record" 
+                showstatus "$target does not resolve to a PTR record"
             else
                 showstatus "$target resolves to " $NONEWLINE
                 showstatus $reverse $BLUE
@@ -726,7 +726,7 @@ execute_all() {
             fi
         fi
         purgelogs
-        # not all versions of whois support -H (hide legal disclaimer)     
+        # not all versions of whois support -H (hide legal disclaimer)
         whois -H $ip 1>$logfile 2>/dev/null
         showstatus "$(grep -iE '^(inetnum|netrange|netname|nettype|descr|orgname|orgid|originas|country|origin):(.*)[^ ]$' $logfile)"
         if [[ -n "$filter" ]]; then
@@ -890,7 +890,7 @@ parse_cert() {
 if ! options=$(getopt -o ad:fhi:lno:pqstuvwWy -l cipherscan:,dns,directory:,filter:,fingerprint,header,inputfile:,log,max,nikto,nocolor,openssl:,output:,ports,quiet,redirect,ssh,ssl,sslcert,sslports:,timeout:,trace,update,version,webports:,whois,wordlist: -- "$@") ; then
     usage
     exit 1
-fi 
+fi
 
 eval set -- $options
 if [[ "$#" -le 1 ]]; then
@@ -905,7 +905,7 @@ fi
 
 while [[ $# -gt 0 ]]; do
     case $1 in
-        -a|--all) 
+        -a|--all)
             dnstest=$BASIC
             fingerprint=$BASIC
             nikto=$BASIC
@@ -941,7 +941,7 @@ while [[ $# -gt 0 ]]; do
             fi
             shift ;;
         -l) log="TRUE";;
-        --max)             
+        --max)
             dnstest=$ADVANCED
             fingerprint=$ADVANCED
             nikto=$ADVANCED
@@ -950,7 +950,7 @@ while [[ $# -gt 0 ]]; do
             sshscan=$ADVANCED
             sslscan=$ADVANCED
             trace=$ADVANCED
-            whois=$ADVANCED;; 
+            whois=$ADVANCED;;
         -n) nikto=$BASIC;;
         --nikto) nikto=$ADVANCED;;
         --nocolor) nocolor=TRUE;;
@@ -1009,7 +1009,7 @@ if [[ ! -r "$inputfile" ]]; then
         exit
     fi
     umask 177
-    if [[ -n "$workdir" ]]; then 
+    if [[ -n "$workdir" ]]; then
         [[ -d $workdir ]] || mkdir $workdir 1>/dev/null 2>&1
     fi
     tmpfile=$(mktemp -q $workdir/$NAME.XXXXXXX)
