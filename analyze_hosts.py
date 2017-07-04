@@ -452,7 +452,7 @@ def do_curl(host, port, options, logfile):
     Check for HTTP TRACE method.
     """
     if options['trace']:
-        command = [get_binary('curl'), '-qsIA', "'{0}'".format(options['user_agent']),
+        command = [get_binary('curl'), '-sIA', "'{0}'".format(options['user_agent']),
                    '--connect-timeout', str(options['timeout']), '-X', 'TRACE',
                    '{0}:{1}'.format(host, port)]
         _result, _stdout, _stderr = execute_command(command, options, logfile)  # pylint: disable=unused-variable
