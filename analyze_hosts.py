@@ -51,7 +51,7 @@ except ImportError:
     sys.stderr.flush()
 
 
-VERSION = '0.37.7'
+VERSION = '0.38.0'
 ALLPORTS = [(22, 'ssh'), (25, 'smtp'), (80, 'http'), (443, 'https'),
             (465, 'smtps'), (993, 'imaps'), (995, 'pop3s'),
             (8080, 'http-proxy')]
@@ -682,13 +682,11 @@ def process_host(options, host_queue, output_queue, finished_queue, stop_event):
 
 
 def process_output(output_queue, stop_event):
-    """
-    Process logfiles synchronously.
-    """
+    """Process logfiles synchronously."""
     while not stop_event.wait(1) or not output_queue.empty():
         try:
             item = output_queue.get(block=False)
-            logging.log(LOGS, item.encode('ascii', 'ignore'))
+            logging.log(LOGS, item)
             output_queue.task_done()
         except queue.Empty:
             pass
@@ -848,13 +846,11 @@ the Free Software Foundation, either version 3 of the License, or
 
 
 def setup_logging(options):
-    """
-    Set up loghandlers according to options.
-    """
+    """Set up loghandlers according to options."""
     logger = logging.getLogger()
     logger.setLevel(0)
     try:
-        logfile = logging.FileHandler(options['output_file'])
+        logfile = logging.FileHandler(options['output_file'], encoding='utf-8')
     except IOError:
         print('[-] Could not log to {0}, exiting'.format(options['output_file']))
         sys.exit(-1)
