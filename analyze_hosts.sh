@@ -627,7 +627,7 @@ do_trace() {
         local prefix="http://"
         [[ $sslports =~ $port ]] && prefix="--insecure https://"
         showstatus "trying $target port $port... " $NONEWLINE
-        curl -q -s -A "$NAME" -i -m 30 -X TRACE -o $logfile $prefix$target:$port/ 1>/dev/null 2>&1
+        curl -Iqs -A "$NAME" -i -m 30 -X TRACE -o $logfile $prefix$target:$port/ 1>/dev/null 2>&1
         if [[ -s $logfile ]]; then
             status=$(awk 'NR==1 {print $2}' $logfile)
             if (($status==200)); then
