@@ -666,10 +666,14 @@ def process_output(output_queue, stop_event):
     while not stop_event.wait(1) or not output_queue.empty():
         try:
             item = output_queue.get(block=False)
-            logging.log(LOGS, item)
-            output_queue.task_done()
+            # Force item to Unicode
+            logging.log(LOGS, item.encode('utf8', 'replace'))
         except queue.Empty:
             pass
+        except UnicodeDecodeError as exception:
+            print('Having issues decoding {0}: {1}'.format(item, exception))
+            # Flag the issue ready, regardless
+            output_queue.task_done()
     logging.debug('Exiting process_output thread')
 
 
