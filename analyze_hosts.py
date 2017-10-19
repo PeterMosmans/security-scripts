@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""
-analyze_hosts - scans one or more hosts for security misconfigurations
+"""analyze_hosts - scans one or more hosts for security misconfigurations
 
 Copyright (C) 2015-2017 Peter Mosmans [Go Forward]
 This program is free software: you can redistribute it and/or modify
@@ -78,9 +77,7 @@ ALERT           = 35  # vulnerabilities found    pylint:disable=bad-whitespace
 
 
 class LogFormatter(logging.Formatter):
-    """
-    Class to format log messages based on their type.
-    """
+    """Class to format log messages based on their type."""
     FORMATS = {logging.DEBUG: "[d] %(message)s",
                logging.INFO: "[*] %(message)s",
                COMMAND: "%(message)s",
@@ -97,31 +94,23 @@ class LogFormatter(logging.Formatter):
 
 
 class LogFilter(object):
-    """
-    Class to remove certain log levels.
-    """
+    """Class to remove certain log levels."""
     def __init__(self, filterlist):
         self.__filterlist = filterlist
 
     def filter(self, logRecord):
-        """
-        Remove logRecord if it is part of filterlist
-        """
+        """Remove logRecord if it is part of filterlist."""
         return logRecord.levelno not in self.__filterlist
 
 
 def abort_program(text, error_code=-1):
-    """
-    Log critical error @text and exit program with @error_code.
-    """
+    """Log critical error @text and exit program with @error_code."""
     logging.critical(text)
     sys.exit(error_code)
 
 
 def analyze_url(url, options, logfile):
-    """
-    Analyze an URL using wappalyzer and execute corresponding scans.
-    """
+    """Analyze a URL using wappalyzer and execute corresponding scans."""
     wappalyzer = Wappalyzer.Wappalyzer.latest()
     page = requests_get(url, options)
     if not page:
@@ -142,9 +131,7 @@ def analyze_url(url, options, logfile):
 
 
 def requests_get(url, options, headers=None, allow_redirects=True):
-    """
-    Generic wrapper around requests object.
-    """
+    """Generic wrapper around requests object."""
     # Don't try this at home, kids! Disabling SSL verification
     verify = False
     if not headers:
@@ -167,9 +154,7 @@ def requests_get(url, options, headers=None, allow_redirects=True):
 
 
 def http_checks(host, port, protocol, options, logfile):
-    """
-    Perform various HTTP checks.
-    """
+    """Perform various HTTP checks."""
     ssl = False
     if 'ssl' in protocol or 'https' in protocol:
         ssl = True
@@ -363,13 +348,18 @@ def prepare_nmap_arguments(options):
 
 
 def execute_command(cmd, options, logfile=False):
-    """
-    Execute command.
+    """Execute command.
 
     If logfile is provided, will add the command as well as stdout and stderr
     to the logfile.
 
-    Returns result, and the Unicode strings stdout, stderr.
+    Args:
+        cmd (str): Command to execute
+        options (dictionary): Options
+        logfile (str): Name of logfile
+
+    Returns:
+        Result value, stdout, stderr (tuple)
     """
     stdout = ''
     stderr = ''
@@ -395,9 +385,7 @@ def execute_command(cmd, options, logfile=False):
 
 
 def download_cert(host, port, options, logfile):
-    """
-    Download an SSL certificate and append it to the logfile.
-    """
+    """Download an SSL certificate and append it to the logfile."""
     try:
         cert = ssl.get_server_certificate((host, port))
         append_logs(logfile, options, cert)
@@ -406,9 +394,7 @@ def download_cert(host, port, options, logfile):
 
 
 def append_logs(logfile, options, stdout, stderr=None):
-    """
-    Append unicode text strings to unicode type logfile.
-    """
+    """Append unicode text strings to unicode type logfile."""
     if options['dry_run']:
         return
     try:
@@ -423,9 +409,7 @@ def append_logs(logfile, options, stdout, stderr=None):
 
 
 def append_file(logfile, options, input_file):
-    """
-    Append unicode strings from logfile to input_file, and delete input_file.
-    """
+    """Append unicode strings from logfile to input_file, and delete input_file."""
     if options['dry_run']:
         return
     try:
@@ -438,9 +422,7 @@ def append_file(logfile, options, input_file):
 
 
 def compact_strings(strings, options):
-    """
-    Remove as much unnecessary strings as possible.
-    """
+    """Remove as much unnecessary strings as possible."""
     if not options['compact']:
         return strings
     return '\n'.join([x for x in strings.splitlines() if x and
@@ -448,9 +430,7 @@ def compact_strings(strings, options):
 
 
 def do_curl(host, port, options, logfile):
-    """
-    Check for HTTP TRACE method.
-    """
+    """Check for HTTP TRACE method."""
     if options['trace']:
         command = [get_binary('curl'), '-sIA', "'{0}'".format(options['user_agent']),
                    '--connect-timeout', str(options['timeout']), '-X', 'TRACE',
@@ -694,18 +674,14 @@ def process_output(output_queue, stop_event):
 
 
 def loop_hosts(options, target_list):
-    """
-    Main loop, iterate all hosts in target_list and perform requested actions.
-    """
+    """Iterate all hosts in target_list and perform requested actions."""
     stop_event = threading.Event()
     work_queue = queue.Queue()
     output_queue = queue.Queue()
     finished_queue = queue.Queue()
 
     def stop_gracefully(signum, frame):  # pylint: disable=unused-argument
-        """
-        Handle interrupt (gracefully).
-        """
+        """Handle interrupt (gracefully)."""
         logging.error('Caught Ctrl-C - exiting gracefully (please be patient)')
         stop_event.set()
 
@@ -755,9 +731,7 @@ def read_targets(filename):
 
 
 def parse_arguments(banner):
-    """
-    Parse command line arguments.
-    """
+    """Parse command line arguments."""
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description=textwrap.dedent(banner + '''\
