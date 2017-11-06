@@ -50,7 +50,7 @@ except ImportError:
     sys.stderr.flush()
 
 
-VERSION = '0.38.0'
+VERSION = '0.39.1'
 ALLPORTS = [(22, 'ssh'), (25, 'smtp'), (80, 'http'), (443, 'https'),
             (465, 'smtps'), (993, 'imaps'), (995, 'pop3s'),
             (8080, 'http-proxy')]
@@ -517,20 +517,24 @@ def do_portscan(host, options, logfile, stop_event):
 
 
 def get_binary(tool):
-    """
-    Convert tool to environment variable, if it is set.
-    """
+    """Convert tool command to its environment variable, if it is set."""
     if tool.split('.')[0].upper() in os.environ:
         tool = os.environ[tool.split('.')[0].upper()]
     return tool
 
 
 def do_testssl(host, port, protocol, options, logfile):
-    """
-    Check SSL/TLS configuration and vulnerabilities.
-    """
+    """Check SSL/TLS configuration and vulnerabilities."""
+    # --color 0            Don't use color escape codes
+    # --pfs                Check (perfect) forward secrecy settings
+    # --protocols          Check TLS/SSL protocols
+    # --quiet              Don't output the banner
+    # --server-defaults    Display the server's default picks and certificate info
+    # --starttls protocol  Use starttls protocol
+    # --vulnerable         Test for all vulnerabilities
+    # --warnings off       Skip connection warnings
     command = [get_binary('testssl.sh'), '--quiet', '--warnings', 'off', '--color', '0',
-               '-p', '-f', '-U', '-S']
+               '--protocols', '--pfs', '--vulnerable', '--server-defaults']
     if options['timeout']:
         command = [get_binary('timeout'), str(options['maxtime'])] + command
     if 'smtp' in protocol:
