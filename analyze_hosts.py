@@ -184,9 +184,7 @@ def tls_checks(host, port, protocol, options, logfile):
 
 
 def check_redirect(url, options):
-    """
-    Check for insecure open redirect.
-    """
+    """Check for insecure open redirect."""
     request = requests_get(url, options,
                            headers={'Host': 'EVIL-INSERTED-HOST',
                                     'User-Agent': options['user_agent']},
@@ -467,7 +465,6 @@ def do_nikto(host, port, options, logfile):
     logging.info('%s Starting nikto on port %s', host, port)
     _result, _stdout, _stderr = execute_command(command, options, logfile)  # pylint: disable=unused-variable
 
-
 def do_portscan(host, options, logfile, stop_event):
     """
     Perform a portscan.
@@ -671,7 +668,7 @@ def process_output(output_queue, stop_event):
         except queue.Empty:
             pass
         except UnicodeDecodeError as exception:
-            print('Having issues decoding {0}: {1}'.format(item, exception))
+            logging.error('Having issues decoding %s: %s', item, exception)
             # Flag the issue ready, regardless
             output_queue.task_done()
     logging.debug('Exiting process_output thread')
