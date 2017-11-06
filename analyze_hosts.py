@@ -346,7 +346,7 @@ def prepare_nmap_arguments(options):
 
 
 def execute_command(cmd, options, logfile=False):
-    """Execute command.
+    """Execute system command.
 
     If logfile is provided, will add the command as well as stdout and stderr
     to the logfile.
@@ -374,7 +374,11 @@ def execute_command(cmd, options, logfile=False):
         stdout = stdout.decode(sys.getfilesystemencoding())
         stderr = stderr.decode(sys.getfilesystemencoding())
         result = not process.returncode
-    except OSError:
+    except OSError as exception:
+        logging.error('Error while executing %s: %s', cmd, exception)
+        pass
+    except Exception as exception:
+        logging.error('Generic exception while executing %s: %s', cmd, exception)
         pass
     if logfile:
         append_logs(logfile, options, ' '.join(cmd))
@@ -464,6 +468,7 @@ def do_nikto(host, port, options, logfile):
         command += ['-id', options['username'] + ':' + options['password']]
     logging.info('%s Starting nikto on port %s', host, port)
     _result, _stdout, _stderr = execute_command(command, options, logfile)  # pylint: disable=unused-variable
+
 
 def do_portscan(host, options, logfile, stop_event):
     """
@@ -559,9 +564,7 @@ def do_wpscan(url, options, logfile):
 
 
 def prepare_queue(options):
-    """
-    Prepare a file which holds all hosts (targets) to scan.
-    """
+    """Prepare a file which holds all hosts (targets) to scan."""
     expanded = False
     try:
         if not options['inputfile']:
@@ -858,9 +861,7 @@ def setup_logging(options):
 
 
 def main():
-    """
-    Main program loop.
-    """
+    """Main program loop."""
     banner = 'analyze_hosts.py version {0}'.format(VERSION)
     options = parse_arguments(banner)
     setup_logging(options)
