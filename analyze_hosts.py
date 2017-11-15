@@ -721,8 +721,6 @@ def loop_hosts(options, target_list):
     logging.debug('Waiting for threads to finish')
     while threads:
         threads.pop().join()
-    if output_queue.qsize():
-        process_output(output_queue, stop_event)
     output_queue.join()  # always make sure that the output is properly processed
 
 
