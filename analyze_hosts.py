@@ -423,12 +423,13 @@ def append_file(logfile, options, input_file):
         logging.error('FAILED: Could not read %s (%s)', input_file, exception)
 
 
-def compact_strings(strings, options):
-    """Remove as much unnecessary strings as possible."""
+def compact_strings(lines, options):
+    """Remove empty and remarked lines."""
     if not options['compact']:
-        return strings
-    return '\n'.join([x for x in strings.splitlines() if x and
-                      not x.startswith('#')]) + '\n'
+        return lines
+    return ''.join([x for x in lines.splitlines(keepends=True) if
+                    not (x == '\n') and
+                    not x.startswith('#')])
 
 
 def do_curl(host, port, options, logfile):
