@@ -721,7 +721,8 @@ def loop_hosts(options, target_list):
     logging.debug('Waiting for threads to finish')
     while threads:
         threads.pop().join()
-    output_queue.join()  # always make sure that the output is properly processed
+    if output_queue.qsize():  # always make sure that the output is properly processed
+        process_output(output_queue, stop_event)
 
 
 def read_targets(filename):
