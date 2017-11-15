@@ -372,16 +372,14 @@ def execute_command(cmd, options, logfile=False):
                                    stderr=subprocess.PIPE,
                                    universal_newlines=True)
         stdout, stderr = process.communicate()
-        # Convert bytestrings correctly according to system's encoding
+        # Convert bytestrings to Unicode according to system's encoding type
         stdout = stdout.decode(sys.getfilesystemencoding())
         stderr = stderr.decode(sys.getfilesystemencoding())
         result = not process.returncode
     except OSError as exception:
         logging.error('Error while executing %s: %s', cmd, exception)
-        pass
     except Exception as exception:
-        logging.error('Generic exception while executing %s: %s', cmd, exception)
-        pass
+        logging.error('Exception while executing %s: %s', cmd, exception)
     if logfile:
         append_logs(logfile, options, ' '.join(cmd))
         append_logs(logfile, options, stdout, stderr)
