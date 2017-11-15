@@ -306,6 +306,8 @@ def preflight_checks(options):
             version = '--version'
             if tool == 'nikto':
                 version = '-Version'
+            if tool == 'droopescan':
+                version = 'stats'
             result, stdout, stderr = execute_command([get_binary(tool), version], options)
             if not result:
                 if tool == 'nmap':
