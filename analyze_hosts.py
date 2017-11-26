@@ -50,7 +50,7 @@ except ImportError:
     sys.stderr.flush()
 
 
-VERSION = '0.39.1'
+VERSION = '0.40.0'
 ALLPORTS = [(22, 'ssh'), (25, 'smtp'), (80, 'http'), (443, 'https'),
             (465, 'smtps'), (993, 'imaps'), (995, 'pop3s'),
             (8080, 'http-proxy')]
@@ -590,11 +590,9 @@ def prepare_queue(options):
         abort_program('Could not read/write file: {0}'.format(exception))
 
 
-def remove_from_queue(finished_queue, stop_event, options):
-    """
-    Remove a host from the queue file synchronously
-    """
-    while not stop_event.wait(1) or not finished_queue.empty():
+def remove_from_queue(finished_queue, options, stop_event):
+    """Remove a host from the queue file."""
+    while not stop_event.isSet() or finished_queue.qsize():
         try:
             host = finished_queue.get(block=False)
             with open(options['queuefile'], 'r+') as queuefile:
@@ -609,6 +607,7 @@ def remove_from_queue(finished_queue, stop_event, options):
             finished_queue.task_done()
             logging.debug('%s Removed from queue', host)
         except queue.Empty:
+            time.sleep(1)
             pass
     logging.debug('Exiting remove_from_queue thread')
 
@@ -636,7 +635,8 @@ def process_host(options, host_queue, output_queue, finished_queue, stop_event):
         try:
             host = host_queue.get()
             host_logfile = host + '-' + next(tempfile._get_candidate_names())  # pylint: disable=protected-access
-            logging.debug('%s Processing (%s in queue)', host, host_queue.qsize())
+            logging.debug('%s Processing (%s in queue)', host,
+                          host_queue.qsize())
             open_ports = do_portscan(host, options, host_logfile, stop_event)
             if len(open_ports):
                 if UNKNOWN in open_ports:
@@ -647,36 +647,44 @@ def process_host(options, host_queue, output_queue, finished_queue, stop_event):
                             logging.info('%s Scan interrupted ?', host)
                             break
                         if 'http' in protocol:
-                            http_checks(host, port, protocol, options, host_logfile)
+                            http_checks(host, port, protocol, options,
+                                        host_logfile)
                         if 'ssl' in protocol or port in SSL_PORTS:
-                            tls_checks(host, port, protocol, options, host_logfile)
+                            tls_checks(host, port, protocol, options,
+                                       host_logfile)
             else:
                 logging.info('%s Nothing to report', host)
-            if os.path.isfile(host_logfile) and os.stat(host_logfile).st_size:
-                with open(host_logfile, 'r') as read_file:
-                    output_queue.put(read_file.read())
+            if os.path.isfile(host_logfile):
+                if os.stat(host_logfile).st_size:
+                    with open(host_logfile, 'r') as read_file:
+                        output_queue.put(read_file.read())
                 os.remove(host_logfile)
-            host_queue.task_done()
             finished_queue.put(host)
+            host_queue.task_done()
         except queue.Empty:
             break
-    logging.debug('Exiting process_host thread')
+    logging.debug('Exiting process_host thread, queue contains %s items',
+                  host_queue.qsize())
 
 
 def process_output(output_queue, stop_event):
-    """Process logfiles synchronously."""
-    while not stop_event.wait(1) or not output_queue.empty():
+    """Convert logged items in output_queue atomically to log items."""
+    while not stop_event.isSet() or output_queue.qsize():
         try:
             item = output_queue.get(block=False)
+            logging.debug('Processing output item')
             # Force item to Unicode
             logging.log(LOGS, item.encode('utf8', 'replace'))
+            output_queue.task_done()
         except queue.Empty:
+            time.sleep(1)
             pass
         except UnicodeDecodeError as exception:
             logging.error('Having issues decoding %s: %s', item, exception)
             # Flag the issue ready, regardless
             output_queue.task_done()
-    logging.debug('Exiting process_output thread')
+    logging.debug('Exiting process_output thread, queue contains %s items',
+                  output_queue.qsize())
 
 
 def loop_hosts(options, target_list):
@@ -699,11 +707,12 @@ def loop_hosts(options, target_list):
                                                            finished_queue,
                                                            stop_event))
                for _ in range(min(options['threads'], work_queue.qsize()))]
-    threads.append(threading.Thread(target=process_output, args=(output_queue,
-                                                                 stop_event)))
-    threads.append(threading.Thread(target=remove_from_queue, args=(finished_queue,
-                                                                    stop_event,
-                                                                    options)))
+    threads.append(threading.Thread(target=remove_from_queue,
+                                    args=(finished_queue, options, stop_event)))
+    threads[-1].setDaemon(True)
+    threads.append(threading.Thread(target=process_output,
+                                    args=(output_queue, stop_event)))
+    threads[-1].setDaemon(True)
     logging.debug('Starting %s threads', len(threads))
     for thread in threads:
         thread.start()
@@ -714,12 +723,11 @@ def loop_hosts(options, target_list):
             pass
     if not stop_event.isSet():
         work_queue.join()  # block until the queue is empty
-        stop_event.set()  # signal that the work_queue is empty
-    logging.debug('Waiting for threads to finish')
-    while threads:
-        threads.pop().join()
-    if output_queue.qsize():  # always make sure that the output is properly processed
-        process_output(output_queue, stop_event)
+    logging.debug('Work queue is empty - waiting for threads to finish')
+    stop_event.set()  # signal that the work_queue is empty
+    while not output_queue.empty() or not finished_queue.empty():
+        logging.debug('%s threads running. %s output and %s finished queue', threading.activeCount(), output_queue.qsize(), finished_queue.qsize())
+        time.sleep(1)
 
 
 def read_targets(filename):
