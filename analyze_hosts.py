@@ -174,9 +174,7 @@ def http_checks(host, port, protocol, options, logfile):
 
 
 def tls_checks(host, port, protocol, options, logfile):
-    """
-    Perform various SSL/TLS checks.
-    """
+    """Perform various SSL/TLS checks."""
     if options['ssl']:
         use_tool('testssl.sh', host, port, protocol, options, logfile)
     if options['sslcert']:
@@ -197,10 +195,9 @@ def check_redirect(url, options):
 
 
 def check_headers(url, options, ssl=False):
-    """
-    Check HTTP headers for omissions / insecure settings.
-    """
-    request = requests_get(url, options, headers={'User-Agent': options['user_agent']},
+    """Check HTTP headers for omissions / insecure settings."""
+    request = requests_get(url, options,
+                           headers={'User-Agent': options['user_agent']},
                            allow_redirects=False)
     if not request:
         return
@@ -411,7 +408,7 @@ def append_logs(logfile, options, stdout, stderr=None):
 
 
 def append_file(logfile, options, input_file):
-    """Append unicode strings from logfile to input_file, and delete input_file."""
+    """Append content from input_file to logfile, and delete input_file."""
     if options['dry_run']:
         return
     try:
@@ -556,7 +553,7 @@ def do_testssl(host, port, protocol, options, logfile):
 
 def do_wpscan(url, options, logfile):
     """
-    Run WPscan/
+    Run WPscan
     """
     if options['wpscan']:
         logging.info('Starting WPscan on ' + url)
