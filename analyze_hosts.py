@@ -427,7 +427,7 @@ def compact_strings(lines, options):
     """Remove empty and remarked lines."""
     if not options['compact']:
         return lines
-    return ''.join([x for x in lines.splitlines(keepends=True) if
+    return ''.join([x for x in lines.splitlines(True) if
                     not (x == '\n') and
                     not x.startswith('#')])
 
