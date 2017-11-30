@@ -660,7 +660,8 @@ def process_host(options, host_queue, output_queue, finished_queue, stop_event):
                         output_queue.put(read_file.read())
                 os.remove(host_logfile)
             finished_queue.put(host)
-            host_queue.task_done()
+            if not stop_event.isSet(): # Do not flag host as being done
+                host_queue.task_done()
         except queue.Empty:
             break
     logging.debug('Exiting process_host thread, queue contains %s items',
