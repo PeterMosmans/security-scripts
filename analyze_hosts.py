@@ -849,6 +849,10 @@ def setup_logging(options):
     logfile.addFilter(LogFilter([COMMAND, STATUS]))
     console = logging.StreamHandler(stream=sys.stdout)
     console.setFormatter(LogFormatter())
+    # Set up a stderr loghandler which only shows error message
+    errors = logging.StreamHandler(stream=sys.stderr)
+    errors.setLevel(logging.ERROR)
+    console.addFilter(LogFilter([logging.ERROR]))
     if options['debug']:
         console.setLevel(logging.DEBUG)
     elif options['verbose']:
@@ -858,6 +862,7 @@ def setup_logging(options):
     else:
         console.setLevel(STATUS)
     logger.addHandler(console)
+    logger.addHandler(errors)
     if options['compact']:
         logfile.setLevel(LOGS)
     if options['quiet']:
