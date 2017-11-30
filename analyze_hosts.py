@@ -659,8 +659,8 @@ def process_host(options, host_queue, output_queue, finished_queue, stop_event):
                     with open(host_logfile, 'r') as read_file:
                         output_queue.put(read_file.read())
                 os.remove(host_logfile)
-            finished_queue.put(host)
             if not stop_event.isSet(): # Do not flag host as being done
+                finished_queue.put(host)
                 host_queue.task_done()
         except queue.Empty:
             break
