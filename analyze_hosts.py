@@ -449,9 +449,7 @@ def do_droopescan(url, cms, options, logfile):
 
 
 def do_nikto(host, port, options, logfile):
-    """
-    Perform a nikto scan.
-    """
+    """Perform a nikto scan."""
     command = [get_binary('nikto'), '-vhost', '{0}'.format(host), '-maxtime',
                '{0}s'.format(options['maxtime']), '-host',
                '{0}:{1}'.format(host, port)]
@@ -646,7 +644,8 @@ def process_host(options, host_queue, output_queue, finished_queue, stop_event):
                         if stop_event.isSet():
                             logging.info('%s Scan interrupted ?', host)
                             break
-                        if 'http' in protocol:
+                        # Sometimes nmap detects webserver as 'ssl/ssl'
+                        if 'http' in protocol or 'ssl' in protocol:
                             http_checks(host, port, protocol, options,
                                         host_logfile)
                         if 'ssl' in protocol or port in SSL_PORTS:
