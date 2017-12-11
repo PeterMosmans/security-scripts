@@ -55,7 +55,7 @@ ALLPORTS = [(22, 'ssh'), (25, 'smtp'), (80, 'http'), (443, 'https'),
             (465, 'smtps'), (993, 'imaps'), (995, 'pop3s'),
             (8080, 'http-proxy')]
 SSL_PORTS = [25, 443, 465, 993, 995]
-NMAP_ARGUMENTS = ['-sV']
+NMAP_ARGUMENTS = ['-sV']  # A list of default arguments to pass to nmap
 NMAP_SCRIPTS = ['banner', 'dns-nsid', 'dns-recursion', 'http-cisco-anyconnect',
                 'http-php-version', 'http-title', 'http-trace', 'ntp-info',
                 'ntp-monlist', 'nbstat', 'rdp-enum-encryption', 'rpcinfo',
@@ -318,9 +318,7 @@ def preflight_checks(options):
 
 
 def prepare_nmap_arguments(options):
-    """
-    Prepare nmap command line arguments
-    """
+    """Prepare nmap command line arguments."""
     arguments = NMAP_ARGUMENTS
     scripts = NMAP_SCRIPTS
     if is_admin():
@@ -467,8 +465,7 @@ def do_nikto(host, port, options, logfile):
 
 
 def do_portscan(host, options, logfile, stop_event):
-    """
-    Perform a portscan.
+    """Perform a portscan.
 
     Args:
         host:       Target host.
@@ -486,6 +483,8 @@ def do_portscan(host, options, logfile, stop_event):
             return zip(ports, ['unknown'] * len(ports))
         else:
             return ALLPORTS
+    if ':' in host:
+        options['nmap_arguments'].append('-6')
     logging.info('%s Starting nmap', host)
     logging.log(COMMAND, 'nmap %s %s', options['nmap_arguments'], host)
     if options['dry_run']:
