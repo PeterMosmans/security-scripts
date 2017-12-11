@@ -570,14 +570,17 @@ def prepare_queue(options):
         with open(options['inputfile'], 'r') as inputfile:
             targets = []
             for host in [line for line in inputfile.read().splitlines() if line.strip()]:
-                if options['dry_run'] or not re.match(r'.*\.[0-9]+[-/][0-9]+', host):
+                if options['dry_run'] or not re.match(r'.*[\.:].*[-/][0-9]+', host):
                     targets.append(host)
                 else:
                     arguments = '-nsL'
                     scanner = nmap.PortScanner()
                     scanner.scan(hosts='{0}'.format(host), arguments=arguments)
-                    targets += sorted(scanner.all_hosts(),
-                                      key=lambda x: tuple(map(int, x.split('.'))))
+                    if '.' in scanner.all_hosts():
+                        targets += sorted(scanner.all_hosts(),
+                                          key=lambda x: tuple(map(int, x.split('.'))))
+                    else:
+                        targets += scanner.all_hosts()
             with open(options['queuefile'], 'a') as queuefile:
                 for target in targets:
                     queuefile.write(target + '\n')
