@@ -484,7 +484,7 @@ def do_portscan(host, options, logfile, stop_event):
         else:
             return ALLPORTS
     if ':' in host:
-        options['nmap_arguments'].append('-6')
+        options['nmap_arguments'] += ' -6'
     logging.info('%s Starting nmap', host)
     logging.log(COMMAND, 'nmap %s %s', options['nmap_arguments'], host)
     if options['dry_run']:
