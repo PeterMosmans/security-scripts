@@ -50,7 +50,8 @@ except ImportError:
     sys.stderr.flush()
 
 
-VERSION = '0.41.0'
+NAME = 'analyze_hosts'
+VERSION = '0.42.0'
 ALLPORTS = [(22, 'ssh'), (25, 'smtp'), (80, 'http'), (443, 'https'),
             (465, 'smtps'), (993, 'imaps'), (995, 'pop3s'),
             (8080, 'http-proxy')]
@@ -874,7 +875,7 @@ def setup_logging(options):
 
 def main():
     """Main program loop."""
-    banner = 'analyze_hosts.py version {0}'.format(VERSION)
+    banner = '{0} version {1}'.format(BANNER, VERSION)
     options = parse_arguments(banner)
     setup_logging(options)
     logging.log(STATUS, '%s starting', banner)
