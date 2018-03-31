@@ -552,7 +552,7 @@ def check_strings_for_alerts(strings, keywords, host, port=''):
     for line in strings.splitlines():  # Highly inefficient 'brute-force' check
         for keyword in keywords:       # TODO: make it work ;)
             if keyword in line:
-                logging.log(ALERT, '%s %s%s', host, port, line)
+                logging.log(ALERT, '%s%s %s', host, port, line)
 
 
 def get_binary(tool):
