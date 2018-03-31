@@ -582,7 +582,7 @@ def do_testssl(host, port, protocol, options, logfile):
     _result, stdout, _stderr = execute_command(command +  # pylint: disable=unused-variable
                                                ['{0}:{1}'.format(host, port)],
                                                options, logfile)
-    check_strings_for_alerts(stdout, NIKTO_ALERTS, host, port)
+    check_strings_for_alerts(stdout, TESTSSL_ALERTS, host, port)
 
 
 def do_wpscan(url, options, logfile):
