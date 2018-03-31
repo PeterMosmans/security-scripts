@@ -3,7 +3,7 @@
 
 """analyze_hosts - scans one or more hosts for security misconfigurations
 
-Copyright (C) 2015-2017 Peter Mosmans [Go Forward]
+Copyright (C) 2015-2018 Peter Mosmans [Go Forward]
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
@@ -756,7 +756,7 @@ def parse_arguments(banner):
 Please note that this is NOT a stealthy scan tool: By default, a TCP and UDP
 portscan will be launched, using some of nmap's interrogation scripts.
 
-Copyright (C) 2015-2017  Peter Mosmans [Go Forward]
+Copyright (C) 2015-2018  Peter Mosmans [Go Forward]
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
@@ -764,6 +764,8 @@ the Free Software Foundation, either version 3 of the License, or
     parser.add_argument('target', nargs='?', type=str,
                         help="""[TARGET] can be a single (IP) address, an IP
                         range, or multiple comma-separated addressess""")
+    parser.add_argument('--version', action='store_true',
+                        help='Show version and exit')
     parser.add_argument('--dry-run', action='store_true',
                         help='Only show commands, don\'t actually do anything')
     parser.add_argument('-i', '--inputfile', action='store', type=str,
@@ -825,6 +827,9 @@ the Free Software Foundation, either version 3 of the License, or
     parser.add_argument('--maxtime', action='store', default='1200', type=int,
                         help='Timeout for scans in seconds (default 1200)')
     args = parser.parse_args()
+    if args.version:
+        print(banner)
+        sys.exit(0)
     if not (args.inputfile or args.target or args.resume):
         parser.error('Specify either a target or input file')
     options = vars(parser.parse_args())
@@ -875,7 +880,7 @@ def setup_logging(options):
 
 def main():
     """Main program loop."""
-    banner = '{0} version {1}'.format(BANNER, VERSION)
+    banner = '{0} version {1}'.format(NAME, VERSION)
     options = parse_arguments(banner)
     setup_logging(options)
     logging.log(STATUS, '%s starting', banner)
