@@ -56,6 +56,22 @@ ALLPORTS = [(22, 'ssh'), (25, 'smtp'), (80, 'http'), (443, 'https'),
             (465, 'smtps'), (993, 'imaps'), (995, 'pop3s'),
             (8080, 'http-proxy')]
 SSL_PORTS = [25, 443, 465, 993, 995]
+NIKTO_ALERTS = ['+ OSVDB-',
+                "Entry '/index.php/user/register/' in robots.txt returned a non-forbidden or redirect HTTP code"]
+NMAP_ALERTS = [
+    'ecdh-sha2-nistp',
+    'diffie-hellman-group1-sha1',
+    'diffie-hellman-group14-sha1',
+    'diffie-hellman-group-exchange-sha1',
+    'ssh-dss',
+    'ecdsa',
+    '3des-cbc',
+    'arcfour',
+    'blowfish-cbc',
+    'cast128-cbc',
+    'hmac-md5',
+    'hmac-sha1',
+    'umac-64']
 NMAP_ARGUMENTS = ['-sV']  # A list of default arguments to pass to nmap
 NMAP_SCRIPTS = ['banner', 'dns-nsid', 'dns-recursion', 'http-cisco-anyconnect',
                 'http-php-version', 'http-title', 'http-trace', 'ntp-info',
@@ -63,6 +79,7 @@ NMAP_SCRIPTS = ['banner', 'dns-nsid', 'dns-recursion', 'http-cisco-anyconnect',
                 'sip-methods', 'smb-os-discovery', 'smb-security-mode',
                 'smtp-open-relay', 'ssh2-enum-algos', 'vnc-info',
                 'xmlrpc-methods', 'xmpp-info']
+TESTSSL_ALERTS = ['VULNERABLE']
 UNKNOWN = -1
 # The program has the following loglevels:
 # logging.DEBUG = 10    debug messages (module constant)
@@ -219,9 +236,7 @@ def check_headers(url, options, ssl=False):
 
 
 def check_compression(url, options, ssl=False):
-    """
-    Check which compression methods are supported.
-    """
+    """Check which compression methods are supported."""
     request = requests_get(url, options, allow_redirects=True)
     if not request:
         return
@@ -462,7 +477,8 @@ def do_nikto(host, port, options, logfile):
     if options['username'] and options['password']:
         command += ['-id', options['username'] + ':' + options['password']]
     logging.info('%s Starting nikto on port %s', host, port)
-    _result, _stdout, _stderr = execute_command(command, options, logfile)  # pylint: disable=unused-variable
+    _result, stdout, _stderr = execute_command(command, options, logfile)  # pylint: disable=unused-variable
+    check_strings_for_alerts(stdout, NIKTO_ALERTS, host, port)
 
 
 def do_portscan(host, options, logfile, stop_event):
@@ -501,6 +517,7 @@ def do_portscan(host, options, logfile, stop_event):
                      scanner[ip_address]['tcp'][port]['state'] == 'open']
             for port in ports:
                 open_ports.append([port, scanner[ip_address]['tcp'][port]['name']])
+        check_file_for_alerts(temp_file, NMAP_ALERTS, host)
         append_file(logfile, options, temp_file)
         if len(open_ports):
             logging.info('%s Found open TCP ports %s', host, open_ports)
@@ -515,6 +532,27 @@ def do_portscan(host, options, logfile, stop_event):
         if os.path.isfile(temp_file):
             os.remove(temp_file)
     return open_ports
+
+
+def check_file_for_alerts(logfile, keywords, host, port=''):
+    """Check for keywords in logfile and log them as alert."""
+    try:
+        if os.path.isfile(logfile) and os.stat(logfile).st_size:
+            with open(logfile, 'r') as read_file:
+                log = read_file.read()
+            check_strings_for_alerts(log, keywords, host, port)
+    except (IOError, OSError) as exception:
+        logging.error('FAILED: Could not read %s (%s)', logfile, exception)
+
+
+def check_strings_for_alerts(strings, keywords, host, port=''):
+    """Check for keywords in strings and log them as alerts."""
+    if port:
+        port = ':{0}'.format(port)
+    for line in strings.splitlines():  # Highly inefficient 'brute-force' check
+        for keyword in keywords:       # TODO: make it work ;)
+            if keyword in line:
+                logging.log(ALERT, '%s %s%s', host, port, line)
 
 
 def get_binary(tool):
@@ -544,9 +582,7 @@ def do_testssl(host, port, protocol, options, logfile):
     _result, stdout, _stderr = execute_command(command +  # pylint: disable=unused-variable
                                                ['{0}:{1}'.format(host, port)],
                                                options, logfile)
-    for line in stdout.splitlines():
-        if 'NOT ok' in line:
-            logging.log(ALERT, '%s:%s %s', host, port, line)
+    check_strings_for_alerts(stdout, NIKTO_ALERTS, host, port)
 
 
 def do_wpscan(url, options, logfile):
