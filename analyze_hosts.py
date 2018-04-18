@@ -521,6 +521,8 @@ def do_portscan(host, options, logfile, stop_event):
         append_file(logfile, options, temp_file)
         if len(open_ports):
             logging.info('%s Found open TCP ports %s', host, open_ports)
+        else:
+            logging.log(LOGS, '%s No open ports found', host)
     except (AssertionError, nmap.PortScannerError) as exception:
         if stop_event.isSet():
             logging.debug('%s nmap interrupted', host)
