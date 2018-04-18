@@ -720,7 +720,6 @@ def process_output(output_queue, stop_event):
             output_queue.task_done()
         except queue.Empty:
             time.sleep(1)
-            pass
         except UnicodeDecodeError as exception:
             logging.error('Having issues decoding %s: %s', item, exception)
             # Flag the issue ready, regardless
