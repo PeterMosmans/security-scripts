@@ -51,7 +51,7 @@ except ImportError:
 
 
 NAME = 'analyze_hosts'
-VERSION = '0.42.0'
+VERSION = '0.43.0'
 ALLPORTS = [(22, 'ssh'), (25, 'smtp'), (80, 'http'), (443, 'https'),
             (465, 'smtps'), (993, 'imaps'), (995, 'pop3s'),
             (8080, 'http-proxy')]
@@ -696,8 +696,6 @@ def process_host(options, host_queue, output_queue, finished_queue, stop_event):
                         if 'ssl' in protocol or port in SSL_PORTS:
                             tls_checks(host, port, protocol, options,
                                        host_logfile)
-            else:
-                logging.info('%s Nothing to report', host)
             if os.path.isfile(host_logfile):
                 if os.stat(host_logfile).st_size:
                     with open(host_logfile, 'r') as read_file:
