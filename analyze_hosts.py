@@ -137,7 +137,8 @@ def analyze_url(url, options, logfile):
     if page.status_code == 200:
         webpage = Wappalyzer.WebPage(url, page.text, page.headers)
         analysis = wappalyzer.analyze(webpage)
-        logging.log(LOGS, '%s Analysis: %s', url, analysis)
+        # Format logmessage as info message, so that it ends up in logfile
+        logging.log(LOGS, '[*] %s Analysis: %s', url, analysis)
         if 'Drupal' in analysis:
             do_droopescan(url, 'drupal', options, logfile)
         if 'Joomla' in analysis:
