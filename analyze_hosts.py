@@ -96,15 +96,15 @@ ALERT           = 35  # vulnerabilities found    pylint:disable=bad-whitespace
 
 class LogFormatter(logging.Formatter):
     """Class to format log messages based on their type."""
-    FORMATS = {logging.DEBUG: "[d] %(message)s",
-               logging.INFO: "[*] %(message)s",
-               COMMAND: "%(message)s",
-               STATUS: "[+] %(message)s",
-               LOGS: "%(message)s",
-               ALERT: "[!] %(message)s",
-               logging.ERROR: "[-] %(message)s",
-               logging.CRITICAL: "[-] FATAL: %(message)s",
-               'DEFAULT': "%(message)s"}
+    FORMATS = {logging.DEBUG: u"[d] %(message)s",
+               logging.INFO: u"[*] %(message)s",
+               COMMAND: u"%(message)s",
+               STATUS: u"[+] %(message)s",
+               LOGS: u"%(message)s",
+               ALERT: u"[!] %(message)s",
+               logging.ERROR: u"[-] %(message)s",
+               logging.CRITICAL: u"[-] FATAL: %(message)s",
+               'DEFAULT': u"%(message)s"}
 
     def format(self, record):
         self._fmt = self.FORMATS.get(record.levelno, self.FORMATS['DEFAULT'])
