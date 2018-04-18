@@ -71,16 +71,19 @@ NMAP_ALERTS = [
     'hmac-md5',
     'hmac-sha1',
     'ssh-dss',
-    'umac-64'
+    'umac-64',
 ]
-NMAP_ARGUMENTS = ['-sV']  # A list of default arguments to pass to nmap
+NMAP_ARGUMENTS = ["-sV"]  # A list of default arguments to pass to nmap
 NMAP_SCRIPTS = ['banner', 'dns-nsid', 'dns-recursion', 'http-cisco-anyconnect',
                 'http-php-version', 'http-title', 'http-trace', 'ntp-info',
                 'ntp-monlist', 'nbstat', 'rdp-enum-encryption', 'rpcinfo',
                 'sip-methods', 'smb-os-discovery', 'smb-security-mode',
                 'smtp-open-relay', 'ssh2-enum-algos', 'vnc-info',
                 'xmlrpc-methods', 'xmpp-info']
-TESTSSL_ALERTS = ['VULNERABLE']
+TESTSSL_ALERTS = [
+    "DES-CBC3",
+    "VULNERABLE",
+]
 UNKNOWN = -1
 # The program has the following loglevels:
 # logging.DEBUG = 10    debug messages (module constant)
