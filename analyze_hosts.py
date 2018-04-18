@@ -354,7 +354,7 @@ def prepare_nmap_arguments(options):
         arguments.append('-Pn')
     if options['whois']:
         scripts += 'asn-query', 'fcrdns,whois-ip', 'whois-domain'
-    if len(scripts):
+    if scripts:
         arguments.append('--script=' + ','.join(scripts))
     options['nmap_arguments'] = ' '.join(arguments)
 
@@ -412,10 +412,10 @@ def append_logs(logfile, options, stdout, stderr=None):
     if options['dry_run']:
         return
     try:
-        if stdout and len(stdout):
+        if stdout:
             with io.open(logfile, encoding='utf-8', mode='a+') as open_file:
                 open_file.write(compact_strings(stdout, options))
-        if stderr and len(stderr):
+        if stderr:
             with io.open(logfile, encoding='utf-8', mode='a+') as open_file:
                 open_file.write(compact_strings(stderr, options))
     except IOError:
@@ -499,8 +499,7 @@ def do_portscan(host, options, logfile, stop_event):
         if options['port']:
             ports = [int(port) for port in options['port'].split(',') if port.isdigit()]
             return zip(ports, ['unknown'] * len(ports))
-        else:
-            return ALLPORTS
+        return ALLPORTS
     if ':' in host:
         options['nmap_arguments'] += ' -6'
     logging.info('%s Starting nmap', host)
@@ -520,10 +519,11 @@ def do_portscan(host, options, logfile, stop_event):
                 open_ports.append([port, scanner[ip_address]['tcp'][port]['name']])
         check_file_for_alerts(temp_file, NMAP_ALERTS, host)
         append_file(logfile, options, temp_file)
-        if len(open_ports):
+        if open_ports:
             logging.info('%s Found open TCP ports %s', host, open_ports)
         else:
-            logging.log(LOGS, '%s No open ports found', host)
+            # Format logmessage as info message, so that it ends up in logfile
+            logging.log(LOGS, '[*] %s No open ports found', host)
     except (AssertionError, nmap.PortScannerError) as exception:
         if stop_event.isSet():
             logging.debug('%s nmap interrupted', host)
@@ -648,7 +648,6 @@ def remove_from_queue(finished_queue, options, stop_event):
             logging.debug('%s Removed from queue', host)
         except queue.Empty:
             time.sleep(1)
-            pass
     logging.debug('Exiting remove_from_queue thread')
 
 
@@ -678,7 +677,7 @@ def process_host(options, host_queue, output_queue, finished_queue, stop_event):
             logging.debug('%s Processing (%s in queue)', host,
                           host_queue.qsize())
             open_ports = do_portscan(host, options, host_logfile, stop_event)
-            if len(open_ports):
+            if open_ports:
                 if UNKNOWN in open_ports:
                     logging.info('%s Scan interrupted ?', host)
                 else:
