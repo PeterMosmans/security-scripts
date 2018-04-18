@@ -11,9 +11,9 @@ the Free Software Foundation, either version 3 of the License, or
 """
 
 
+from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import unicode_literals
-from __future__ import absolute_import
 
 import argparse
 import io
@@ -59,19 +59,20 @@ SSL_PORTS = [25, 443, 465, 993, 995]
 NIKTO_ALERTS = ['+ OSVDB-',
                 "Entry '/index.php/user/register/' in robots.txt returned a non-forbidden or redirect HTTP code"]
 NMAP_ALERTS = [
-    'ecdh-sha2-nistp',
-    'diffie-hellman-group1-sha1',
-    'diffie-hellman-group14-sha1',
-    'diffie-hellman-group-exchange-sha1',
-    'ssh-dss',
-    'ecdsa',
     '3des-cbc',
     'arcfour',
     'blowfish-cbc',
     'cast128-cbc',
+    'diffie-hellman-group-exchange-sha1',
+    'diffie-hellman-group1-sha1',
+    'diffie-hellman-group14-sha1',
+    'ecdh-sha2-nistp',
+    'ecdsa',
     'hmac-md5',
     'hmac-sha1',
-    'umac-64']
+    'ssh-dss',
+    'umac-64'
+]
 NMAP_ARGUMENTS = ['-sV']  # A list of default arguments to pass to nmap
 NMAP_SCRIPTS = ['banner', 'dns-nsid', 'dns-recursion', 'http-cisco-anyconnect',
                 'http-php-version', 'http-title', 'http-trace', 'ntp-info',
