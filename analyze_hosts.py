@@ -115,12 +115,12 @@ class LogFormatter(logging.Formatter):
         return logging.Formatter.format(self, record)
 
 
-class LogFilter(object):
+class LogFilter(object):  # pylint: disable=too-few-public-methods
     """Class to remove certain log levels."""
     def __init__(self, filterlist):
         self.__filterlist = filterlist
 
-    def filter(self, logRecord):
+    def filter(self, logRecord):  # pylint: disable=invalid-name
         """Remove logRecord if it is part of filterlist."""
         return logRecord.levelno not in self.__filterlist
 
@@ -812,7 +812,7 @@ the Free Software Foundation, either version 3 of the License, or
     parser.add_argument('-o', '--output-file', action='store', type=str,
                         default='analyze_hosts.output',
                         help="""output file containing all scanresults
-                        (default analyze_hosts.output""")
+                        (default %(default)s)""")
     parser.add_argument('--compact', action='store_true',
                         help='Only log raw logfiles and alerts to file')
     parser.add_argument('--queuefile', action='store',
@@ -854,17 +854,17 @@ the Free Software Foundation, either version 3 of the License, or
     parser.add_argument('--proxy', action='store',
                         help='Use proxy server (host:port)')
     parser.add_argument('--timeout', action='store', default='10', type=int,
-                        help='Timeout for requests in seconds (default 10)')
+                        help='Timeout for requests in seconds (default %(default)s)')
     parser.add_argument('--threads', action='store', type=int, default=5,
-                        help='Maximum number of threads (default 5)')
+                        help='Maximum number of threads (default %(default)s)')
     parser.add_argument('--user-agent', action='store', default='analyze_hosts',
-                        help='Custom User-Agent to use (default analyze_hosts)')
+                        help='Custom User-Agent to use (default %(default)s)')
     parser.add_argument('--password', action='store',
                         help='Password for HTTP basic host authentication')
     parser.add_argument('--username', action='store',
                         help='Username for HTTP basic host authentication')
     parser.add_argument('--maxtime', action='store', default='1200', type=int,
-                        help='Timeout for scans in seconds (default 1200)')
+                        help='Timeout for scans in seconds (default %(default)s)')
     args = parser.parse_args()
     if args.version:
         print(banner)
