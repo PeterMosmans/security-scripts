@@ -73,7 +73,7 @@ NMAP_ALERTS = [
     'ssh-dss',
     'umac-64',
 ]
-NMAP_ARGUMENTS = ["-sV"]  # A list of default arguments to pass to nmap
+NMAP_ARGUMENTS = ["-sV", "--open"]  # A list of default arguments to pass to nmap
 NMAP_SCRIPTS = ['banner', 'dns-nsid', 'dns-recursion', 'http-cisco-anyconnect',
                 'http-php-version', 'http-title', 'http-trace', 'ntp-info',
                 'ntp-monlist', 'nbstat', 'rdp-enum-encryption', 'rpcinfo',
@@ -699,7 +699,7 @@ def process_host(options, host_queue, output_queue, finished_queue, stop_event):
             if os.path.isfile(host_logfile):
                 if os.stat(host_logfile).st_size:
                     with open(host_logfile, 'r') as read_file:
-                        output_queue.put(read_file.read())
+                        output_queue.put(unicode(read_file.read(), 'utf-8'))
                 os.remove(host_logfile)
             if not stop_event.isSet(): # Do not flag host as being done
                 finished_queue.put(host)
