@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """analyze_hosts - scans one or more hosts for security misconfigurations
@@ -38,20 +38,20 @@ else:
 try:
     import nmap
 except ImportError:
-    print('[-] Please install python-nmap, e.g. pip install python-nmap',
+    print('[-] Please install python-nmap, e.g. pip3 install python-nmap',
           file=sys.stderr)
     sys.exit(-1)
 try:
     import requests
     import Wappalyzer
 except ImportError:
-    print('[-] Please install the requests and Wappalyzer modules, e.g. '
-          'pip install -r requirements.txt', file=sys.stderr)
+    print('[-] Please install required modules, e.g. '
+          'pip3 install -r requirements.txt', file=sys.stderr)
     sys.stderr.flush()
 
 
 NAME = 'analyze_hosts'
-VERSION = '0.43.0'
+VERSION = '0.44.0'
 ALLPORTS = [(22, 'ssh'), (25, 'smtp'), (80, 'http'), (443, 'https'),
             (465, 'smtps'), (993, 'imaps'), (995, 'pop3s'),
             (8080, 'http-proxy')]
