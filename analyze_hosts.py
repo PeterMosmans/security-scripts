@@ -100,18 +100,28 @@ ALERT           = 35  # vulnerabilities found    pylint:disable=bad-whitespace
 
 class LogFormatter(logging.Formatter):
     """Class to format log messages based on their type."""
-    FORMATS = {logging.DEBUG: u"[d] %(message)s",
-               logging.INFO: u"[*] %(message)s",
-               COMMAND: u"%(message)s",
-               STATUS: u"[+] %(message)s",
-               LOGS: u"%(message)s",
-               ALERT: u"[!] %(message)s",
-               logging.ERROR: u"[-] %(message)s",
-               logging.CRITICAL: u"[-] FATAL: %(message)s",
-               'DEFAULT': u"%(message)s"}
+    # pylint: disable=protected-access
+    if sys.version[0] == '2':
+        FORMATS = {logging.DEBUG: u"[d] %(message)s",
+                   logging.INFO: u"[*] %(message)s",
+                   COMMAND: u"%(message)s",
+                   STATUS: u"[+] %(message)s",
+                   LOGS: u"%(message)s",
+                   ALERT: u"[!] %(message)s",
+                   logging.ERROR: u"[-] %(message)s",
+                   logging.CRITICAL: u"[-] FATAL: %(message)s",
+                   'DEFAULT': u"%(message)s"}
+    else:
+        FORMATS = {logging.DEBUG: logging._STYLES["{"][0]("[d] {message}"),
+                   logging.INFO: logging._STYLES["{"][0]("[*] {message}"),
+                   "STATUS": logging._STYLES["{"][0]("[+] {message}"),
+                   "ALERT": logging._STYLES["{"][0]("[!] {message}"),
+                   logging.ERROR: logging._STYLES["{"][0]("[-] {message}"),
+                   logging.CRITICAL: logging._STYLES["{"][0]("[-] FATAL: {message}"),
+                   "DEFAULT": logging._STYLES["{"][0]("{message}")}
 
     def format(self, record):
-        self._fmt = self.FORMATS.get(record.levelno, self.FORMATS['DEFAULT'])
+        self._style = self.FORMATS.get(record.levelno, self.FORMATS['DEFAULT'])
         return logging.Formatter.format(self, record)
 
 
@@ -385,12 +395,15 @@ def execute_command(cmd, options, logfile=False):
         return True, stdout, stderr
     try:
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                                   stderr=subprocess.PIPE,
-                                   universal_newlines=True)
+                                   stderr=subprocess.PIPE)
         stdout, stderr = process.communicate()
         # Convert bytestrings to Unicode according to system's encoding type
-        stdout = stdout.decode(sys.getfilesystemencoding())
-        stderr = stderr.decode(sys.getfilesystemencoding())
+        if isinstance(stdout, str):
+            stdout = unicode(stdout, sys.getfilesystemencoding())
+            stderr = unicode(stderr, sys.getfilesystemencoding())
+        else:
+            stdout = stdout.decode('utf-8').splitlines()
+            stderr = stderr.decode('utf-8').splitlines()
         result = not process.returncode
     except OSError as exception:
         logging.error('Error while executing %s: %s', cmd, exception)
@@ -411,7 +424,7 @@ def download_cert(host, port, options, logfile):
         pass
 
 
-def append_logs(logfile, options, stdout, stderr=None):
+def append_logs(logfile, options, stdout, stderr):
     """Append unicode text strings to unicode type logfile."""
     if options['dry_run']:
         return
@@ -433,7 +446,8 @@ def append_file(logfile, options, input_file):
     try:
         if os.path.isfile(input_file) and os.stat(input_file).st_size:
             with open(input_file, 'r') as read_file:
-                append_logs(logfile, options, unicode(read_file.read(), 'utf-8'))
+                logging.debug("Appending input_file to logfile")
+                append_logs(logfile, options, read_file.read(), "")
         os.remove(input_file)
     except (IOError, OSError) as exception:
         logging.error('FAILED: Could not read %s (%s)', input_file, exception)
@@ -441,6 +455,8 @@ def append_file(logfile, options, input_file):
 
 def compact_strings(lines, options):
     """Remove empty and remarked lines."""
+    if sys.version[0] == '2':
+        lines = unicode(lines, 'utf-8')
     if not options['compact']:
         return lines
     return ''.join([x for x in lines.splitlines(True) if
@@ -699,7 +715,7 @@ def process_host(options, host_queue, output_queue, finished_queue, stop_event):
             if os.path.isfile(host_logfile):
                 if os.stat(host_logfile).st_size:
                     with open(host_logfile, 'r') as read_file:
-                        output_queue.put(unicode(read_file.read(), 'utf-8'))
+                        output_queue.put(read_file.read())
                 os.remove(host_logfile)
             if not stop_event.isSet(): # Do not flag host as being done
                 finished_queue.put(host)
@@ -716,8 +732,7 @@ def process_output(output_queue, stop_event):
         try:
             item = output_queue.get(block=False)
             logging.debug('Processing output item')
-            # Force item to Unicode
-            logging.log(LOGS, item.encode('utf8', 'replace'))
+            logging.log(LOGS, item)
             output_queue.task_done()
         except queue.Empty:
             time.sleep(1)
@@ -897,8 +912,10 @@ def setup_logging(options):
     console.setFormatter(LogFormatter())
     # Set up a stderr loghandler which only shows error message
     errors = logging.StreamHandler(stream=sys.stderr)
+    errors.setFormatter(LogFormatter())
     errors.setLevel(logging.ERROR)
     console.addFilter(LogFilter([logging.ERROR]))
+    console.addFilter(LogFilter([logging.CRITICAL]))
     if options['debug']:
         console.setLevel(logging.DEBUG)
     elif options['verbose']:
