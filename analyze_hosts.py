@@ -51,7 +51,7 @@ except ImportError:
 
 
 NAME = 'analyze_hosts'
-VERSION = '0.44.0'
+VERSION = '0.44.1'
 ALLPORTS = [(22, 'ssh'), (25, 'smtp'), (80, 'http'), (443, 'https'),
             (465, 'smtps'), (993, 'imaps'), (995, 'pop3s'),
             (8080, 'http-proxy')]
@@ -410,7 +410,7 @@ def execute_command(cmd, options, logfile=False):
     except Exception as exception:
         logging.error('Exception while executing %s: %s', cmd, exception)
     if logfile:
-        append_logs(logfile, options, ' '.join(cmd))
+        append_logs(logfile, options, ' '.join(cmd), "")
         append_logs(logfile, options, stdout, stderr)
     return result, stdout, stderr
 
@@ -419,7 +419,7 @@ def download_cert(host, port, options, logfile):
     """Download an SSL certificate and append it to the logfile."""
     try:
         cert = ssl.get_server_certificate((host, port))
-        append_logs(logfile, options, cert)
+        append_logs(logfile, options, cert, "")
     except ssl.SSLError:
         pass
 
