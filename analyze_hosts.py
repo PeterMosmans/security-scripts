@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """analyze_hosts - scans one or more hosts for security misconfigurations
@@ -51,7 +51,7 @@ except ImportError:
 
 
 NAME = 'analyze_hosts'
-VERSION = '0.44.1'
+VERSION = '0.45.0'
 ALLPORTS = [(22, 'ssh'), (25, 'smtp'), (80, 'http'), (443, 'https'),
             (465, 'smtps'), (993, 'imaps'), (995, 'pop3s'),
             (8080, 'http-proxy')]

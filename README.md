@@ -1,22 +1,38 @@
 # security-scripts
 
-A collection of security related Python and Bash shell scripts.
-For the shell scripts no fancy programming framework required, all that is needed is a Bash shell.
+A collection of security related Python and Bash shell scripts. For the shell
+scripts no fancy programming framework required, all that is needed is a Bash
+shell.
 
-Note that it is highly recommended to use `analyze_hosts.py` as is the most recent version. No new features will be added to the Bash version `analyze_hosts.sh`.
+Note that it is highly recommended to use `analyze_hosts.py` as is the most
+recent version. No new features will be added to the Bash version
+`analyze_hosts.sh`.
 
 
 ## analyze_hosts.py
-Build status for master branch: [![Build Status](https://travis-ci.org/PeterMosmans/security-scripts.svg?branch=master)](https://travis-ci.org/PeterMosmans/security-scripts)
+Build status for master branch: [![Build
+Status](https://travis-ci.org/PeterMosmans/security-scripts.svg?branch=master)](https://travis-ci.org/PeterMosmans/security-scripts)
 
-A simple wrapper script around several open source security tools to simplify scanning of hosts for network vulnerabilities. The script lets you analyze one or several hosts for common misconfiguration vulnerabilities and weaknesses.
-The main objectives for the script is to make it as easy as possible to perform generic security tests, without any heavy prerequisites, make the output as informative as possible, and use open source tools...
+A simple wrapper script around several open source security tools to simplify
+scanning of hosts for network vulnerabilities. The script lets you analyze one
+or several hosts for common misconfiguration vulnerabilities and weaknesses. The
+main objectives for the script is to make it as easy as possible to perform
+generic security tests, without any heavy prerequisites, make the output as
+informative as possible, and use open source tools...
 
-The script runs under Python 2 as well as Python 3.
+The script runs under Python 2 as well as Python 3. As of 06-06-2019 Python 3 is
+used by default. Note that one library that `analyze_hosts` uses isn't yet
+Python 3 capable (Wappalyzer-python). The correct version can be installed
+manually by performing
+
+```
+sudo pip3 install -e https://github.com/KhasMek/python-Wappalyzer@python3
+```
 
 ### installation
 The only prerequisites are Python (2 or 3), with the modules (see requirements.txt):
 ```
+droopescan
 python-nmap
 python-wappalyzer
 requests
@@ -113,7 +129,8 @@ optional arguments:
   --maxtime MAXTIME     Timeout for scans in seconds (default 1200)
 ```
 
-You can use the following environment variables (all uppercase) to specify the tools if they cannot be found in the standard paths:
+You can use the following environment variables (all uppercase) to specify the
+tools if they cannot be found in the standard paths:
 
 CURL, DROOPESCAN, NIKTO, OPENSSL, TESTSSL, WPSCAN
 
