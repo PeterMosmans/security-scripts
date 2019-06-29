@@ -614,7 +614,7 @@ def do_wpscan(url, options, logfile):
     """
     if options['wpscan']:
         logging.info('Starting WPscan on ' + url)
-        command = [get_binary('wpscan'), '--batch', '--no-color', '--url', url]
+        command = [get_binary('wpscan'), '--format', 'cli-no-color', '--url', url]
         _result, _stdout, _stderr = execute_command(command, options, logfile)  # pylint: disable=unused-variable
 
 
