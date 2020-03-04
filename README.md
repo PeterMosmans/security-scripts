@@ -8,8 +8,8 @@ Note that it is highly recommended to use `analyze_hosts.py` as is the most
 recent version. No new features will be added to the Bash version
 `analyze_hosts.sh`.
 
-
 ## analyze_hosts.py
+
 Build status for master branch: [![Build
 Status](https://travis-ci.org/PeterMosmans/security-scripts.svg?branch=master)](https://travis-ci.org/PeterMosmans/security-scripts)
 
@@ -32,7 +32,9 @@ sudo pip3 install -e "git+https://github.com/KhasMek/python-Wappalyzer@python3#e
 ```
 
 ### installation
+
 The only prerequisites are Python (2 or 3), with the modules (see requirements.txt):
+
 ```
 droopescan
 python-nmap
@@ -41,6 +43,7 @@ requests
 ```
 
 The script `analyze_hosts` can execute other scans (based on their fingerprint or open ports):
+
 ```
 droopescan
 nikto
@@ -48,8 +51,8 @@ testssl.sh
 WPscan
 ```
 
-
 Recommended one-time installation steps using virtualenv (note that virtualenv needs to be installed for this):
+
 ```
 git clone https://github.com/PeterMosmans/security-scripts
 cd security-scripts
@@ -60,12 +63,14 @@ pip install -r requirements.txt
 ```
 
 One-time installation steps without virtualenv:
+
 ```
 git clone https://github.com/PeterMosmans/security-scripts
 pip install -r requirements.txt
 ```
 
 ### usage
+
 ```
 usage: analyze_hosts.py [-h] [--dry-run] [-i INPUTFILE] [-o OUTPUT_FILE]
                         [--compact] [--queuefile QUEUEFILE] [--resume]
@@ -148,24 +153,23 @@ Roadmap for version 1.1:
 - [ ] #21 - Detect whether nmap supports (certain) scripts
 - [ ] #12 - Add test for zone transfer
 
-
-
-
-
 ## analyze-hosts.sh
+
 A simple wrapper script around several open source security tools to simplify scanning of hosts for network vulnerabilities. The script lets you analyze one or several hosts for common misconfiguration vulnerabilities and weaknesses.
 The main objectives for the script is to make it as easy as possible to perform generic security tests, without any heavy prerequisites, make the output as informative as possible, and use open source tools....
 
-* [cipherscan](https://github.com/jvehent/cipherscan)
-* curl
-* nmap
-* [openssl-1.0.2-chacha](https://github.com/PeterMosmans/openssl/tree/1.0.2-chacha/)
-* [whatweb](https://github.com/urbanadventurer/WhatWeb)
-+ whois
+- [cipherscan](https://github.com/jvehent/cipherscan)
+- curl
+- nmap
+- [openssl-1.0.2-chacha](https://github.com/PeterMosmans/openssl/tree/1.0.2-chacha/)
+- [whatweb](https://github.com/urbanadventurer/WhatWeb)
 
+* whois
 
 ### Examples
+
 #### SSL certificates
+
 ```
 ./analyze_hosts.sh --sslcert www.google.com
 ```
@@ -190,6 +194,7 @@ OK: certificate is valid between 16-07-2014 and 14-10-2014
 ```
 
 #### SSL/TLS ciphers
+
 ```
 ./analyze_hosts.sh --ssl --sslports 443 -v www.microsoft.com
 ```
@@ -250,8 +255,8 @@ PORT    STATE SERVICE
 |_  least strength: strong
 ```
 
-
 ### usage
+
 ```
 ./analyze_hosts.sh [OPTION]... [HOST]
 
@@ -310,15 +315,19 @@ Default programs:
 ```
 
 ### history
-* since 0.88: preliminary support for starttls xmpp
+
+- since 0.88: preliminary support for starttls xmpp
 
 ## test_ssl_handhake.sh
+
 A script to test TLS/SSL handshakes with. Several bugtests are included:
+
 - 128 cipherlimit when using tls1_2 protocol
 - aRSA cipher order
 - version intolerant server
 
-$ ./test_ssl_handshake.sh
+\$ ./test_ssl_handshake.sh
+
 ```
       (c) 2014 Peter Mosmans [Go Forward]
       Licensed under the GPL 3.0
