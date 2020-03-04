@@ -20,13 +20,15 @@ main objectives for the script is to make it as easy as possible to perform
 generic security tests, without any heavy prerequisites, make the output as
 informative as possible, and use open source tools...
 
-The script runs under Python 2 as well as Python 3. As of 06-06-2019 Python 3 is
-used by default. Note that one library that `analyze_hosts` uses isn't yet
-Python 3 capable (Wappalyzer-python). The correct version can be installed
-manually by performing
+The script runs under Python 2 as well as Python 3.
+
+**PLEASE NOTE** : As of 06-06-2019 Python 3 is used by default. One library that
+`analyze_hosts` uses ((Wappalyzer-python) hasn't yet uploaded its Python 3
+capable version to PyPI. The correct version can be installed manually by
+performing
 
 ```
-sudo pip3 install -e https://github.com/KhasMek/python-Wappalyzer@python3
+sudo pip3 install -e "git+https://github.com/KhasMek/python-Wappalyzer@python3#egg=python-wappalyzer"
 ```
 
 ### installation
