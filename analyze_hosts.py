@@ -451,10 +451,11 @@ def append_file(logfile, options, input_file):
 def compact_strings(lines, options):
     """Remove empty and remarked lines."""
     if sys.version[0] == '2':
+        # pylint: disable=E0602
         lines = unicode(lines, 'utf-8')
     if not options['compact']:
         return lines
-    return ''.join([x for x in lines.splitlines(True) if
+    return ''.join([x for x in lines if
                     not (x == '\n') and
                     not x.startswith('#')])
 
@@ -567,7 +568,7 @@ def check_strings_for_alerts(strings, keywords, host, port=''):
     """Check for keywords in strings and log them as alerts."""
     if port:
         port = ':{0}'.format(port)
-    for line in strings.splitlines():  # Highly inefficient 'brute-force' check
+    for line in strings:  # Highly inefficient 'brute-force' check
         for keyword in keywords:       # TODO: make it work ;)
             if keyword in line:
                 logging.log(ALERT, '%s%s %s', host, port, line)
