@@ -1,5 +1,11 @@
 # Changelog
 
+### [0.44.2](https://github.com/PeterMosmans/security-scripts/compare/v0.44.1...v0.44.2) (2020-05-25)
+
+
+### Bug Fixes
+
+* make process handler Python3 proof ([638bc6e](https://github.com/PeterMosmans/security-scripts/commit/638bc6e3ebd5edc5fdd597708e34493c4f76f6ad))
 
 ### 0.44.1 (2020-03-04)
 
