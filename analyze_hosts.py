@@ -3,7 +3,7 @@
 
 """analyze_hosts - scans one or more hosts for security misconfigurations
 
-Copyright (C) 2015-2018 Peter Mosmans [Go Forward]
+Copyright (C) 2015-2020 Peter Mosmans [Go Forward]
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
@@ -170,6 +170,7 @@ def requests_get(url, options, headers=None, allow_redirects=True):
     if not headers:
         headers = {'User-Agent': options['user_agent']}
     if not verify:
+        # pylint: disable=E1101
         requests.packages.urllib3.disable_warnings(
             requests.packages.urllib3.exceptions.InsecureRequestWarning)
     proxies = None
@@ -925,6 +926,7 @@ def setup_logging(options):
     if options['quiet']:
         console.addFilter(LogFilter([COMMAND, LOGS]))
     # make sure requests library is, erm, less verbose
+    # pylint: disable=E1101
     logging.getLogger('requests.packages.urllib3.connectionpool').setLevel(logging.ERROR)
 
 
