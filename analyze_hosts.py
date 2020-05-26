@@ -584,7 +584,7 @@ def check_strings_for_alerts(strings, keywords, host_results, host, port=''):
     for line in strings:  # Highly inefficient 'brute-force' check
         for keyword in keywords:
             if keyword in line:
-                add_alert(host_results, line)
+                add_alert(host_results, f"{port} {line}")
                 logging.log(ALERT, '%s%s %s', host, port, line)
 
 
