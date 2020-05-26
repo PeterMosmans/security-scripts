@@ -566,26 +566,24 @@ def do_portscan(host, options, logfile, stop_event, host_results):
     return open_ports
 
 
-def check_file_for_alerts(logfile, keywords, host_results, host, port=''):
+def check_file_for_alerts(logfile, keywords, host_results, host):
     """Check for keywords in logfile and log them as alert."""
     try:
         if os.path.isfile(logfile) and os.stat(logfile).st_size:
             with open(logfile, 'r') as read_file:
                 log = read_file.read().splitlines()
-            check_strings_for_alerts(log, keywords, host_results, host, port)
+            check_strings_for_alerts(log, keywords, host_results, host, "")
     except (IOError, OSError) as exception:
         logging.error('FAILED: Could not read %s (%s)', logfile, exception)
 
 
-def check_strings_for_alerts(strings, keywords, host_results, host, port=''):
+def check_strings_for_alerts(strings, keywords, host_results, host, port):
     """Check for keywords in strings and log them as alerts."""
-    if port:
-        port = ':{0}'.format(port)
     for line in strings:  # Highly inefficient 'brute-force' check
         for keyword in keywords:
             if keyword in line:
                 add_alert(host_results, f"{port} {line}")
-                logging.log(ALERT, '%s%s %s', host, port, line)
+                logging.log(ALERT, f"{host}:{port} {line}")
 
 
 def add_alert(host_results, line):
