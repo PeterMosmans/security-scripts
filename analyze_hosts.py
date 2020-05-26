@@ -406,9 +406,9 @@ def execute_command(cmd, options, logfile=False):
         return True, stdout, stderr
     try:
         process = subprocess.run(cmd, encoding='utf-8', capture_output=True)
-        # For easier processing, split string into lines, keep line endings
-        stdout = process.stdout.splitlines(True)
-        stderr = process.stderr.splitlines(True)
+        # For easier processing, split string into lines
+        stdout = process.stdout.splitlines()
+        stderr = process.stderr.splitlines()
         result = not process.returncode
     except OSError as exception:
         logging.error('Error while executing %s: %s', cmd, exception)
@@ -571,7 +571,7 @@ def check_file_for_alerts(logfile, keywords, host_results, host, port=''):
     try:
         if os.path.isfile(logfile) and os.stat(logfile).st_size:
             with open(logfile, 'r') as read_file:
-                log = read_file.read()
+                log = read_file.read().splitlines()
             check_strings_for_alerts(log, keywords, host_results, host, port)
     except (IOError, OSError) as exception:
         logging.error('FAILED: Could not read %s (%s)', logfile, exception)
