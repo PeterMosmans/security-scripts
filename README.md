@@ -4,13 +4,14 @@ A collection of security related Python and Bash shell scripts. For the shell
 scripts no fancy programming framework required, all that is needed is a Bash
 shell.
 
-Note that it is highly recommended to use `analyze_hosts.py` as is the most
+Note that it is highly recommended to use `analyze_hosts.py` as it is the most
 recent version. No new features will be added to the Bash version
 `analyze_hosts.sh`.
 
 ## analyze_hosts.py
 
-Build status for master branch: [![Build
+Build status for master branch:
+[![Build
 Status](https://travis-ci.org/PeterMosmans/security-scripts.svg?branch=master)](https://travis-ci.org/PeterMosmans/security-scripts)
 
 A simple wrapper script around several open source security tools to simplify
@@ -20,7 +21,10 @@ main objectives for the script is to make it as easy as possible to perform
 generic security tests, without any heavy prerequisites, make the output as
 informative as possible, and use open source tools...
 
-The script runs under Python 2 as well as Python 3.
+As the scan output can be written to a JSON file it can be used to generate
+deltas (differences) between scans, or to use the output for further inspection.
+
+The script runs under Python 3. Using Python 2 is not supported anymore.
 
 **PLEASE NOTE** : As of 06-06-2019 Python 3 is used by default. One library that
 `analyze_hosts` uses ((Wappalyzer-python) hasn't yet uploaded its Python 3
@@ -33,33 +37,13 @@ sudo pip3 install -e "git+https://github.com/KhasMek/python-Wappalyzer@python3#e
 
 ### installation
 
-The only prerequisites are Python (2 or 3), with the modules (see requirements.txt):
+The only prerequisites are Python 3, with the modules (see requirements.txt):
 
 ```
 droopescan
 python-nmap
 python-wappalyzer
 requests
-```
-
-The script `analyze_hosts` can execute other scans (based on their fingerprint or open ports):
-
-```
-droopescan
-nikto
-testssl.sh
-WPscan
-```
-
-Recommended one-time installation steps using virtualenv (note that virtualenv needs to be installed for this):
-
-```
-git clone https://github.com/PeterMosmans/security-scripts
-cd security-scripts
-virtualenv .
-[[ -f bin/activate ]] && source bin/activate
-[[ -f Scripts/activate ]] && source Scripts/activate
-pip install -r requirements.txt
 ```
 
 One-time installation steps without virtualenv:
@@ -72,22 +56,23 @@ pip install -r requirements.txt
 ### usage
 
 ```
-usage: analyze_hosts.py [-h] [--dry-run] [-i INPUTFILE] [-o OUTPUT_FILE]
-                        [--compact] [--queuefile QUEUEFILE] [--resume]
-                        [--debug] [-v] [--allports] [-n] [-p PORT] [--up]
-                        [--udp] [--framework] [--check-redirect] [--nikto]
-                        [--ssl] [--sslcert] [-t] [-w] [--proxy PROXY]
-                        [--timeout TIMEOUT] [--threads THREADS]
-                        [--user-agent USER_AGENT] [--password PASSWORD]
-                        [--username USERNAME] [--maxtime MAXTIME]
+usage: analyze_hosts.py [-h] [--version] [--dry-run] [-i INPUTFILE]
+                        [-o OUTPUT_FILE] [--compact] [--queuefile QUEUEFILE]
+                        [--resume] [--force] [--debug] [-v] [-q] [--allports]
+                        [-n] [-p PORT] [--up] [--udp] [--framework] [--http]
+                        [--json JSON] [--ssl] [--nikto] [--sslcert] [-t] [-w]
+                        [--proxy PROXY] [--timeout TIMEOUT]
+                        [--threads THREADS] [--user-agent USER_AGENT]
+                        [--password PASSWORD] [--username USERNAME]
+                        [--maxtime MAXTIME]
                         [target]
 
-analyze_hosts.py version 0.37.5 - scans one or more hosts for security misconfigurations
+analyze_hosts version 1.0.0 - scans one or more hosts for security misconfigurations
 
 Please note that this is NOT a stealthy scan tool: By default, a TCP and UDP
 portscan will be launched, using some of nmap's interrogation scripts.
 
-Copyright (C) 2015-2017  Peter Mosmans [Go Forward]
+Copyright (C) 2015-2020  Peter Mosmans [Go Forward]
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
@@ -99,33 +84,34 @@ positional arguments:
 
 optional arguments:
   -h, --help            show this help message and exit
+  --version             Show version and exit
   --dry-run             Only show commands, don't actually do anything
   -i INPUTFILE, --inputfile INPUTFILE
                         A file containing targets, one per line
   -o OUTPUT_FILE, --output-file OUTPUT_FILE
                         output file containing all scanresults (default
-                        analyze_hosts.output
-  --compact             Log as little as possible
+                        analyze_hosts.output)
+  --compact             Only log raw logfiles and alerts to file
   --queuefile QUEUEFILE
                         the queuefile
   --resume              Resume working on the queue
+  --force               Ignore / overwrite the queuefile
   --debug               Show debug information
   -v, --verbose         Be more verbose
-
+  -q, --quiet           Do not show scan outputs on the console
   --allports            Run a full-blown nmap scan on all ports
   -n, --no-portscan     Do NOT run a nmap portscan
   -p PORT, --port PORT  Specific port(s) to scan
   --up                  Assume host is up (do not rely on ping probe)
   --udp                 Check for open UDP ports as well
-
   --framework           Analyze the website and run webscans
-  --check-redirect      Check for open insecure redirect
+  --http                Check for various HTTP vulnerabilities
+  --json JSON           Save output in JSON file
+  --ssl                 Check for various SSL/TLS vulnerabilities
   --nikto               Run a nikto scan
-  --ssl                 Run a ssl scan
   --sslcert             Download SSL certificate
   -t, --trace           Check webserver for HTTP TRACE method
   -w, --whois           Perform a whois lookup
-
   --proxy PROXY         Use proxy server (host:port)
   --timeout TIMEOUT     Timeout for requests in seconds (default 10)
   --threads THREADS     Maximum number of threads (default 5)
@@ -134,6 +120,17 @@ optional arguments:
   --password PASSWORD   Password for HTTP basic host authentication
   --username USERNAME   Username for HTTP basic host authentication
   --maxtime MAXTIME     Timeout for scans in seconds (default 1200)
+
+```
+
+The script `analyze_hosts` automatically execute other scans (based on their
+fingerprint or open ports):
+
+```
+droopescan
+nikto
+testssl.sh
+WPscan
 ```
 
 You can use the following environment variables (all uppercase) to specify the
@@ -141,22 +138,94 @@ tools if they cannot be found in the standard paths:
 
 CURL, DROOPESCAN, NIKTO, OPENSSL, TESTSSL, WPSCAN
 
-## Roadmap
+### JSON format
 
-The current version (0.37.5) will soon be upgraded / tagged as release-ready (1.0).
-
-Roadmap for version 1.1:
-
-- [ ] #35 - Remove python-nmap dependency and create own XML parsing routines
-- [ ] #34 - Create unique identifiers per run to simplify identification of temporary files
-- [ ] #33 - Add detection rule for weak SSH algorithms
-- [ ] #21 - Detect whether nmap supports (certain) scripts
-- [ ] #12 - Add test for zone transfer
+```
+{
+  "arguments": {
+    "target": "1.2.3.1/30",
+    "version": false,
+    "dry_run": false,
+    "inputfile": "0frnfb4e",
+    "output_file": "output.txt,
+    "compact": true,
+    "queuefile": "analyze_hosts.queue",
+    "resume": false,
+    "force": false,
+    "debug": false,
+    "verbose": false,
+    "quiet": false,
+    "allports": false,
+    "no_portscan": false,
+    "port": null,
+    "up": false,
+    "udp": false,
+    "framework": false,
+    "http": true,
+    "json": "results.json",
+    "ssl": true,
+    "nikto": true,
+    "sslcert": false,
+    "trace": false,
+    "whois": false,
+    "proxy": null,
+    "timeout": true,
+    "threads": 5,
+    "user_agent": "analyze_hosts",
+    "password": null,
+    "username": null,
+    "maxtime": 1200,
+    "testssl.sh": true,
+    "curl": false,
+    "wpscan": true,
+    "droopescan": true,
+    "nmap": true,
+    "nmap_arguments": "-sV --open -sS --script=banner,dns-nsid,dns-recursion,http-cisco-anyconnect,http-php-version,http-title,http-trace,ntp-info,ntp-monlist,nbstat,rdp-enum-encryption,rpcinfo,sip-methods,smb-os-discovery,smb-security-mode,smtp-open-relay,ssh2-enum-algos,vnc-info,xmlrpc-methods,xmpp-info"
+  },
+  "date_start": "2020-05-26 31:33:06"
+  "results": {
+    "1.2.3.1": {
+      "ports": [
+        53
+      ]
+    },
+    "1.2.3.2": {
+      "ports": []
+    },
+    "1.2.3.3": {
+      "ports": [
+        80,
+        443
+      ],
+      "alerts": [
+        ":443  LUCKY13 (CVE-2013-0169), experimental     potentially VULNERABLE, uses cipher block chaining (CBC) ciphers with TLS. Check patches"
+      ]
+    },
+    "1.2.3.4": {
+      "ports": [
+        80,
+        443
+      ],
+      "alerts": [
+        ":443 + OSVDB-3092: /download/: This might be interesting...",
+        ":443 + OSVDB-3092: /status/: This might be interesting...",
+        ":443 + OSVDB-4231: /DHrPp.xml: Coccoon from Apache-XML project reveals file system path in error messages.",
+        ":443 + OSVDB-3092: /upgrade.php: upgrade.php was found."
+      ]
+    }
+  },
+  "date_finish": "2020-05-26 31:33:07"
+}
+```
 
 ## analyze-hosts.sh
 
-A simple wrapper script around several open source security tools to simplify scanning of hosts for network vulnerabilities. The script lets you analyze one or several hosts for common misconfiguration vulnerabilities and weaknesses.
-The main objectives for the script is to make it as easy as possible to perform generic security tests, without any heavy prerequisites, make the output as informative as possible, and use open source tools....
+A simple wrapper script around several open source security tools to simplify
+scanning of hosts for network vulnerabilities. The script lets you analyze one
+or several hosts for common misconfiguration vulnerabilities and weaknesses. The
+main objectives for the script is to make it as easy as possible to perform
+generic security tests, without any heavy prerequisites, make the output as
+informative as possible, and use open source tools....
 
 - [cipherscan](https://github.com/jvehent/cipherscan)
 - curl
@@ -174,7 +243,8 @@ The main objectives for the script is to make it as easy as possible to perform 
 ./analyze_hosts.sh --sslcert www.google.com
 ```
 
-Shows details of a certificate, like the issuer and subject. It warns when certificate is expired or when the certificate is a certificate authority.
+Shows details of a certificate, like the issuer and subject. It warns when
+certificate is expired or when the certificate is a certificate authority.
 
 Example output:
 
@@ -200,8 +270,9 @@ OK: certificate is valid between 16-07-2014 and 14-10-2014
 ```
 
 Checks which ciphers are allowed. It warns when insecure ciphers are being used.
-By default the ports 443, 465, 993, 995 and 3389 and are checked. You can specify the ports by using --sslports
-The -v flag outputs all results, regardles of the message type.
+By default the ports 443, 465, 993, 995 and 3389 and are checked. You can
+specify the ports by using --sslports The -v flag outputs all results, regardles
+of the message type.
 
 Example output:
 
