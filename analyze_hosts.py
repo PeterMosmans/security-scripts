@@ -17,6 +17,8 @@ from __future__ import unicode_literals
 
 import argparse
 import io
+import datetime
+import json
 import logging
 import os
 import re
@@ -25,8 +27,8 @@ import ssl
 import subprocess
 import sys
 import tempfile
-import threading
 import textwrap
+import threading
 import time
 
 # Python 2/3 compatibility
@@ -51,7 +53,7 @@ except ImportError:
 
 
 NAME = 'analyze_hosts'
-VERSION = '0.45.0'
+VERSION = '1.0.0'
 ALLPORTS = [(22, 'ssh'), (25, 'smtp'), (80, 'http'), (443, 'https'),
             (465, 'smtps'), (993, 'imaps'), (995, 'pop3s'),
             (8080, 'http-proxy')]
@@ -141,7 +143,7 @@ def abort_program(text, error_code=-1):
     sys.exit(error_code)
 
 
-def analyze_url(url, options, logfile):
+def analyze_url(url, options, logfile, host_results):
     """Analyze a URL using wappalyzer and execute corresponding scans."""
     wappalyzer = Wappalyzer.Wappalyzer.latest()
     page = requests_get(url, options)
@@ -153,9 +155,9 @@ def analyze_url(url, options, logfile):
         # Format logmessage as info message, so that it ends up in logfile
         logging.log(LOGS, '[*] %s Analysis: %s', url, analysis)
         if 'Drupal' in analysis:
-            do_droopescan(url, 'drupal', options, logfile)
+            do_droopescan(url, 'drupal', options, logfile, host_results)
         if 'Joomla' in analysis:
-            do_droopescan(url, 'joomla', options, logfile)
+            do_droopescan(url, 'joomla', options, logfile, host_results)
         if 'WordPress' in analysis:
             do_wpscan(url, options, logfile)
     else:
@@ -187,7 +189,7 @@ def requests_get(url, options, headers=None, allow_redirects=True):
     return request
 
 
-def http_checks(host, port, protocol, options, logfile):
+def http_checks(host, port, protocol, options, logfile, host_results):
     """Perform various HTTP checks."""
     ssl = False
     if 'ssl' in protocol or 'https' in protocol:
@@ -196,26 +198,26 @@ def http_checks(host, port, protocol, options, logfile):
     else:
         url = 'http://{0}:{1}'.format(host, port)
     for tool in ['curl', 'nikto']:
-        use_tool(tool, host, port, protocol, options, logfile)
+        use_tool(tool, host, port, protocol, options, logfile, host_results)
     if options['dry_run']:
         return
     if options['framework']:
-        analyze_url(url, options, logfile)
+        analyze_url(url, options, logfile, host_results)
     if options['http']:
-        check_redirect(url, options)
-        check_headers(url, options, ssl=ssl)
-        check_compression(url, options, ssl=ssl)
+        check_redirect(url, options, host_results)
+        check_headers(url, options, host_results, ssl=ssl)
+        check_compression(url, options, host_results, ssl=ssl)
 
 
-def tls_checks(host, port, protocol, options, logfile):
+def tls_checks(host, port, protocol, options, logfile, host_results):
     """Perform various SSL/TLS checks."""
     if options['ssl']:
-        use_tool('testssl.sh', host, port, protocol, options, logfile)
+        use_tool('testssl.sh', host, port, protocol, options, logfile, host_results)
     if options['sslcert']:
         download_cert(host, port, options, logfile)
 
 
-def check_redirect(url, options):
+def check_redirect(url, options, host_results):
     """Check for insecure open redirect."""
     request = requests_get(url, options,
                            headers={'Host': 'EVIL-INSERTED-HOST',
@@ -224,11 +226,13 @@ def check_redirect(url, options):
     if request and request.status_code == 302:
         if 'Location' in request.headers:
             if 'EVIL-INSERTED-HOST' in request.headers['Location']:
+                add_alert(host_results,
+                      f"{url} vulnerable to open insecure redirect: {request.headers['Location']}")
                 logging.log(ALERT, '%s vulnerable to open insecure redirect: %s',
                             url, request.headers['Location'])
 
 
-def check_headers(url, options, ssl=False):
+def check_headers(url, options, host_results, ssl=False):
     """Check HTTP headers for omissions / insecure settings."""
     request = requests_get(url, options,
                            headers={'User-Agent': options['user_agent']},
@@ -242,16 +246,21 @@ def check_headers(url, options, ssl=False):
         security_headers.append('Strict-Transport-Security')
     if request.status_code == 200:
         if 'X-Frame-Options' not in request.headers:
-            logging.log(ALERT, '%s lacks a X-Frame-Options header', url)
+            add_alert(host_results,
+                      f"{url} lacks an X-Frame-Options header")
+            logging.log(ALERT, '%s lacks an X-Frame-Options header', url)
         elif '*' in request.headers['X-Frame-Options']:
+            add_alert(host_results,
+                      f"{url} has an insecure X-Frame-Options header: {request.headers['X-Frame-Options']}")
             logging.log(ALERT, '%s has an insecure X-Frame-Options header: %s',
                         url, request.headers['X-Frame-Options'])
         for header in security_headers:
             if header not in request.headers:
+                add_alert(host_results, f"{url} lacks a {header} header")
                 logging.log(ALERT, '%s lacks a %s header', url, header)
 
 
-def check_compression(url, options, ssl=False):
+def check_compression(url, options, host_results, ssl=False):
     """Check which compression methods are supported."""
     request = requests_get(url, options, allow_redirects=True)
     if not request:
@@ -273,6 +282,7 @@ def check_compression(url, options, ssl=False):
         if request and request.status_code == 200:
             if 'Content-Encoding' in request.headers:
                 if compression in request.headers['Content-Encoding']:
+                    add_alert(host_results, f"{url} supports {compression} compression")
                     logging.log(ALERT, '%s supports %s compression', url, compression)
 
 
@@ -454,13 +464,13 @@ def compact_strings(lines, options):
         # pylint: disable=E0602
         lines = unicode(lines, 'utf-8')
     if not options['compact']:
-        return lines
+        return ''.join([x for x in lines])
     return ''.join([x for x in lines if
                     not (x == '\n') and
                     not x.startswith('#')])
 
 
-def do_curl(host, port, options, logfile):
+def do_curl(host, port, options, logfile, host_results):
     """Check for HTTP TRACE method."""
     if options['trace']:
         command = [get_binary('curl'), '-sIA', "'{0}'".format(options['user_agent']),
@@ -469,7 +479,7 @@ def do_curl(host, port, options, logfile):
         _result, _stdout, _stderr = execute_command(command, options, logfile)  # pylint: disable=unused-variable
 
 
-def do_droopescan(url, cms, options, logfile):
+def do_droopescan(url, cms, options, logfile, host_results):
     """
     Perform a droopescan of type @cmd
     """
@@ -479,7 +489,7 @@ def do_droopescan(url, cms, options, logfile):
         _result, _stdout, _stderr = execute_command(command, options, logfile)  # pylint: disable=unused-variable
 
 
-def do_nikto(host, port, options, logfile):
+def do_nikto(host, port, options, logfile, host_results):
     """Perform a nikto scan."""
     command = [get_binary('nikto'), '-vhost', '{0}'.format(host), '-maxtime',
                '{0}s'.format(options['maxtime']), '-host',
@@ -495,21 +505,23 @@ def do_nikto(host, port, options, logfile):
         command += ['-id', options['username'] + ':' + options['password']]
     logging.info('%s Starting nikto on port %s', host, port)
     _result, stdout, _stderr = execute_command(command, options, logfile)  # pylint: disable=unused-variable
-    check_strings_for_alerts(stdout, NIKTO_ALERTS, host, port)
+    check_strings_for_alerts(stdout, NIKTO_ALERTS, host_results, host, port)
 
 
-def do_portscan(host, options, logfile, stop_event):
+def do_portscan(host, options, logfile, stop_event, host_results):
     """Perform a portscan.
 
     Args:
-        host:       Target host.
-        options:    Dictionary object containing options.
-        logfile:    Filename where logfile will be written to.
-        stop_event: Event handler for stop event
+        host:         Target host.
+        options:      Dictionary object containing options.
+        logfile:      Filename where logfile will be written to.
+        stop_event:   Event handler for stop event
+        host_results: Host results dictionary
 
     Returns:
         A list with tuples of open ports and the protocol.
     """
+    ports = []
     open_ports = []
     if not options['nmap']:
         if options['port']:
@@ -533,7 +545,7 @@ def do_portscan(host, options, logfile, stop_event):
                      scanner[ip_address]['tcp'][port]['state'] == 'open']
             for port in ports:
                 open_ports.append([port, scanner[ip_address]['tcp'][port]['name']])
-        check_file_for_alerts(temp_file, NMAP_ALERTS, host)
+        check_file_for_alerts(temp_file, NMAP_ALERTS, host_results, host)
         append_file(logfile, options, temp_file)
         if open_ports:
             logging.info('%s Found open TCP ports %s', host, open_ports)
@@ -550,28 +562,38 @@ def do_portscan(host, options, logfile, stop_event):
     finally:
         if os.path.isfile(temp_file):
             os.remove(temp_file)
+    host_results['ports'] = ports
     return open_ports
 
 
-def check_file_for_alerts(logfile, keywords, host, port=''):
+def check_file_for_alerts(logfile, keywords, host_results, host, port=''):
     """Check for keywords in logfile and log them as alert."""
     try:
         if os.path.isfile(logfile) and os.stat(logfile).st_size:
             with open(logfile, 'r') as read_file:
                 log = read_file.read()
-            check_strings_for_alerts(log, keywords, host, port)
+            check_strings_for_alerts(log, keywords, host_results, host, port)
     except (IOError, OSError) as exception:
         logging.error('FAILED: Could not read %s (%s)', logfile, exception)
 
 
-def check_strings_for_alerts(strings, keywords, host, port=''):
+def check_strings_for_alerts(strings, keywords, host_results, host, port=''):
     """Check for keywords in strings and log them as alerts."""
     if port:
         port = ':{0}'.format(port)
     for line in strings:  # Highly inefficient 'brute-force' check
-        for keyword in keywords:       # TODO: make it work ;)
+        for keyword in keywords:
             if keyword in line:
+                add_alert(host_results, line)
                 logging.log(ALERT, '%s%s %s', host, port, line)
+
+
+def add_alert(host_results, line):
+    """Add line to list of alerts in host_results."""
+    if 'alerts' in host_results:
+        host_results['alerts'].append(line)
+    else:
+        host_results['alerts'] = [line]
 
 
 def get_binary(tool):
@@ -581,7 +603,7 @@ def get_binary(tool):
     return tool
 
 
-def do_testssl(host, port, protocol, options, logfile):
+def do_testssl(host, port, protocol, options, logfile, host_results):
     """Check SSL/TLS configuration and vulnerabilities."""
     # --color 0            Don't use color escape codes
     # --pfs                Check (perfect) forward secrecy settings
@@ -601,7 +623,7 @@ def do_testssl(host, port, protocol, options, logfile):
     _result, stdout, _stderr = execute_command(command +  # pylint: disable=unused-variable
                                                ['{0}:{1}'.format(host, port)],
                                                options, logfile)
-    check_strings_for_alerts(stdout, TESTSSL_ALERTS, host, port)
+    check_strings_for_alerts(stdout, TESTSSL_ALERTS, host_results, host, port)
 
 
 def do_wpscan(url, options, logfile):
@@ -667,21 +689,22 @@ def remove_from_queue(finished_queue, options, stop_event):
     logging.debug('Exiting remove_from_queue thread')
 
 
-def use_tool(tool, host, port, protocol, options, logfile):
+def use_tool(tool, host, port, protocol, options, logfile, host_results):
     """
     Wrapper to see if tool is available, and to start correct tool.
     """
     if not options[tool]:
         return
     if tool == 'nikto':
-        do_nikto(host, port, options, logfile)
+        do_nikto(host, port, options, logfile, host_results)
     if tool == 'curl':
-        do_curl(host, port, options, logfile)
+        do_curl(host, port, options, logfile, host_results)
     if tool == 'testssl.sh':
-        do_testssl(host, port, protocol, options, logfile)
+        do_testssl(host, port, protocol, options, logfile, host_results)
 
 
-def process_host(options, host_queue, output_queue, finished_queue, stop_event):
+def process_host(options, host_queue, output_queue, finished_queue, stop_event,
+                 results):
     """
     Worker thread: Process each host atomic, add output files to output_queue,
     and finished hosts to finished_queue.
@@ -692,7 +715,8 @@ def process_host(options, host_queue, output_queue, finished_queue, stop_event):
             host_logfile = host + '-' + next(tempfile._get_candidate_names())  # pylint: disable=protected-access
             logging.debug('%s Processing (%s in queue)', host,
                           host_queue.qsize())
-            open_ports = do_portscan(host, options, host_logfile, stop_event)
+            host_results = {}
+            open_ports = do_portscan(host, options, host_logfile, stop_event, host_results)
             if open_ports:
                 if UNKNOWN in open_ports:
                     logging.info('%s Scan interrupted ?', host)
@@ -704,16 +728,17 @@ def process_host(options, host_queue, output_queue, finished_queue, stop_event):
                         # Sometimes nmap detects webserver as 'ssl/ssl'
                         if 'http' in protocol or 'ssl' in protocol:
                             http_checks(host, port, protocol, options,
-                                        host_logfile)
+                                        host_logfile, host_results)
                         if 'ssl' in protocol or port in SSL_PORTS:
                             tls_checks(host, port, protocol, options,
-                                       host_logfile)
+                                       host_logfile, host_results)
             if os.path.isfile(host_logfile):
                 if os.stat(host_logfile).st_size:
                     with open(host_logfile, 'r') as read_file:
                         output_queue.put(read_file.read())
                 os.remove(host_logfile)
             if not stop_event.isSet(): # Do not flag host as being done
+                results['results'][host] = host_results
                 finished_queue.put(host)
                 host_queue.task_done()
         except queue.Empty:
@@ -740,7 +765,7 @@ def process_output(output_queue, stop_event):
                   output_queue.qsize())
 
 
-def loop_hosts(options, target_list):
+def loop_hosts(options, target_list, results):
     """Iterate all hosts in target_list and perform requested actions."""
     stop_event = threading.Event()
     work_queue = queue.Queue()
@@ -758,7 +783,8 @@ def loop_hosts(options, target_list):
     threads = [threading.Thread(target=process_host, args=(options, work_queue,
                                                            output_queue,
                                                            finished_queue,
-                                                           stop_event))
+                                                           stop_event,
+                                                           results))
                for _ in range(min(options['threads'], work_queue.qsize()))]
     threads.append(threading.Thread(target=remove_from_queue,
                                     args=(finished_queue, options, stop_event)))
@@ -806,7 +832,7 @@ def parse_arguments(banner):
 Please note that this is NOT a stealthy scan tool: By default, a TCP and UDP
 portscan will be launched, using some of nmap's interrogation scripts.
 
-Copyright (C) 2015-2018  Peter Mosmans [Go Forward]
+Copyright (C) 2015-2020  Peter Mosmans [Go Forward]
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
@@ -852,6 +878,8 @@ the Free Software Foundation, either version 3 of the License, or
                         help='Analyze the website and run webscans')
     parser.add_argument('--http', action='store_true',
                         help='Check for various HTTP vulnerabilities')
+    parser.add_argument('--json', action='store', type=str,
+                        help='Save output in JSON file')
     parser.add_argument('--ssl', action='store_true',
                         help='Check for various SSL/TLS vulnerabilities')
     parser.add_argument('--nikto', action='store_true',
@@ -931,6 +959,25 @@ def setup_logging(options):
     logging.getLogger('requests.packages.urllib3.connectionpool').setLevel(logging.ERROR)
 
 
+def init_results(options):
+    # For now, no support for resumed scans
+    results = {}
+    results['arguments'] = options
+    results['date_start'] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    results['results'] = {}
+    return results
+
+
+def write_json(results, options):
+    if options['json']:
+        results['date_finish'] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        json_results = json.dumps(results)
+        # Truncating the file, no check yet on whether it exists
+        with io.open(options['json'], encoding='utf-8', mode='w+') as open_file:
+            open_file.write(json_results)
+        logging.log(STATUS, 'JSON results saved to %s', options['json'])
+
+
 def main():
     """Main program loop."""
     banner = '{0} version {1}'.format(NAME, VERSION)
@@ -942,7 +989,9 @@ def main():
     logging.debug(options)
     if not options['resume']:
         prepare_queue(options)
-    loop_hosts(options, read_targets(options['queuefile']))
+    results = init_results(options)
+    loop_hosts(options, read_targets(options['queuefile']), results)
+    write_json(results, options)
     if not options['dry_run']:
         logging.log(STATUS, 'Output saved to %s', options['output_file'])
     sys.exit(0)
