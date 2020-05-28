@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.1.0](https://github.com/PeterMosmans/security-scripts/compare/v1.0.0...v1.1.0) (2020-05-28)
+
+
+### Features
+
+* add initial version of showing obtained nmap plugin info ([91b039b](https://github.com/PeterMosmans/security-scripts/commit/91b039b831642947241d9332819581f2e0523f25))
+* add more nmap alerts ([f45224e](https://github.com/PeterMosmans/security-scripts/commit/f45224eac7ac124867cf431460f175136ee99148))
+* add testssl.sh alert ([e5536e6](https://github.com/PeterMosmans/security-scripts/commit/e5536e6725073813ffa77a1927cd8adf16e9152f))
+* add testssl.sh alerts ([f3bf2e6](https://github.com/PeterMosmans/security-scripts/commit/f3bf2e69062ba34b0aa712d3705a56d5a2bb97d9))
+* enforce nikto to run non-interactive ([0adf0b9](https://github.com/PeterMosmans/security-scripts/commit/0adf0b9d71db631f81c63e263539b959fa84566d))
+* remove Python2 compatibility (simplify code) ([57e62cb](https://github.com/PeterMosmans/security-scripts/commit/57e62cb46317d06d7ac07c1092aa520669fdd893))
+* store version string of tool being used ([7e8af96](https://github.com/PeterMosmans/security-scripts/commit/7e8af96363f7ac7169d467e8ea7de4505500485a))
+* use version first, to enable better sorting ([3692207](https://github.com/PeterMosmans/security-scripts/commit/36922076b6b2738e0550ead84d7dc306c96604b4))
+
+
+### Bug Fixes
+
+* ensure no raw line endings are logged ([8c3d981](https://github.com/PeterMosmans/security-scripts/commit/8c3d9813b9761b3dea6454bbc91101e0e1bae005))
+* ensure that line endings are kept when adding logs ([f79dbe6](https://github.com/PeterMosmans/security-scripts/commit/f79dbe63739fc6a18b369ce973f7cdf3d2d0a4f5))
+* ensure that logfile strings are properly read ([10e5e4f](https://github.com/PeterMosmans/security-scripts/commit/10e5e4ff796ecf8739292d21f879e43c82c459b0))
+* ensure that nmap command line isn't flagged as alert ([a093cad](https://github.com/PeterMosmans/security-scripts/commit/a093cad1afaf93f183b0cbdeb490f4bc341e3d6b))
+* ensure that wpscan ignores any server-supplied redirects ([cc19dc3](https://github.com/PeterMosmans/security-scripts/commit/cc19dc397e75818f323a63e0d294065e8f2f4f40))
+* properly read and append existing logfiles ([aae922a](https://github.com/PeterMosmans/security-scripts/commit/aae922a6104505a9ec1d7b1ca2f7354e0d1f9d6e))
+* remove obsolete inheritance from object ([e231d27](https://github.com/PeterMosmans/security-scripts/commit/e231d27a946495f775b76b8cab08b7142ee515b5))
+
 ## [1.0.0](https://github.com/PeterMosmans/security-scripts/compare/v0.44.2...v1.0.0) (2020-05-28)
 
 
