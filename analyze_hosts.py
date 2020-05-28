@@ -544,7 +544,7 @@ def do_portscan(host, options, logfile, stop_event, host_results):
                      scanner[ip_address]['tcp'][port]['state'] == 'open']
             for port in ports:
                 open_ports.append([port, scanner[ip_address]['tcp'][port]['name']])
-        check_file_for_alerts(temp_file, NMAP_ALERTS, host_results, host)
+        check_nmap_log_for_alerts(temp_file, host_results, host)
         append_file(logfile, options, temp_file)
         if open_ports:
             logging.info('%s Found open TCP ports %s', host, open_ports)
@@ -565,13 +565,23 @@ def do_portscan(host, options, logfile, stop_event, host_results):
     return open_ports
 
 
-def check_file_for_alerts(logfile, keywords, host_results, host):
+def check_nmap_log_for_alerts(logfile, host_results, host):
     """Check for keywords in logfile and log them as alert."""
     try:
         if os.path.isfile(logfile) and os.stat(logfile).st_size:
             with open(logfile, 'r') as read_file:
                 log = read_file.read().splitlines()
-            check_strings_for_alerts(log, keywords, host_results, host, "unknown")
+            port = 0
+            for line in log:  # Highly inefficient 'brute-force' check
+                # Grab the last open port number to use that for the alert
+                if ' open ' in line and \
+                  '/' in line[:7] and \
+                  line[:(line.index('/'))].isdecimal():
+                    port = int(line[:(line.index('/'))])
+                for keyword in NMAP_ALERTS:
+                    if keyword in line:
+                        add_alert(host_results, port, line)
+                        logging.log(ALERT, f"{host}:{port} {line}")
     except (IOError, OSError) as exception:
         logging.error('FAILED: Could not read %s (%s)', logfile, exception)
 
