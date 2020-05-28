@@ -594,10 +594,10 @@ def add_alert(host_results, host, port, line):
     if 'alerts' not in host_results:
         host_results['alerts'] = {}
     if port not in host_results['alerts']:
-        host_results['alerts'][port] = [filtered_line]
+        host_results['alerts'][port] = [filtered_line.strip()]
     else:
-        host_results['alerts'][port].append(filtered_line)
-    logging.log(ALERT, f"{host}:{port} {filtered_line}")
+        host_results['alerts'][port].append(filtered_line.strip())
+    logging.log(ALERT, f"{host}:{port} {filtered_line.strip()}")
 
 
 def get_binary(tool):
