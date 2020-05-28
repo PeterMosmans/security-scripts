@@ -485,9 +485,13 @@ def do_droopescan(url, port, cms, options, logfile, host_results):
 
 def do_nikto(host, port, options, logfile, host_results):
     """Perform a nikto scan."""
-    command = [get_binary('nikto'), '-vhost', '{0}'.format(host), '-maxtime',
-               '{0}s'.format(options['maxtime']), '-host',
-               '{0}:{1}'.format(host, port)]
+    command = [get_binary('nikto'),
+               '-ask', 'no',
+               '-host', f'{host}:{port}',
+               '-maxtime', f'{options["maxtime"]}s',
+               '-nointeractive',
+               '-vhost', f'{host}',
+               ]
     if port == 443:
         command.append('-ssl')
         if options['proxy']:
