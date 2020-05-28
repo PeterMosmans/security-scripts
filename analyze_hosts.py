@@ -143,7 +143,7 @@ def abort_program(text, error_code=-1):
     sys.exit(error_code)
 
 
-def analyze_url(url, options, logfile, host_results):
+def analyze_url(url, port, options, logfile, host_results):
     """Analyze a URL using wappalyzer and execute corresponding scans."""
     wappalyzer = Wappalyzer.Wappalyzer.latest()
     page = requests_get(url, options)
@@ -155,11 +155,11 @@ def analyze_url(url, options, logfile, host_results):
         # Format logmessage as info message, so that it ends up in logfile
         logging.log(LOGS, '[*] %s Analysis: %s', url, analysis)
         if 'Drupal' in analysis:
-            do_droopescan(url, 'drupal', options, logfile, host_results)
+            do_droopescan(url, port, 'drupal', options, logfile, host_results)
         if 'Joomla' in analysis:
-            do_droopescan(url, 'joomla', options, logfile, host_results)
+            do_droopescan(url, port, 'joomla', options, logfile, host_results)
         if 'WordPress' in analysis:
-            do_wpscan(url, options, logfile)
+            do_wpscan(url, port, options, logfile)
     else:
         logging.debug('%s Got result %s - cannot analyze that', url,
                       page.status_code)
@@ -202,11 +202,11 @@ def http_checks(host, port, protocol, options, logfile, host_results):
     if options['dry_run']:
         return
     if options['framework']:
-        analyze_url(url, options, logfile, host_results)
+        analyze_url(url, port, options, logfile, host_results)
     if options['http']:
-        check_redirect(url, options, host_results)
-        check_headers(url, options, host_results, ssl=ssl)
-        check_compression(url, options, host_results, ssl=ssl)
+        check_redirect(url, port, options, host_results)
+        check_headers(url, port, options, host_results, ssl=ssl)
+        check_compression(url, port, options, host_results, ssl=ssl)
 
 
 def tls_checks(host, port, protocol, options, logfile, host_results):
@@ -217,7 +217,7 @@ def tls_checks(host, port, protocol, options, logfile, host_results):
         download_cert(host, port, options, logfile)
 
 
-def check_redirect(url, options, host_results):
+def check_redirect(url, port, options, host_results):
     """Check for insecure open redirect."""
     request = requests_get(url, options,
                            headers={'Host': 'EVIL-INSERTED-HOST',
@@ -226,13 +226,13 @@ def check_redirect(url, options, host_results):
     if request and request.status_code == 302:
         if 'Location' in request.headers:
             if 'EVIL-INSERTED-HOST' in request.headers['Location']:
-                add_alert(host_results,
-                      f"{url} vulnerable to open insecure redirect: {request.headers['Location']}")
+                add_alert(host_results, port,
+                          f"{url} vulnerable to open insecure redirect: {request.headers['Location']}")
                 logging.log(ALERT, '%s vulnerable to open insecure redirect: %s',
                             url, request.headers['Location'])
 
 
-def check_headers(url, options, host_results, ssl=False):
+def check_headers(url, port, options, host_results, ssl=False):
     """Check HTTP headers for omissions / insecure settings."""
     request = requests_get(url, options,
                            headers={'User-Agent': options['user_agent']},
@@ -246,21 +246,20 @@ def check_headers(url, options, host_results, ssl=False):
         security_headers.append('Strict-Transport-Security')
     if request.status_code == 200:
         if 'X-Frame-Options' not in request.headers:
-            add_alert(host_results,
-                      f"{url} lacks an X-Frame-Options header")
+            add_alert(host_results, port, f"{url} lacks an X-Frame-Options header")
             logging.log(ALERT, '%s lacks an X-Frame-Options header', url)
         elif '*' in request.headers['X-Frame-Options']:
-            add_alert(host_results,
+            add_alert(host_results, port,
                       f"{url} has an insecure X-Frame-Options header: {request.headers['X-Frame-Options']}")
             logging.log(ALERT, '%s has an insecure X-Frame-Options header: %s',
                         url, request.headers['X-Frame-Options'])
         for header in security_headers:
             if header not in request.headers:
-                add_alert(host_results, f"{url} lacks a {header} header")
+                add_alert(host_results, port, f"{url} lacks a {header} header")
                 logging.log(ALERT, '%s lacks a %s header', url, header)
 
 
-def check_compression(url, options, host_results, ssl=False):
+def check_compression(url, port, options, host_results, ssl=False):
     """Check which compression methods are supported."""
     request = requests_get(url, options, allow_redirects=True)
     if not request:
@@ -282,7 +281,7 @@ def check_compression(url, options, host_results, ssl=False):
         if request and request.status_code == 200:
             if 'Content-Encoding' in request.headers:
                 if compression in request.headers['Content-Encoding']:
-                    add_alert(host_results, f"{url} supports {compression} compression")
+                    add_alert(host_results, port, f"{url} supports {compression} compression")
                     logging.log(ALERT, '%s supports %s compression', url, compression)
 
 
@@ -479,7 +478,7 @@ def do_curl(host, port, options, logfile, host_results):
         _result, _stdout, _stderr = execute_command(command, options, logfile)  # pylint: disable=unused-variable
 
 
-def do_droopescan(url, cms, options, logfile, host_results):
+def do_droopescan(url, port, cms, options, logfile, host_results):
     """
     Perform a droopescan of type @cmd
     """
@@ -572,7 +571,7 @@ def check_file_for_alerts(logfile, keywords, host_results, host):
         if os.path.isfile(logfile) and os.stat(logfile).st_size:
             with open(logfile, 'r') as read_file:
                 log = read_file.read().splitlines()
-            check_strings_for_alerts(log, keywords, host_results, host, "")
+            check_strings_for_alerts(log, keywords, host_results, host, "unknown")
     except (IOError, OSError) as exception:
         logging.error('FAILED: Could not read %s (%s)', logfile, exception)
 
@@ -582,16 +581,18 @@ def check_strings_for_alerts(strings, keywords, host_results, host, port):
     for line in strings:  # Highly inefficient 'brute-force' check
         for keyword in keywords:
             if keyword in line:
-                add_alert(host_results, f"{port} {line}")
+                add_alert(host_results, port, line)
                 logging.log(ALERT, f"{host}:{port} {line}")
 
 
-def add_alert(host_results, line):
+def add_alert(host_results, port, line):
     """Add line to list of alerts in host_results."""
-    if 'alerts' in host_results:
-        host_results['alerts'].append(line)
+    if 'alerts' not in host_results:
+        host_results['alerts'] = {}
+    if port not in host_results['alerts']:
+        host_results['alerts'][port] = [line]
     else:
-        host_results['alerts'] = [line]
+        host_results['alerts'][port].append(line)
 
 
 def get_binary(tool):
@@ -619,12 +620,12 @@ def do_testssl(host, port, protocol, options, logfile, host_results):
         command += ['--starttls', 'smtp']
     logging.info('%s Starting testssl.sh on port %s', host, port)
     _result, stdout, _stderr = execute_command(command +  # pylint: disable=unused-variable
-                                               ['{0}:{1}'.format(host, port)],
+                                               [f"{host}:{port}"],
                                                options, logfile)
     check_strings_for_alerts(stdout, TESTSSL_ALERTS, host_results, host, port)
 
 
-def do_wpscan(url, options, logfile):
+def do_wpscan(url, port, options, logfile):
     """
     Run WPscan
     """
