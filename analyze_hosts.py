@@ -330,7 +330,7 @@ def preflight_checks(options):
             if tool == 'droopescan':
                 version = 'stats'
             result, stdout, stderr = execute_command([get_binary(tool), version], options)
-            options[f"{tool}_version"] = stdout
+            options[f"version_{tool}"] = stdout
             if not result:
                 if tool == 'nmap':
                     if not options['dry_run'] and not options['no_portscan']:
