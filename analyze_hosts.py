@@ -915,7 +915,7 @@ the Free Software Foundation, either version 3 of the License, or
                         help='Password for HTTP basic host authentication')
     parser.add_argument('--username', action='store',
                         help='Username for HTTP basic host authentication')
-    parser.add_argument('--maxtime', action='store', default='1200', type=int,
+    parser.add_argument('--maxtime', action='store', default='600', type=int,
                         help='Timeout for scans in seconds (default %(default)s)')
     args = parser.parse_args()
     if args.version:
