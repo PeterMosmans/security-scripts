@@ -605,6 +605,7 @@ def get_binary(tool):
 def do_testssl(host, port, protocol, options, logfile, host_results):
     """Check SSL/TLS configuration and vulnerabilities."""
     # --color 0            Don't use color escape codes
+    # --each-cipher        Checks each local cipher remotely
     # --pfs                Check (perfect) forward secrecy settings
     # --protocols          Check TLS/SSL protocols
     # --quiet              Don't output the banner
@@ -612,8 +613,16 @@ def do_testssl(host, port, protocol, options, logfile, host_results):
     # --starttls protocol  Use starttls protocol
     # --vulnerable         Test for all vulnerabilities
     # --warnings off       Skip connection warnings
-    command = [get_binary('testssl.sh'), '--quiet', '--warnings', 'off', '--color', '0',
-               '--protocols', '--pfs', '--vulnerable', '--server-defaults']
+    command = [get_binary('testssl.sh'),
+               '--color', '0',
+               '--each-cipher',
+               '--pfs',
+               '--protocols',
+               '--quiet',
+               '--server-defaults',
+               '--vulnerable',
+               '--warnings', 'off',
+               ]
     if options['timeout']:
         command = [get_binary('timeout'), str(options['maxtime'])] + command
     if 'smtp' in protocol:
