@@ -49,7 +49,7 @@ except ImportError:
 
 
 NAME = 'analyze_hosts'
-VERSION = '1.0.0'
+VERSION = '1.1.0'
 ALLPORTS = [(22, 'ssh'), (25, 'smtp'), (80, 'http'), (443, 'https'),
             (465, 'smtps'), (993, 'imaps'), (995, 'pop3s'),
             (8080, 'http-proxy')]
@@ -78,6 +78,11 @@ NMAP_ALERTS = [
     'ssh-dss',
     'umac-64',
 ]
+NMAP_INFO = [
+    'banner: '
+    'http-server-header: ',
+    'http-title: '
+    ]
 NMAP_ARGUMENTS = ["-sV", "--open"]  # A list of default arguments to pass to nmap
 NMAP_SCRIPTS = ['banner', 'dns-nsid', 'dns-recursion', 'http-cisco-anyconnect',
                 'http-php-version', 'http-title', 'http-trace', 'ntp-info',
