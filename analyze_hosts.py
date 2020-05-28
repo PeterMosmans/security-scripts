@@ -84,6 +84,7 @@ NMAP_SCRIPTS = ['banner', 'dns-nsid', 'dns-recursion', 'http-cisco-anyconnect',
                 'xmlrpc-methods', 'xmpp-info']
 TESTSSL_ALERTS = [
     "DES-CBC3",
+    "NOT ok",
     "VULNERABLE",
 ]
 # A regular expression of prepend characters to remove in an alert
