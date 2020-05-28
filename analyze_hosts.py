@@ -399,10 +399,10 @@ def execute_command(cmd, options, logfile=False):
     if options['dry_run']:
         return True, stdout, stderr
     try:
-        process = subprocess.run(cmd, encoding='utf-8', capture_output=True)
+        process = subprocess.run(cmd, encoding='utf-8', text=True, capture_output=True)
         # For easier processing, split string into lines
-        stdout = process.stdout.splitlines()
-        stderr = process.stderr.splitlines()
+        stdout = process.stdout.splitlines(True)
+        stderr = process.stderr.splitlines(True)
         result = not process.returncode
     except OSError as exception:
         logging.error('Error while executing %s: %s', cmd, exception)
