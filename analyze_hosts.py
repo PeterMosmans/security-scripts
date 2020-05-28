@@ -627,12 +627,14 @@ def do_testssl(host, port, protocol, options, logfile, host_results):
 
 
 def do_wpscan(url, port, options, logfile):
-    """
-    Run WPscan
-    """
+    """Run WPscan."""
     if options['wpscan']:
         logging.info('Starting WPscan on ' + url)
-        command = [get_binary('wpscan'), '--format', 'cli-no-color', '--url', url]
+        command = [get_binary('wpscan'),
+                   '--format', 'cli-no-color',
+                   '--ignore-main-redirect',
+                   '--url', url,
+                   ]
         _result, _stdout, _stderr = execute_command(command, options, logfile)  # pylint: disable=unused-variable
 
 
