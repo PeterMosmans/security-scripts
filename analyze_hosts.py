@@ -129,7 +129,7 @@ class LogFormatter(logging.Formatter):
         return logging.Formatter.format(self, record)
 
 
-class LogFilter(object):  # pylint: disable=too-few-public-methods
+class LogFilter():  # pylint: disable=too-few-public-methods
     """Class to remove certain log levels."""
     def __init__(self, filterlist):
         self.__filterlist = filterlist
