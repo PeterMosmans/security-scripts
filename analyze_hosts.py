@@ -21,6 +21,7 @@ import datetime
 import json
 import logging
 import os
+import queue
 import re
 import signal
 import ssl
@@ -31,11 +32,6 @@ import textwrap
 import threading
 import time
 
-# Python 2/3 compatibility
-if sys.version[0] == '2':
-    import Queue as queue
-else:
-    import queue as queue
 
 try:
     import nmap
@@ -106,24 +102,13 @@ ALERT           = 35  # vulnerabilities found    pylint:disable=bad-whitespace
 class LogFormatter(logging.Formatter):
     """Class to format log messages based on their type."""
     # pylint: disable=protected-access
-    if sys.version[0] == '2':
-        FORMATS = {logging.DEBUG: u"[d] %(message)s",
-                   logging.INFO: u"[*] %(message)s",
-                   COMMAND: u"%(message)s",
-                   STATUS: u"[+] %(message)s",
-                   LOGS: u"%(message)s",
-                   ALERT: u"[!] %(message)s",
-                   logging.ERROR: u"[-] %(message)s",
-                   logging.CRITICAL: u"[-] FATAL: %(message)s",
-                   'DEFAULT': u"%(message)s"}
-    else:
-        FORMATS = {logging.DEBUG: logging._STYLES["{"][0]("[d] {message}"),
-                   logging.INFO: logging._STYLES["{"][0]("[*] {message}"),
-                   "STATUS": logging._STYLES["{"][0]("[+] {message}"),
-                   "ALERT": logging._STYLES["{"][0]("[!] {message}"),
-                   logging.ERROR: logging._STYLES["{"][0]("[-] {message}"),
-                   logging.CRITICAL: logging._STYLES["{"][0]("[-] FATAL: {message}"),
-                   "DEFAULT": logging._STYLES["{"][0]("{message}")}
+    FORMATS = {logging.DEBUG: logging._STYLES["{"][0]("[d] {message}"),
+               logging.INFO: logging._STYLES["{"][0]("[*] {message}"),
+               "STATUS": logging._STYLES["{"][0]("[+] {message}"),
+               "ALERT": logging._STYLES["{"][0]("[!] {message}"),
+               logging.ERROR: logging._STYLES["{"][0]("[-] {message}"),
+               logging.CRITICAL: logging._STYLES["{"][0]("[-] FATAL: {message}"),
+               "DEFAULT": logging._STYLES["{"][0]("{message}")}
 
     def format(self, record):
         self._style = self.FORMATS.get(record.levelno, self.FORMATS['DEFAULT'])
@@ -455,14 +440,11 @@ def append_file(logfile, options, input_file):
 
 def compact_strings(lines, options):
     """Remove empty and remarked lines."""
-    if sys.version[0] == '2':
-        # pylint: disable=E0602
-        lines = unicode(lines, 'utf-8')
     if not options['compact']:
-        return ''.join([x for x in lines])
-    return ''.join([x for x in lines if
-                    not (x == '\n') and
-                    not x.startswith('#')])
+        return '\n'.join([x for x in lines.strip()])
+    return '\n'.join([x for x in lines.strip() if
+                      not (x == '\n') and
+                      not x.startswith('#')])
 
 
 def do_curl(host, port, options, logfile, host_results):
