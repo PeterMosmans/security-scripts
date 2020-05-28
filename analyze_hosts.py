@@ -74,8 +74,7 @@ NMAP_ALERTS = [
     'hmac-sha1',
     'message_signing: disabled',
     'msrpc',
-    'netbios-ssn',
-    'smb-os-discovery',
+    'netbios-ssn ',
     'ssh-dss',
     'umac-64',
 ]
