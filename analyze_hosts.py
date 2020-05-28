@@ -86,6 +86,8 @@ TESTSSL_ALERTS = [
     "DES-CBC3",
     "VULNERABLE",
 ]
+# A regular expression of prepend characters to remove in an alert
+REMOVE_PREPEND_ALERTS = r'^[| +]*'
 UNKNOWN = -1
 # The program has the following loglevels:
 # logging.DEBUG = 10    debug messages (module constant)
@@ -226,10 +228,8 @@ def check_redirect(url, port, options, host_results):
     if request and request.status_code == 302:
         if 'Location' in request.headers:
             if 'EVIL-INSERTED-HOST' in request.headers['Location']:
-                add_alert(host_results, port,
+                add_alert(host_results, url, port,
                           f"{url} vulnerable to open insecure redirect: {request.headers['Location']}")
-                logging.log(ALERT, '%s vulnerable to open insecure redirect: %s',
-                            url, request.headers['Location'])
 
 
 def check_headers(url, port, options, host_results, ssl=False):
@@ -246,17 +246,13 @@ def check_headers(url, port, options, host_results, ssl=False):
         security_headers.append('Strict-Transport-Security')
     if request.status_code == 200:
         if 'X-Frame-Options' not in request.headers:
-            add_alert(host_results, port, f"{url} lacks an X-Frame-Options header")
-            logging.log(ALERT, '%s lacks an X-Frame-Options header', url)
+            add_alert(host_results, url, port, f"{url} lacks an X-Frame-Options header")
         elif '*' in request.headers['X-Frame-Options']:
-            add_alert(host_results, port,
+            add_alert(host_results, url, port,
                       f"{url} has an insecure X-Frame-Options header: {request.headers['X-Frame-Options']}")
-            logging.log(ALERT, '%s has an insecure X-Frame-Options header: %s',
-                        url, request.headers['X-Frame-Options'])
         for header in security_headers:
             if header not in request.headers:
-                add_alert(host_results, port, f"{url} lacks a {header} header")
-                logging.log(ALERT, '%s lacks a %s header', url, header)
+                add_alert(host_results, url, port, f"{url} lacks a {header} header")
 
 
 def check_compression(url, port, options, host_results, ssl=False):
@@ -281,8 +277,7 @@ def check_compression(url, port, options, host_results, ssl=False):
         if request and request.status_code == 200:
             if 'Content-Encoding' in request.headers:
                 if compression in request.headers['Content-Encoding']:
-                    add_alert(host_results, port, f"{url} supports {compression} compression")
-                    logging.log(ALERT, '%s supports %s compression', url, compression)
+                    add_alert(host_results, url, port, f"{url} supports {compression} compression")
 
 
 def is_admin():
@@ -580,8 +575,7 @@ def check_nmap_log_for_alerts(logfile, host_results, host):
                     port = int(line[:(line.index('/'))])
                 for keyword in NMAP_ALERTS:
                     if keyword in line:
-                        add_alert(host_results, port, line)
-                        logging.log(ALERT, f"{host}:{port} {line}")
+                        add_alert(host_results, host, port, line)
     except (IOError, OSError) as exception:
         logging.error('FAILED: Could not read %s (%s)', logfile, exception)
 
@@ -591,18 +585,19 @@ def check_strings_for_alerts(strings, keywords, host_results, host, port):
     for line in strings:  # Highly inefficient 'brute-force' check
         for keyword in keywords:
             if keyword in line:
-                add_alert(host_results, port, line)
-                logging.log(ALERT, f"{host}:{port} {line}")
+                add_alert(host_results, host, port, line)
 
 
-def add_alert(host_results, port, line):
-    """Add line to list of alerts in host_results."""
+def add_alert(host_results, host, port, line):
+    """Log alert, and add line to list of alerts in host_results."""
+    filtered_line = re.sub(REMOVE_PREPEND_ALERTS, '', line)
     if 'alerts' not in host_results:
         host_results['alerts'] = {}
     if port not in host_results['alerts']:
-        host_results['alerts'][port] = [line]
+        host_results['alerts'][port] = [filtered_line]
     else:
-        host_results['alerts'][port].append(line)
+        host_results['alerts'][port].append(filtered_line)
+    logging.log(ALERT, f"{host}:{port} {filtered_line}")
 
 
 def get_binary(tool):
