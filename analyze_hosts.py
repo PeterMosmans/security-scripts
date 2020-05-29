@@ -577,6 +577,9 @@ def check_nmap_log_for_alerts(logfile, host_results, host):
                   '/' in line[:7] and \
                   line[:(line.index('/'))].isdecimal():
                     port = int(line[:(line.index('/'))])
+                for keyword in NMAP_INFO:
+                    if keyword in line:
+                        add_info(host_results, host, port, line)
                 for keyword in NMAP_ALERTS:
                     if keyword in line:
                         add_alert(host_results, host, port, line)
@@ -602,6 +605,18 @@ def add_alert(host_results, host, port, line):
     else:
         host_results['alerts'][port].append(filtered_line.strip())
     logging.log(ALERT, f"{host}:{port} {filtered_line.strip()}")
+
+
+def add_info(host_results, host, port, line):
+    """Log info, and add line to list of info in host_results."""
+    filtered_line = re.sub(REMOVE_PREPEND_ALERTS, '', line).strip()
+    if 'info' not in host_results:
+        host_results['info'] = {}
+    if port not in host_results['info']:
+        host_results['info'][port] = [filtered_line]
+    else:
+        host_results['info'][port].append(filtered_line)
+    logging.info(f"{host}:{port} {filtered_line}")
 
 
 def get_binary(tool):
