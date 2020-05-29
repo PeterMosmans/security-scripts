@@ -232,11 +232,12 @@ def check_redirect(url, port, options, host_results):
                            headers={'Host': 'EVIL-INSERTED-HOST',
                                     'User-Agent': options['user_agent']},
                            allow_redirects=False)
-    if request and request.status_code == 302:
-        if 'Location' in request.headers:
-            if 'EVIL-INSERTED-HOST' in request.headers['Location']:
-                add_alert(host_results, url, port,
-                          f"{url} vulnerable to open insecure redirect: {request.headers['Location']}")
+    if request and request.status_code == 302 and \
+       'Location' in request.headers and \
+       'EVIL-INSERTED-HOST' in request.headers['Location']:
+        add_item(host_results, url, port,
+                  f"{url} vulnerable to open insecure redirect: {request.headers['Location']}",
+                 ALERT)
 
 
 def check_headers(url, port, options, host_results, ssl=False):
@@ -253,13 +254,14 @@ def check_headers(url, port, options, host_results, ssl=False):
         security_headers.append('Strict-Transport-Security')
     if request.status_code == 200:
         if 'X-Frame-Options' not in request.headers:
-            add_alert(host_results, url, port, f"{url} lacks an X-Frame-Options header")
+            add_item(host_results, url, port, f"{url} lacks an X-Frame-Options header", ALERT)
         elif '*' in request.headers['X-Frame-Options']:
-            add_alert(host_results, url, port,
-                      f"{url} has an insecure X-Frame-Options header: {request.headers['X-Frame-Options']}")
+            add_item(host_results, url, port,
+                      f"{url} has an insecure X-Frame-Options header: {request.headers['X-Frame-Options']}",
+                      ALERT)
         for header in security_headers:
             if header not in request.headers:
-                add_alert(host_results, url, port, f"{url} lacks a {header} header")
+                add_item(host_results, url, port, f"{url} lacks a {header} header", ALERT)
 
 
 def check_compression(url, port, options, host_results, ssl=False):
@@ -284,13 +286,11 @@ def check_compression(url, port, options, host_results, ssl=False):
         if request and request.status_code == 200:
             if 'Content-Encoding' in request.headers:
                 if compression in request.headers['Content-Encoding']:
-                    add_alert(host_results, url, port, f"{url} supports {compression} compression")
+                    add_item(host_results, url, port, f"{url} supports {compression} compression", ALERT)
 
 
 def is_admin():
-    """
-    Check whether script is executed using root privileges.
-    """
+    """Check whether script is executed using root privileges."""
     if os.name == 'nt':
         try:
             import ctypes
@@ -462,11 +462,11 @@ def append_file(logfile, options, input_file):
 
 def compact_strings(lines, options):
     """Remove empty and remarked lines."""
-    if not options['compact']:
-        return ''.join([x for x in lines])
-    return ''.join([x for x in lines if
-                      not (x == '\n') and
-                      not x.startswith('#')])
+    if options['compact']:
+        return ''.join([x for x in lines if
+                        not (x == '\n') and
+                        not x.startswith('#')])
+    return lines
 
 
 def do_curl(host, port, options, logfile, host_results):
@@ -500,12 +500,11 @@ def do_nikto(host, port, options, logfile, host_results):
     if port == 443:
         command.append('-ssl')
         if options['proxy']:
-            command += ['-useproxy', 'https://' + options['proxy']]
-    else:
-        if options['proxy']:
-            command += ['-useproxy', 'http://' + options['proxy']]
+            command += ['-useproxy', f'https://{options["proxy"]}']
+    elif options['proxy']:
+        command += ['-useproxy', f'http://{options["proxy"]}']
     if options['username'] and options['password']:
-        command += ['-id', options['username'] + ':' + options['password']]
+        command += ['-id', f'{options["username"]}:{options["password"]}']
     logging.info('%s Starting nikto on port %s', host, port)
     _result, stdout, _stderr = execute_command(command, options, logfile)  # pylint: disable=unused-variable
     check_strings_for_alerts(stdout, NIKTO_ALERTS, host_results, host, port)
@@ -582,13 +581,13 @@ def check_nmap_log_for_alerts(logfile, host_results, host):
                   '/' in line[:7] and \
                   line[:(line.index('/'))].isdecimal():
                     port = int(line[:(line.index('/'))])
-                line = re.sub(REMOVE_PREPEND_LINE, '', line).strip()
+                filtered_line = re.sub(REMOVE_PREPEND_LINE, '', line).strip()
                 for keyword in NMAP_INFO:
                     if f'{keyword}: ' in line:
-                        add_info(host_results, host, port, line)
+                        add_item(host_results, host, port, filtered_line, logging.INFO)
                 for keyword in NMAP_ALERTS:
                     if keyword in line:
-                        add_alert(host_results, host, port, line)
+                        add_item(host_results, host, port, filtered_line, ALERT)
     except (IOError, OSError) as exception:
         logging.error('FAILED: Could not read %s (%s)', logfile, exception)
 
@@ -598,30 +597,24 @@ def check_strings_for_alerts(strings, keywords, host_results, host, port):
     for line in strings:  # Highly inefficient 'brute-force' check
         for keyword in keywords:
             if keyword in line:
-                add_alert(host_results, host, port, line)
+                add_item(host_results, host, port, line, ALERT)
 
 
-def add_alert(host_results, host, port, line):
-    """Log alert, and add line to list of alerts in host_results."""
-
-    if 'alerts' not in host_results:
-        host_results['alerts'] = {}
-    if port not in host_results['alerts']:
-        host_results['alerts'][port] = [line]
+def add_item(host_results, host, port, line, logging_type):
+    """Log item, and add line to the corresponding key in host_results.
+    logging_type can be INFO or ALERT.
+    """
+    if logging_type == logging.INFO:
+        key = 'info'
     else:
-        host_results['alerts'][port].append(line)
-    logging.log(ALERT, f"{host}:{port} {line}")
-
-
-def add_info(host_results, host, port, line):
-    """Log info, and add line to list of info in host_results."""
-    if 'info' not in host_results:
-        host_results['info'] = {}
-    if port not in host_results['info']:
-        host_results['info'][port] = [line]
+        key = 'alerts'
+    if key not in host_results:
+        host_results[key] = {}
+    if port not in host_results[key]:
+        host_results[key][port] = [line]
     else:
-        host_results['info'][port].append(line)
-    logging.info(f"{host}:{port} {line}")
+        host_results[key][port].append(line)
+    logging.log(logging_type, f"{host}:{port} {line}")
 
 
 def get_binary(tool):
