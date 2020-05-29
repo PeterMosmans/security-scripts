@@ -73,15 +73,17 @@ NMAP_ALERTS = [
     'hmac-md5',
     'hmac-sha1',
     'message_signing: disabled',
+    'mountd ',
     'msrpc',
     'netbios-ssn ',
     'ssh-dss',
     'umac-64',
 ]
 NMAP_INFO = [
-    'banner: '
+    'banner: ',
     'http-server-header: ',
-    'http-title: '
+    'http-title: ',
+    'smtp-open-relay: ',
     ]
 NMAP_ARGUMENTS = ["-sV", "--open"]  # A list of default arguments to pass to nmap
 NMAP_SCRIPTS = ['banner', 'dns-nsid', 'dns-recursion', 'http-cisco-anyconnect',
