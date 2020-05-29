@@ -49,7 +49,7 @@ except ImportError:
 
 
 NAME = 'analyze_hosts'
-VERSION = '1.1.0'
+VERSION = '1.3.0'
 ALLPORTS = [(22, 'ssh'), (25, 'smtp'), (80, 'http'), (443, 'https'),
             (465, 'smtps'), (993, 'imaps'), (995, 'pop3s'),
             (8080, 'http-proxy')]
@@ -302,9 +302,7 @@ def is_admin():
 
 
 def preflight_checks(options):
-    """
-    Check if all tools are there, and disable tools automatically.
-    """
+    """Check if all tools are there, and disable tools automatically."""
     try:
         if options['resume']:
             if not os.path.isfile(options['queuefile']) or \
@@ -346,9 +344,9 @@ def preflight_checks(options):
             version = '--version'
             if tool == 'nikto':
                 version = '-Version'
-            if tool == 'droopescan':
+            elif tool == 'droopescan':
                 version = 'stats'
-            result, stdout, stderr = execute_command([get_binary(tool), version], options)
+            result, stdout, stderr = execute_command([get_binary(tool), version], options, keep_endings=False)
             options[f"version_{tool}"] = stdout
             if not result:
                 if tool == 'nmap':
@@ -386,7 +384,7 @@ def prepare_nmap_arguments(options):
     options['nmap_arguments'] = ' '.join(arguments)
 
 
-def execute_command(cmd, options, logfile=False):
+def execute_command(cmd, options, logfile=False, keep_endings=True):
     """Execute system command.
 
     If logfile is provided, will add the command as well as stdout and stderr
@@ -409,8 +407,8 @@ def execute_command(cmd, options, logfile=False):
     try:
         process = subprocess.run(cmd, encoding='utf-8', text=True, capture_output=True)
         # For easier processing, split string into lines
-        stdout = process.stdout.splitlines(True)
-        stderr = process.stderr.splitlines(True)
+        stdout = process.stdout.splitlines(keep_endings)
+        stderr = process.stderr.splitlines(keep_endings)
         result = not process.returncode
     except OSError as exception:
         logging.error('Error while executing %s: %s', cmd, exception)
