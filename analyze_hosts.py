@@ -58,10 +58,6 @@ NIKTO_ALERTS = ['+ OSVDB-',
                 "Entry '/index.php/user/register/' in robots.txt returned a non-forbidden or redirect HTTP code"]
 NMAP_ALERTS = [
     '3des-cbc',
-    'Computer name: ',
-    'Domain name:',
-    'NetBIOS computer name:',
-    'NetBIOS user:',
     'arcfour',
     'blowfish-cbc',
     'cast128-cbc',
@@ -83,6 +79,7 @@ NMAP_ALERTS = [
 NMAP_INFO = [
     'Computer name',
     'Domain name',
+    'NetBIOS computer name',
     'authentication_level',
     'banner',
     'challenge_response',
