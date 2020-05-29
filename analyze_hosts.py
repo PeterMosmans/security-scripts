@@ -107,8 +107,8 @@ TESTSSL_ALERTS = [
     "TLS1: ",
     "VULNERABLE",
 ]
-# A regular expression of prepend characters to remove in an alert
-REMOVE_PREPEND_ALERTS = r'^[| _+]*'
+# A regular expression of prepend characters to remove in a line
+REMOVE_PREPEND_LINE = r'^[| _+]*'
 UNKNOWN = -1
 # The program has the following loglevels:
 # logging.DEBUG = 10    debug messages (module constant)
@@ -585,8 +585,9 @@ def check_nmap_log_for_alerts(logfile, host_results, host):
                   '/' in line[:7] and \
                   line[:(line.index('/'))].isdecimal():
                     port = int(line[:(line.index('/'))])
+                line = re.sub(REMOVE_PREPEND_LINE, '', line).strip()
                 for keyword in NMAP_INFO:
-                    if keyword in line:
+                    if f'{keyword}: ' in line:
                         add_info(host_results, host, port, line)
                 for keyword in NMAP_ALERTS:
                     if keyword in line:
@@ -605,26 +606,25 @@ def check_strings_for_alerts(strings, keywords, host_results, host, port):
 
 def add_alert(host_results, host, port, line):
     """Log alert, and add line to list of alerts in host_results."""
-    filtered_line = re.sub(REMOVE_PREPEND_ALERTS, '', line)
+
     if 'alerts' not in host_results:
         host_results['alerts'] = {}
     if port not in host_results['alerts']:
-        host_results['alerts'][port] = [filtered_line.strip()]
+        host_results['alerts'][port] = [line]
     else:
-        host_results['alerts'][port].append(filtered_line.strip())
-    logging.log(ALERT, f"{host}:{port} {filtered_line.strip()}")
+        host_results['alerts'][port].append(line)
+    logging.log(ALERT, f"{host}:{port} {line}")
 
 
 def add_info(host_results, host, port, line):
     """Log info, and add line to list of info in host_results."""
-    filtered_line = re.sub(REMOVE_PREPEND_ALERTS, '', line).strip()
     if 'info' not in host_results:
         host_results['info'] = {}
     if port not in host_results['info']:
-        host_results['info'][port] = [filtered_line]
+        host_results['info'][port] = [line]
     else:
-        host_results['info'][port].append(filtered_line)
-    logging.info(f"{host}:{port} {filtered_line}")
+        host_results['info'][port].append(line)
+    logging.info(f"{host}:{port} {line}")
 
 
 def get_binary(tool):
