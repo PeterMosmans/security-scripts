@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.2.0](https://github.com/PeterMosmans/security-scripts/compare/v1.1.0...v1.2.0) (2020-05-29)
+
+
+### Features
+
+* add more nmap alerts and info ([6371495](https://github.com/PeterMosmans/security-scripts/commit/637149586d13dc30e793a47100f67d38533e6fb2))
+* add more nmap info strings ([7aa7045](https://github.com/PeterMosmans/security-scripts/commit/7aa704562585fba37b909f678e84630e161c9c47))
+* remove more prepended characters before alerts / info ([cdd5cc9](https://github.com/PeterMosmans/security-scripts/commit/cdd5cc940a1fac056ec7b93f0e3b1528dc357cab))
+* store obtained information in new info value ([81a6fbd](https://github.com/PeterMosmans/security-scripts/commit/81a6fbdd810549930dff235b342412693cd647bf))
+
+
+### Bug Fixes
+
+* move nmap alert strings to info ([3c2c281](https://github.com/PeterMosmans/security-scripts/commit/3c2c28135837d206802522b4c4e2d889ec7b007d))
+
 ## [1.1.0](https://github.com/PeterMosmans/security-scripts/compare/v1.0.0...v1.1.0) (2020-05-28)
 
 
