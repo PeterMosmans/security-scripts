@@ -79,11 +79,19 @@ NMAP_ALERTS = [
     'ssh-dss',
     'umac-64',
 ]
+# All these keywords will be suffixed with ': '
 NMAP_INFO = [
-    'banner: ',
-    'http-server-header: ',
-    'http-title: ',
-    'smtp-open-relay: ',
+    'Computer name',
+    'Domain name',
+    'authentication_level',
+    'banner',
+    'challenge_response',
+    'http-server-header',
+    'http-title',
+    'message_signing',
+    'nbstat'
+    'smb-security-mode',
+    'smtp-open-relay',
     ]
 NMAP_ARGUMENTS = ["-sV", "--open"]  # A list of default arguments to pass to nmap
 NMAP_SCRIPTS = ['banner', 'dns-nsid', 'dns-recursion', 'http-cisco-anyconnect',
