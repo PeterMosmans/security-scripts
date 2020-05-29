@@ -579,13 +579,12 @@ def check_nmap_log_for_alerts(logfile, host_results, host):
                   '/' in line[:7] and \
                   line[:(line.index('/'))].isdecimal():
                     port = int(line[:(line.index('/'))])
-                filtered_line = re.sub(REMOVE_PREPEND_LINE, '', line).strip()
                 for keyword in NMAP_INFO:
                     if f'{keyword}: ' in line:
-                        add_item(host_results, host, port, filtered_line, logging.INFO)
+                        add_item(host_results, host, port, line, logging.INFO)
                 for keyword in NMAP_ALERTS:
                     if keyword in line:
-                        add_item(host_results, host, port, filtered_line, ALERT)
+                        add_item(host_results, host, port, line, ALERT)
     except (IOError, OSError) as exception:
         logging.error('FAILED: Could not read %s (%s)', logfile, exception)
 
@@ -602,6 +601,7 @@ def add_item(host_results, host, port, line, logging_type):
     """Log item, and add line to the corresponding key in host_results.
     logging_type can be INFO or ALERT.
     """
+    filtered_line = re.sub(REMOVE_PREPEND_LINE, '', line).strip()
     if logging_type == logging.INFO:
         key = 'info'
     else:
@@ -609,10 +609,10 @@ def add_item(host_results, host, port, line, logging_type):
     if key not in host_results:
         host_results[key] = {}
     if port not in host_results[key]:
-        host_results[key][port] = [line]
+        host_results[key][port] = [filtered_line]
     else:
-        host_results[key][port].append(line)
-    logging.log(logging_type, f"{host}:{port} {line}")
+        host_results[key][port].append(filtered_line)
+    logging.log(logging_type, f"{host}:{port} {filtered_line}")
 
 
 def get_binary(tool):
