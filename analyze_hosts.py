@@ -100,7 +100,7 @@ TESTSSL_ALERTS = [
     "VULNERABLE",
 ]
 # A regular expression of prepend characters to remove in an alert
-REMOVE_PREPEND_ALERTS = r'^[| +]*'
+REMOVE_PREPEND_ALERTS = r'^[| _+]*'
 UNKNOWN = -1
 # The program has the following loglevels:
 # logging.DEBUG = 10    debug messages (module constant)
