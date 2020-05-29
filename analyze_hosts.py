@@ -474,14 +474,12 @@ def do_curl(host, port, options, logfile, host_results):
     if options['trace']:
         command = [get_binary('curl'), '-sIA', "'{0}'".format(options['user_agent']),
                    '--connect-timeout', str(options['timeout']), '-X', 'TRACE',
-                   '{0}:{1}'.format(host, port)]
+                   f'{host}:{port}']
         _result, _stdout, _stderr = execute_command(command, options, logfile)  # pylint: disable=unused-variable
 
 
 def do_droopescan(url, port, cms, options, logfile, host_results):
-    """
-    Perform a droopescan of type @cmd
-    """
+    """Perform a droopescan of type cms."""
     if options['droopescan']:
         logging.debug('Performing %s droopescan on %s', cms, url)
         command = [get_binary('droopescan'), 'scan', cms, '--quiet', '--url', url]
@@ -722,16 +720,14 @@ def remove_from_queue(finished_queue, options, stop_event):
 
 
 def use_tool(tool, host, port, protocol, options, logfile, host_results):
-    """
-    Wrapper to see if tool is available, and to start correct tool.
-    """
+    """Check if tool is available, and start correct one."""
     if not options[tool]:
         return
     if tool == 'nikto':
         do_nikto(host, port, options, logfile, host_results)
-    if tool == 'curl':
+    elif tool == 'curl':
         do_curl(host, port, options, logfile, host_results)
-    if tool == 'testssl.sh':
+    elif tool == 'testssl.sh':
         do_testssl(host, port, protocol, options, logfile, host_results)
 
 
@@ -842,9 +838,7 @@ def loop_hosts(options, target_list, results):
 
 
 def read_targets(filename):
-    """
-    Return a list of targets.
-    """
+    """Return a list of targets."""
     target_list = []
     try:
         with open(filename, 'r') as queuefile:
@@ -992,6 +986,7 @@ def setup_logging(options):
 
 
 def init_results(options):
+    """Initialize the results object with basic scan information."""
     # For now, no support for resumed scans
     results = {}
     results['arguments'] = options
@@ -1001,6 +996,7 @@ def init_results(options):
 
 
 def write_json(results, options):
+    """Write results to JSON file."""
     if options['json']:
         results['date_finish'] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         json_results = json.dumps(results)
