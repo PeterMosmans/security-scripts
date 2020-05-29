@@ -214,8 +214,8 @@ def http_checks(host, port, protocol, options, logfile, host_results):
         analyze_url(url, port, options, logfile, host_results)
     if options['http']:
         check_redirect(url, port, options, host_results)
-        check_headers(url, port, options, host_results, ssl=ssl)
-        check_compression(url, port, options, host_results, ssl=ssl)
+        check_headers(url, port, options, host_results, use_ssl=ssl)
+        check_compression(url, port, options, host_results, use_ssl=ssl)
 
 
 def tls_checks(host, port, protocol, options, logfile, host_results):
@@ -236,11 +236,10 @@ def check_redirect(url, port, options, host_results):
        'Location' in request.headers and \
        'EVIL-INSERTED-HOST' in request.headers['Location']:
         add_item(host_results, url, port,
-                  f"{url} vulnerable to open insecure redirect: {request.headers['Location']}",
-                 ALERT)
+                 f"{url} vulnerable to open insecure redirect: {request.headers['Location']}", ALERT)
 
 
-def check_headers(url, port, options, host_results, ssl=False):
+def check_headers(url, port, options, host_results, use_ssl=False):
     """Check HTTP headers for omissions / insecure settings."""
     request = requests_get(url, options,
                            headers={'User-Agent': options['user_agent']},
@@ -250,29 +249,28 @@ def check_headers(url, port, options, host_results, ssl=False):
     logging.debug("%s Received status %s and the following headers: %s", url,
                   request.status_code, request.headers)
     security_headers = ['X-Content-Type-Options', 'X-XSS-Protection']
-    if ssl:
+    if use_ssl:
         security_headers.append('Strict-Transport-Security')
     if request.status_code == 200:
         if 'X-Frame-Options' not in request.headers:
             add_item(host_results, url, port, f"{url} lacks an X-Frame-Options header", ALERT)
         elif '*' in request.headers['X-Frame-Options']:
             add_item(host_results, url, port,
-                      f"{url} has an insecure X-Frame-Options header: {request.headers['X-Frame-Options']}",
-                      ALERT)
+                     f"{url} has an insecure X-Frame-Options header: {request.headers['X-Frame-Options']}", ALERT)
         for header in security_headers:
             if header not in request.headers:
                 add_item(host_results, url, port, f"{url} lacks a {header} header", ALERT)
 
 
-def check_compression(url, port, options, host_results, ssl=False):
+def check_compression(url, port, options, host_results, use_ssl=False):
     """Check which compression methods are supported."""
     request = requests_get(url, options, allow_redirects=True)
     if not request:
         return
     if request.history:
         # check if protocol was changed: if so, abort checks
-        if (not ssl and 'https' in request.url) or \
-           (ssl and 'https' not in request.url):
+        if (not use_ssl and 'https' in request.url) or \
+           (use_ssl and 'https' not in request.url):
             logging.debug('%s protocol has changed while testing to %s - aborting compression test',
                           url, request.url)
             return
@@ -831,7 +829,8 @@ def loop_hosts(options, target_list, results):
     logging.debug('Work queue is empty - waiting for threads to finish')
     stop_event.set()  # signal that the work_queue is empty
     while not output_queue.empty() or not finished_queue.empty():
-        logging.debug('%s threads running. %s output and %s finished queue', threading.activeCount(), output_queue.qsize(), finished_queue.qsize())
+        logging.debug('%s threads running. %s output and %s finished queue',
+                      threading.activeCount(), output_queue.qsize(), finished_queue.qsize())
         time.sleep(1)
 
 
