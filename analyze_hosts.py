@@ -805,6 +805,8 @@ def do_wpscan(url, port, options, logfile):
             get_binary("wpscan"),
             "--format",
             "cli-no-color",
+            "--no-banner",
+            "--update",
             "--ignore-main-redirect",
             "--url",
             url,
