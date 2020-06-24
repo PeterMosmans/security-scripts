@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.3.0](https://github.com/PeterMosmans/security-scripts/compare/v1.2.0...v1.3.0) (2020-06-24)
+
+
+### Features
+
+* add support to keep or discard line endings from logfiles ([c87c07f](https://github.com/PeterMosmans/security-scripts/commit/c87c07f35603f2304e499d791bd5dbbaec93ed10))
+* optimize WPscan by enforcing update and not showing banner ([b855bf4](https://github.com/PeterMosmans/security-scripts/commit/b855bf4a46f2936db2a638d4732c1a536d3eae2e))
+
+
+### Bug Fixes
+
+* ensure correct type is passed when parsing logs ([7c876f8](https://github.com/PeterMosmans/security-scripts/commit/7c876f8cba71a6e850bae4e40082e4a6cb8b39ea))
+* ensure proper logging when not compacting strings ([ed2c84c](https://github.com/PeterMosmans/security-scripts/commit/ed2c84c62e734f3bd77cc417b74a4f40bd7845bc))
+* ensure that nmap logfile gets properly concatenated into log ([8b5a633](https://github.com/PeterMosmans/security-scripts/commit/8b5a6331e1588f6d1bbd0798708687b622b3f44a))
+* ensure universal similar line endings ([feb6ab0](https://github.com/PeterMosmans/security-scripts/commit/feb6ab0282f6962e271c41463ec7b090dc0b3b89))
+
 ## [1.2.0](https://github.com/PeterMosmans/security-scripts/compare/v1.1.0...v1.2.0) (2020-05-29)
 
 
