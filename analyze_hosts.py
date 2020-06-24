@@ -571,7 +571,7 @@ def compact_strings(lines, options):
     """Remove empty and remarked lines."""
     if options["compact"]:
         return "".join([x for x in lines if not (x == "\n") and not x.startswith("#")])
-    return lines
+    return "".join(lines)
 
 
 def do_curl(host, port, options, logfile, host_results):
