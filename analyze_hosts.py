@@ -561,7 +561,7 @@ def append_file(logfile, options, input_file):
         if os.path.isfile(input_file) and os.stat(input_file).st_size:
             with open(input_file, "r") as read_file:
                 logging.debug("Appending input_file to logfile")
-                append_logs(logfile, options, read_file.read(), "")
+                append_logs(logfile, options, read_file.read().splitlines(True), [])
         os.remove(input_file)
     except (IOError, OSError) as exception:
         logging.error("FAILED: Could not read %s (%s)", input_file, exception)
