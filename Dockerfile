@@ -1,8 +1,13 @@
 # Use a base image to build (and download) the tools on
 FROM python:slim-buster as build
 
-LABEL maintainer="support@go-forward.net"
-LABEL vendor="Go Forward"
+LABEL maintainer="support@go-forward.net" \
+      vendor="Go Forward" \
+      org.label-schema.name="analyze_hosts" \
+      org.label-schema.description="A tool around several security tools to simplify scanning of hosts for network vulnerabilities" \
+      org.label-schema.url="https://github.com/PeterMosmans/security-scripts" \
+      org.label-schema.vcs-url="https://github.com/PeterMosmans/security-scripts" \
+      org.label-schema.maintainer="support@go-forward.net"
 
 # Create virtual environment
 RUN python3 -m venv /opt/venv
