@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.4.0](https://github.com/PeterMosmans/security-scripts/compare/v1.3.0...v1.4.0) (2020-08-03)
+
+
+### Features
+
+* add Dockerfile ([1deb82d](https://github.com/PeterMosmans/security-scripts/commit/1deb82db8021e2ee797e7c4b27d2a312019bfe0e))
+
+
+### Bug Fixes
+
+* change testssl.sh parameter ([1fc2f4d](https://github.com/PeterMosmans/security-scripts/commit/1fc2f4db9f01d50c8f43a6e2b38ec2aa6b6a5f8c))
+
 ## [1.3.0](https://github.com/PeterMosmans/security-scripts/compare/v1.2.0...v1.3.0) (2020-06-24)
 
 
