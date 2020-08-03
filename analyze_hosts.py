@@ -764,7 +764,7 @@ def do_testssl(host, port, protocol, options, logfile, host_results):
     """Check SSL/TLS configuration and vulnerabilities."""
     # --color 0            Don't use color escape codes
     # --each-cipher        Checks each local cipher remotely
-    # --pfs                Check (perfect) forward secrecy settings
+    # --fs                 Check (perfect) forward secrecy settings
     # --protocols          Check TLS/SSL protocols
     # --quiet              Don't output the banner
     # --server-defaults    Display the server's default picks and certificate info
@@ -776,7 +776,7 @@ def do_testssl(host, port, protocol, options, logfile, host_results):
         "--color",
         "0",
         "--each-cipher",
-        "--pfs",
+        "--fs",
         "--protocols",
         "--quiet",
         "--server-defaults",
