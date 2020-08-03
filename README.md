@@ -8,6 +8,14 @@ Note that it is highly recommended to use `analyze_hosts.py` as it is the most
 recent version. No new features will be added to the Bash version
 `analyze_hosts.sh`.
 
+`analyze_hosts` is also available as Docker image, including the open source
+scanners `droopescan`, `nmap`, `Nikto` and `testssl.sh`. Build it yourself using
+the supplied Dockerfile, or grab the image from Docker Hub
+
+```
+docker run --rm gofwd/analyze_hosts
+```
+
 ## analyze_hosts.py
 
 Build status for master branch:
@@ -25,15 +33,6 @@ As the scan output can be written to a JSON file it can be used to generate
 deltas (differences) between scans, or to use the output for further inspection.
 
 The script runs under Python 3. Using Python 2 is not supported anymore.
-
-**PLEASE NOTE** : As of 06-06-2019 Python 3 is used by default. One library that
-`analyze_hosts` uses ((Wappalyzer-python) hasn't yet uploaded its Python 3
-capable version to PyPI. The correct version can be installed manually by
-performing
-
-```
-sudo pip3 install -e "git+https://github.com/KhasMek/python-Wappalyzer@python3#egg=python-wappalyzer"
-```
 
 ### installation
 
@@ -56,18 +55,17 @@ pip install -r requirements.txt
 ### usage
 
 ```
-usage: analyze_hosts.py [-h] [--version] [--dry-run] [-i INPUTFILE]
-                        [-o OUTPUT_FILE] [--compact] [--queuefile QUEUEFILE]
-                        [--resume] [--force] [--debug] [-v] [-q] [--allports]
-                        [-n] [-p PORT] [--up] [--udp] [--framework] [--http]
-                        [--json JSON] [--ssl] [--nikto] [--sslcert] [-t] [-w]
-                        [--proxy PROXY] [--timeout TIMEOUT]
-                        [--threads THREADS] [--user-agent USER_AGENT]
-                        [--password PASSWORD] [--username USERNAME]
-                        [--maxtime MAXTIME]
-                        [target]
+usage: analyze_hosts [-h] [--version] [--dry-run] [-i INPUTFILE]
+                     [-o OUTPUT_FILE] [--compact] [--queuefile QUEUEFILE]
+                     [--resume] [--force] [--debug] [-v] [-q] [--allports]
+                     [-n] [-p PORT] [--up] [--udp] [--framework] [--http]
+                     [--json JSON] [--ssl] [--nikto] [--sslcert] [-t] [-w]
+                     [--proxy PROXY] [--timeout TIMEOUT] [--threads THREADS]
+                     [--user-agent USER_AGENT] [--password PASSWORD]
+                     [--username USERNAME] [--maxtime MAXTIME]
+                     [target]
 
-analyze_hosts version 1.0.0 - scans one or more hosts for security misconfigurations
+analyze_hosts version 1.3.0 - scans one or more hosts for security misconfigurations
 
 Please note that this is NOT a stealthy scan tool: By default, a TCP and UDP
 portscan will be launched, using some of nmap's interrogation scripts.
@@ -119,9 +117,19 @@ optional arguments:
                         Custom User-Agent to use (default analyze_hosts)
   --password PASSWORD   Password for HTTP basic host authentication
   --username USERNAME   Username for HTTP basic host authentication
-  --maxtime MAXTIME     Timeout for scans in seconds (default 1200)
+  --maxtime MAXTIME     Timeout for scans in seconds (default 600)
 
 ```
+
+**PLEASE NOTE** : As of 06-06-2019 Python 3 is used by default. One library that
+`analyze_hosts` uses ((Wappalyzer-python) hasn't yet uploaded its Python 3
+capable version to PyPI. The correct version can be installed manually by
+performing
+
+```
+sudo pip3 install -e "git+https://github.com/KhasMek/python-Wappalyzer@python3#egg=python-wappalyzer"
+```
+
 
 The script `analyze_hosts` automatically execute other scans (based on their
 fingerprint or open ports):
