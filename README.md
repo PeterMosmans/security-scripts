@@ -65,7 +65,7 @@ usage: analyze_hosts [-h] [--version] [--dry-run] [-i INPUTFILE]
                      [--username USERNAME] [--maxtime MAXTIME]
                      [target]
 
-analyze_hosts version 1.3.0 - scans one or more hosts for security misconfigurations
+analyze_hosts version 1.4.0 - scans one or more hosts for security misconfigurations
 
 Please note that this is NOT a stealthy scan tool: By default, a TCP and UDP
 portscan will be launched, using some of nmap's interrogation scripts.
