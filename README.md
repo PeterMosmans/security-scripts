@@ -1,8 +1,8 @@
 # security-scripts
 
-A collection of security related Python and Bash shell scripts. For the shell
-scripts no fancy programming framework required, all that is needed is a Bash
-shell.
+A collection of security related Python and Bash shell scripts, mainly revolving
+around testing hosts for security vulnerabilities. For the shell scripts no
+fancy programming framework is required, all that is needed is a Bash shell.
 
 Note that it is highly recommended to use `analyze_hosts.py` as it is the most
 recent version. No new features will be added to the Bash version
@@ -24,25 +24,23 @@ Status](https://travis-ci.org/PeterMosmans/security-scripts.svg?branch=master)](
 
 A simple wrapper script around several open source security tools to simplify
 scanning of hosts for network vulnerabilities. The script lets you analyze one
-or several hosts for common misconfiguration vulnerabilities and weaknesses. The
-main objectives for the script is to make it as easy as possible to perform
+or several hosts for common misconfiguration vulnerabilities and weaknesses.
+
+The main objectives for the script is to make it as easy as possible to perform
 generic security tests, without any heavy prerequisites, make the output as
-informative as possible, and use open source tools...
+informative as possible, and use open source tools. It can easily be used as
+scheduled task, or be implemented in Continuous Integration environments.
 
 As the scan output can be written to a JSON file it can be used to generate
 deltas (differences) between scans, or to use the output for further inspection.
 
 The script runs under Python 3. Using Python 2 is not supported anymore.
 
-### installation
+### Installation
 
-The only prerequisites are Python 3, with the modules (see requirements.txt):
-
+Note that you can also run `analyze_hosts` straight from a Docker image:
 ```
-droopescan
-python-nmap
-python-wappalyzer
-requests
+docker run --rm gofwd/analyze_hosts
 ```
 
 One-time installation steps without virtualenv:
@@ -52,20 +50,28 @@ git clone https://github.com/PeterMosmans/security-scripts
 pip install -r requirements.txt
 ```
 
-### usage
+**PLEASE NOTE** : As of 06-06-2019 Python 3 is used by default. One library that
+`analyze_hosts` uses ((Wappalyzer-python) hasn't yet uploaded its Python 3
+capable version to PyPI. The correct version can be installed manually by
+performing
 
 ```
-usage: analyze_hosts [-h] [--version] [--dry-run] [-i INPUTFILE]
-                     [-o OUTPUT_FILE] [--compact] [--queuefile QUEUEFILE]
-                     [--resume] [--force] [--debug] [-v] [-q] [--allports]
-                     [-n] [-p PORT] [--up] [--udp] [--framework] [--http]
-                     [--json JSON] [--ssl] [--nikto] [--sslcert] [-t] [-w]
-                     [--proxy PROXY] [--timeout TIMEOUT] [--threads THREADS]
-                     [--user-agent USER_AGENT] [--password PASSWORD]
+sudo pip3 install -e "git+https://github.com/KhasMek/python-Wappalyzer@python3#egg=python-wappalyzer"
+```
+
+### Usage
+
+```
+usage: analyze_hosts [-h] [--version] [--dry-run] [-i INPUTFILE] [-o OUTPUT_FILE]
+                     [--compact] [--queuefile QUEUEFILE] [--resume] [--settings SETTINGS]
+                     [--force] [--debug] [-v] [-q] [--allports] [-n] [-p PORT]
+                     [--up] [--udp] [--framework] [--http] [--json JSON] [--ssl] [--nikto]
+                     [--sslcert] [-t] [-w] [--proxy PROXY] [--timeout TIMEOUT]
+                     [--threads THREADS] [--user-agent USER_AGENT] [--password PASSWORD]
                      [--username USERNAME] [--maxtime MAXTIME]
                      [target]
 
-analyze_hosts version 1.4.0 - scans one or more hosts for security misconfigurations
+analyze_hosts version 1.5.0 - scans one or more hosts for security misconfigurations
 
 Please note that this is NOT a stealthy scan tool: By default, a TCP and UDP
 portscan will be launched, using some of nmap's interrogation scripts.
@@ -93,6 +99,7 @@ optional arguments:
   --queuefile QUEUEFILE
                         the queuefile
   --resume              Resume working on the queue
+  --settings SETTINGS   Name of settings file to use (default analyze_hosts.yml)
   --force               Ignore / overwrite the queuefile
   --debug               Show debug information
   -v, --verbose         Be more verbose
@@ -121,16 +128,6 @@ optional arguments:
 
 ```
 
-**PLEASE NOTE** : As of 06-06-2019 Python 3 is used by default. One library that
-`analyze_hosts` uses ((Wappalyzer-python) hasn't yet uploaded its Python 3
-capable version to PyPI. The correct version can be installed manually by
-performing
-
-```
-sudo pip3 install -e "git+https://github.com/KhasMek/python-Wappalyzer@python3#egg=python-wappalyzer"
-```
-
-
 The script `analyze_hosts` automatically execute other scans (based on their
 fingerprint or open ports):
 
@@ -145,6 +142,22 @@ You can use the following environment variables (all uppercase) to specify the
 tools if they cannot be found in the standard paths:
 
 CURL, DROOPESCAN, NIKTO, OPENSSL, TESTSSL, WPSCAN
+
+### Suppressing false positives
+
+A settings file can be used (`--settings`) to configure or tweak scan parameters
+per host / port combination. This allows you to suppress false positives in scan
+results. Currently the Nikto ``Plugins`` and ``Tuning`` parameters are
+supported:
+
+Example settings file:
+```
+targets:
+  127.0.0.1:
+  - port: 80
+    nikto_plugins: "@@ALL"
+    nikto_tuning: x1
+```
 
 ### JSON format
 
