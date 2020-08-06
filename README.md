@@ -72,7 +72,7 @@ usage: analyze_hosts [-h] [--version] [--dry-run] [-i INPUTFILE] [-o OUTPUT_FILE
                      [--username USERNAME] [--maxtime MAXTIME]
                      [target]
 
-analyze_hosts version 1.5.0 - scans one or more hosts for security misconfigurations
+analyze_hosts version 1.6.0 - scans one or more hosts for security misconfigurations
 
 Please note that this is NOT a stealthy scan tool: By default, a TCP and UDP
 portscan will be launched, using some of nmap's interrogation scripts.
@@ -101,6 +101,8 @@ optional arguments:
                         the queuefile
   --resume              Resume working on the queue
   --settings SETTINGS   Name of settings file to use (default analyze_hosts.yml)
+  --exit-code           When supplied, return exit code 1 when alerts are
+                        discovered  
   --force               Ignore / overwrite the queuefile
   --debug               Show debug information
   -v, --verbose         Be more verbose
@@ -148,7 +150,7 @@ CURL, DROOPESCAN, NIKTO, OPENSSL, TESTSSL, WPSCAN
 
 A settings file can be used (`--settings`) to configure or tweak scan parameters
 per host / port combination. This allows you to suppress false positives in scan
-results. Currently the Nikto ``Plugins`` and ``Tuning`` parameters are
+results. Currently the Nikto `Plugins`, `Tuning` and `output` parameters are
 supported:
 
 Example settings file:
@@ -157,8 +159,12 @@ targets:
   127.0.0.1:
   - port: 80
     nikto_plugins: "@@ALL"
-    nikto_tuning: x1
+    nikto_tuning: "x1"
+    nikto_output: "report.html"
 ```
+
+This will supply the `-Plugins '@@ALL' -Tuning 'x1' -output 'report.html'
+parameters to Nikto.
 
 ### JSON format
 

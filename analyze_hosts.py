@@ -53,7 +53,7 @@ except ImportError as exception:
 
 
 NAME = "analyze_hosts"
-VERSION = "1.5.0"
+VERSION = "1.6.0"
 ALLPORTS = [
     (22, "ssh"),
     (25, "smtp"),
