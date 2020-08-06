@@ -933,7 +933,9 @@ def process_host(
             host_logfile = (
                 host + "-" + next(tempfile._get_candidate_names())
             )  # pylint: disable=protected-access
-            logging.debug("%s Processing (%s in queue)", host, host_queue.qsize())
+            logging.debug(
+                "%s Processing (%s items left in host queue)", host, host_queue.qsize()
+            )
             host_results = {}
             open_ports = do_portscan(
                 host, options, host_logfile, stop_event, host_results
@@ -973,7 +975,7 @@ def process_host(
             if not stop_event.isSet():  # Do not flag host as being done
                 results["results"][host] = host_results
                 finished_queue.put(host)
-                host_queue.task_done()
+            host_queue.task_done()
         except queue.Empty:
             break
     logging.debug(
@@ -1050,10 +1052,11 @@ def loop_hosts(options, target_list, results):
     if not stop_event.isSet():
         work_queue.join()  # block until the queue is empty
     logging.debug("Work queue is empty - waiting for threads to finish")
-    stop_event.set()  # signal that the work_queue is empty
-    while not output_queue.empty() or not finished_queue.empty():
+    while not stop_event.isSet() and (
+        not output_queue.empty() or not finished_queue.empty()
+    ):
         logging.debug(
-            "%s threads running. %s output and %s finished queue",
+            "%s threads running. %s items in output and %s items in finished queue",
             threading.activeCount(),
             output_queue.qsize(),
             finished_queue.qsize(),
