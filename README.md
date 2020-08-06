@@ -43,7 +43,8 @@ Note that you can also run `analyze_hosts` straight from a Docker image:
 docker run --rm gofwd/analyze_hosts
 ```
 
-One-time installation steps without virtualenv:
+One-time installation steps without virtualenv (all required Python libraries
+are specified in the `requirements.txt` file):
 
 ```
 git clone https://github.com/PeterMosmans/security-scripts
