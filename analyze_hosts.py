@@ -634,6 +634,8 @@ def do_nikto(host, port, options, logfile, host_results):
             ),
             {},
         )
+        if "nikto_output" in parameters:
+            command += "-output", parameters["nikto_output"]
         if "nikto_plugins" in parameters:
             command += "-Plugins", parameters["nikto_plugins"]
         if "nikto_tuning" in parameters:
