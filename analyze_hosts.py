@@ -1333,10 +1333,10 @@ def main():
     logging.log(STATUS, "%s starting", banner)
     preflight_checks(options)
     prepare_nmap_arguments(options)
-    logging.debug(options)
     if not options["resume"]:
         prepare_queue(options)
     options["settings"] = read_settings(options["settings"])
+    logging.debug(options)
     results = init_results(options)
     loop_hosts(options, read_targets(options["queuefile"]), results)
     write_json(results, options)
