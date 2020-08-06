@@ -42,17 +42,18 @@ except ImportError:
     sys.exit(-1)
 try:
     import requests
+    import yaml
     import Wappalyzer
-except ImportError:
+except ImportError as exception:
     print(
-        "[-] Please install required modules, e.g. " "pip3 install -r requirements.txt",
+        f"[-] Please install required modules, e.g. pip3 install -r requirements.txt: {exception}",
         file=sys.stderr,
     )
     sys.stderr.flush()
 
 
 NAME = "analyze_hosts"
-VERSION = "1.4.0"
+VERSION = "1.5.0"
 ALLPORTS = [
     (22, "ssh"),
     (25, "smtp"),
@@ -624,6 +625,19 @@ def do_nikto(host, port, options, logfile, host_results):
         command += ["-useproxy", f'http://{options["proxy"]}']
     if options["username"] and options["password"]:
         command += ["-id", f'{options["username"]}:{options["password"]}']
+    if host in options["settings"]["targets"]:
+        parameters = next(
+            (
+                item
+                for item in options["settings"]["targets"][host]
+                if item["port"] == port
+            ),
+            {},
+        )
+        if "nikto_plugins" in parameters:
+            command += "-Plugins", parameters["nikto_plugins"]
+        if "nikto_tuning" in parameters:
+            command += "-Tuning", parameters["nikto_tuning"]
     logging.info("%s Starting nikto on port %s", host, port)
     _result, stdout, _stderr = execute_command(
         command, options, logfile
@@ -1028,6 +1042,18 @@ def loop_hosts(options, target_list, results):
         time.sleep(1)
 
 
+def read_settings(filename):
+    """Return a list of settings parsed as an object."""
+    settings = {}
+    if os.path.isfile(filename):
+        try:
+            with open(filename) as yamlfile:
+                settings = yaml.safe_load(yamlfile)
+        except yaml.scanner.ScannerError as exception:
+            logging.error(f"Could not parse settings file {filename}: {exception}")
+    return settings
+
+
 def read_targets(filename):
     """Return a list of targets."""
     target_list = []
@@ -1102,6 +1128,12 @@ the Free Software Foundation, either version 3 of the License, or
     )
     parser.add_argument(
         "--resume", action="store_true", help="Resume working on the queue"
+    )
+    parser.add_argument(
+        "--settings",
+        action="store",
+        default="analyze_hosts.yml",
+        help="Name of settings file to use (default %(default)s)",
     )
     parser.add_argument(
         "--force", action="store_true", help="Ignore / overwrite the queuefile"
@@ -1279,6 +1311,7 @@ def main():
     logging.debug(options)
     if not options["resume"]:
         prepare_queue(options)
+    options["settings"] = read_settings(options["settings"])
     results = init_results(options)
     loop_hosts(options, read_targets(options["queuefile"]), results)
     write_json(results, options)
