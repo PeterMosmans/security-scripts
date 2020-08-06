@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.6.0](https://github.com/PeterMosmans/security-scripts/compare/v1.5.0...v1.6.0) (2020-08-06)
+
+
+### Features
+
+* add option to use exit code != 0 when alerts are detected ([ded66fa](https://github.com/PeterMosmans/security-scripts/commit/ded66fa26d8fc7141c709560383b505ce6d54ae8))
+* support more Nikto parameters ([d5592cc](https://github.com/PeterMosmans/security-scripts/commit/d5592ccda17fcc2bcf4559245066e01d59755d88))
+
+
+### Bug Fixes
+
+* ensure that Control-C is properly handled ([8b7c2de](https://github.com/PeterMosmans/security-scripts/commit/8b7c2deeba1a2e5d30b6f4630319a0a2355134a4))
+* ensure that settings file is not obligatory ([8698e9c](https://github.com/PeterMosmans/security-scripts/commit/8698e9c8ed50436455b28f64e5d7c95b503289ad))
+* in debug mode, show options after all options have been parsed ([890054f](https://github.com/PeterMosmans/security-scripts/commit/890054f9ceaa89dca12bc98e307412db84ad424b))
+
 ## [1.5.0](https://github.com/PeterMosmans/security-scripts/compare/v1.4.0...v1.5.0) (2020-08-06)
 
 
