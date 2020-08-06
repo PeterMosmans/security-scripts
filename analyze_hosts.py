@@ -285,6 +285,7 @@ def check_redirect(url, port, options, host_results):
             host_results,
             url,
             port,
+            options,
             f"{url} vulnerable to open insecure redirect: {request.headers['Location']}",
             ALERT,
         )
@@ -312,20 +313,31 @@ def check_headers(url, port, options, host_results, use_ssl=False):
     if request.status_code == 200:
         if "X-Frame-Options" not in request.headers:
             add_item(
-                host_results, url, port, f"{url} lacks an X-Frame-Options header", ALERT
+                host_results,
+                url,
+                port,
+                options,
+                f"{url} lacks an X-Frame-Options header",
+                ALERT,
             )
         elif "*" in request.headers["X-Frame-Options"]:
             add_item(
                 host_results,
                 url,
                 port,
+                options,
                 f"{url} has an insecure X-Frame-Options header: {request.headers['X-Frame-Options']}",
                 ALERT,
             )
         for header in security_headers:
             if header not in request.headers:
                 add_item(
-                    host_results, url, port, f"{url} lacks a {header} header", ALERT
+                    host_results,
+                    url,
+                    port,
+                    options,
+                    f"{url} lacks a {header} header",
+                    ALERT,
                 )
 
 
@@ -377,6 +389,7 @@ def check_compression(url, port, options, host_results, use_ssl=False):
                         host_results,
                         url,
                         port,
+                        options,
                         f"{url} supports {compression} compression",
                         ALERT,
                     )
@@ -644,7 +657,7 @@ def do_nikto(host, port, options, logfile, host_results):
     _result, stdout, _stderr = execute_command(
         command, options, logfile
     )  # pylint: disable=unused-variable
-    check_strings_for_alerts(stdout, NIKTO_ALERTS, host_results, host, port)
+    check_strings_for_alerts(stdout, NIKTO_ALERTS, host_results, host, port, options)
 
 
 def do_portscan(host, options, logfile, stop_event, host_results):
@@ -692,7 +705,7 @@ def do_portscan(host, options, logfile, stop_event, host_results):
             ]
             for port in ports:
                 open_ports.append([port, scanner[ip_address]["tcp"][port]["name"]])
-        check_nmap_log_for_alerts(temp_file, host_results, host)
+        check_nmap_log_for_alerts(temp_file, host_results, host, options)
         append_file(logfile, options, temp_file)
         if open_ports:
             logging.info("%s Found open TCP ports %s", host, open_ports)
@@ -718,7 +731,7 @@ def do_portscan(host, options, logfile, stop_event, host_results):
     return open_ports
 
 
-def check_nmap_log_for_alerts(logfile, host_results, host):
+def check_nmap_log_for_alerts(logfile, host_results, host, options):
     """Check for keywords in logfile and log them as alert."""
     try:
         if os.path.isfile(logfile) and os.stat(logfile).st_size:
@@ -735,24 +748,26 @@ def check_nmap_log_for_alerts(logfile, host_results, host):
                     port = int(line[: (line.index("/"))])
                 for keyword in NMAP_INFO:
                     if f"{keyword}: " in line:
-                        add_item(host_results, host, port, line, logging.INFO)
+                        add_item(host_results, host, port, options, line, logging.INFO)
                 for keyword in NMAP_ALERTS:
                     if keyword in line:
-                        add_item(host_results, host, port, line, ALERT)
+                        add_item(host_results, host, port, options, line, ALERT)
     except (IOError, OSError) as exception:
         logging.error("FAILED: Could not read %s (%s)", logfile, exception)
 
 
-def check_strings_for_alerts(strings, keywords, host_results, host, port):
+def check_strings_for_alerts(strings, keywords, host_results, host, port, options):
     """Check for keywords in strings and log them as alerts."""
     for line in strings:  # Highly inefficient 'brute-force' check
         for keyword in keywords:
             if keyword in line:
-                add_item(host_results, host, port, line, ALERT)
+                add_item(host_results, host, port, options, line, ALERT)
 
 
-def add_item(host_results, host, port, line, logging_type):
+def add_item(host_results, host, port, options, line, logging_type):
     """Log item, and add line to the corresponding key in host_results.
+    Set options["exit"] code when alerts are found.
+
     logging_type can be INFO or ALERT.
     """
     filtered_line = re.sub(REMOVE_PREPEND_LINE, "", line).strip()
@@ -760,6 +775,8 @@ def add_item(host_results, host, port, line, logging_type):
         key = "info"
     else:
         key = "alerts"
+        if options["exit_code"]:
+            options["exit"] = 1
     if key not in host_results:
         host_results[key] = {}
     if port not in host_results[key]:
@@ -810,7 +827,7 @@ def do_testssl(host, port, protocol, options, logfile, host_results):
         options,
         logfile,
     )
-    check_strings_for_alerts(stdout, TESTSSL_ALERTS, host_results, host, port)
+    check_strings_for_alerts(stdout, TESTSSL_ALERTS, host_results, host, port, options)
 
 
 def do_wpscan(url, port, options, logfile):
@@ -1138,6 +1155,11 @@ the Free Software Foundation, either version 3 of the License, or
         help="Name of settings file to use (default %(default)s)",
     )
     parser.add_argument(
+        "--exit-code",
+        action="store_true",
+        help="When supplied, return exit code 1 when alerts are discovered",
+    )
+    parser.add_argument(
         "--force", action="store_true", help="Ignore / overwrite the queuefile"
     )
     parser.add_argument("--debug", action="store_true", help="Show debug information")
@@ -1306,6 +1328,7 @@ def main():
     """Main program loop."""
     banner = "{0} version {1}".format(NAME, VERSION)
     options = parse_arguments(banner)
+    options["exit"] = 0
     setup_logging(options)
     logging.log(STATUS, "%s starting", banner)
     preflight_checks(options)
@@ -1319,7 +1342,7 @@ def main():
     write_json(results, options)
     if not options["dry_run"]:
         logging.log(STATUS, "Output saved to %s", options["output_file"])
-    sys.exit(0)
+    sys.exit(options["exit"])
 
 
 if __name__ == "__main__":
