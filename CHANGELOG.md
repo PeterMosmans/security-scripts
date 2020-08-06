@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.0](https://github.com/PeterMosmans/security-scripts/compare/v1.4.0...v1.5.0) (2020-08-06)
+
+
+### Features
+
+* add support for YAML settings file ([b5d422a](https://github.com/PeterMosmans/security-scripts/commit/b5d422a623eb1cd594ab2676618294e79872821c))
+* add YAML library requirement ([d6e3068](https://github.com/PeterMosmans/security-scripts/commit/d6e30688ee4bef8466f5a0d24931bcb5dcb4e8d3))
+
 ## [1.4.0](https://github.com/PeterMosmans/security-scripts/compare/v1.3.0...v1.4.0) (2020-08-03)
 
 
