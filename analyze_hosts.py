@@ -625,7 +625,7 @@ def do_nikto(host, port, options, logfile, host_results):
         command += ["-useproxy", f'http://{options["proxy"]}']
     if options["username"] and options["password"]:
         command += ["-id", f'{options["username"]}:{options["password"]}']
-    if host in options["settings"]["targets"]:
+    if "targets" in options["settings"] and host in options["settings"]["targets"]:
         parameters = next(
             (
                 item
