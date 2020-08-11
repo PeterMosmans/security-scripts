@@ -74,15 +74,6 @@ usage: analyze_hosts [-h] [--version] [--dry-run] [-i INPUTFILE] [-o OUTPUT_FILE
 
 analyze_hosts version 1.6.0 - scans one or more hosts for security misconfigurations
 
-Please note that this is NOT a stealthy scan tool: By default, a TCP and UDP
-portscan will be launched, using some of nmap's interrogation scripts.
-
-Copyright (C) 2015-2020  Peter Mosmans [Go Forward]
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
 positional arguments:
   target                [TARGET] can be a single (IP) address, an IP range, or
                         multiple comma-separated addressess
@@ -102,7 +93,7 @@ optional arguments:
   --resume              Resume working on the queue
   --settings SETTINGS   Name of settings file to use (default analyze_hosts.yml)
   --exit-code           When supplied, return exit code 1 when alerts are
-                        discovered  
+                        discovered
   --force               Ignore / overwrite the queuefile
   --debug               Show debug information
   -v, --verbose         Be more verbose
@@ -244,6 +235,26 @@ parameters to Nikto.
   },
   "date_finish": "2020-05-26 31:33:07"
 }
+```
+
+## display_results.py
+
+A little helper script that formats the scan results nicely, so that scan results
+can easily be reviewed.
+
+```
+usage: display_results.py [-h] [--info] [--version] [inputfile]
+
+display_results version 0.0.1 - displays scan results nicely
+
+positional arguments:
+  inputfile   A JSON file containing scan results
+
+optional arguments:
+  -h, --help  show this help message and exit
+  --info      Show also informational items
+  --version   Show version and exit
+
 ```
 
 ## analyze-hosts.sh

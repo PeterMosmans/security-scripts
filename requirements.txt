@@ -1,3 +1,4 @@
+colorama
 droopescan>=1.41.2
 python-nmap>=0.5.0.post1
 python-wappalyzer>=0.2.2
