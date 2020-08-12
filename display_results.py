@@ -15,7 +15,8 @@ except ImportError as exception:
     )
 
 NAME = "display_results"
-VERSION = "0.0.1"
+VERSION = "0.2.0"
+ALLOWED_PORTS = [80, 443]
 
 
 def parse_arguments(banner):
@@ -47,6 +48,11 @@ the Free Software Foundation, either version 3 of the License, or
         help="Show also informational items",
         default=False,
     )
+    parser.add_argument(
+        "--ports",
+        action="store_true",
+        help=f"Show ports other than {ALLOWED_PORTS} that are open",
+    )
     parser.add_argument("--version", action="store_true", help="Show version and exit")
     args = parser.parse_args()
     if args.version:
@@ -62,7 +68,12 @@ def sorted_hosts(unsorted):
     return map(str, sorted([ipaddress.ip_address(x) for x in unsorted]))
 
 
-def display_json(filename, info=False, empty=False):
+def format_alert(alert):
+    """Return a string formatted as an alert."""
+    return f"{Fore.GREEN}{alert}{Fore.RESET}"
+
+
+def display_json(filename, info=False, empty=False, ports=False):
     """Display filename sorted on IP address."""
     try:
         with open(filename, mode="r", encoding="utf-8") as json_file:
@@ -73,37 +84,37 @@ def display_json(filename, info=False, empty=False):
         hosts = results["results"]
         targets = sorted_hosts(hosts)
         for target in targets:
-            heading = f"{Style.BRIGHT}{target}{Style.NORMAL}"
-            if empty:
-                heading = display_heading(heading)
+            result = {}
+            for port in hosts[target]["ports"]:
+                result[str(port)] = []
             if "info" in hosts[target] and info:
-                heading = display_heading(heading)
                 for port in hosts[target]["info"]:
                     for item in hosts[target]["info"][port]:
-                        print(f" {Fore.MAGENTA}{port:>5}{Fore.RESET} {item}")
+                        result[port].append(item)
             if "alerts" in hosts[target]:
-                heading = display_heading(heading)
                 for port in hosts[target]["alerts"]:
-                    for alert in hosts[target]["alerts"][port]:
-                        print(
-                            f" {Fore.MAGENTA}{port:>5} {Fore.GREEN}{alert}{Fore.RESET}"
-                        )
+                    for item in hosts[target]["alerts"][port]:
+                        result[port].append(format_alert(item))
+            if empty or len(result) > 1:
+                print(f"{Style.BRIGHT}{target}{Style.NORMAL}")
+                for port, items in result.items():
+                    if not len(items) and ports and (int(port) not in ALLOWED_PORTS):
+                        print(f" {Fore.MAGENTA}{port:>5}{Fore.RESET} OPEN PORT")
+                    for item in items:
+                        print(f" {Fore.MAGENTA}{port:>5}{Fore.RESET} {item}")
+                        port = ""  # Only show port number for the first row
+                print("")
     except FileNotFoundError as exception:
         print(f"File {filename} could not be found: Exception {exception}")
     except KeyError as exception:
         print(f"File {filename} not in expected format: Exception {exception}")
 
 
-def display_heading(heading):
-    """Displays heading and resets heading."""
-    return print(heading)
-
-
 def main():
     """Main program loop."""
     banner = "{0} version {1}".format(NAME, VERSION)
     options = parse_arguments(banner)
-    display_json(options["inputfile"], info=options["info"])
+    display_json(options["inputfile"], info=options["info"], ports=options["ports"])
     sys.exit(0)
 
 
