@@ -15,7 +15,7 @@ except ImportError as exception:
     )
 
 NAME = "display_results"
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 ALLOWED_PORTS = [80, 443]
 
 
@@ -41,6 +41,12 @@ the Free Software Foundation, either version 3 of the License, or
         action="store",
         type=str,
         help="A JSON file containing scan results",
+    )
+    parser.add_argument(
+        "--empty", action="store_true", help="Show hosts without any results",
+    )
+    parser.add_argument(
+        "--host", action="store", help="Filter on specific host",
     )
     parser.add_argument(
         "--info",
@@ -73,7 +79,7 @@ def format_alert(alert):
     return f"{Fore.GREEN}{alert}{Fore.RESET}"
 
 
-def display_json(filename, info=False, empty=False, ports=False):
+def display_json(filename, **options):
     """Display filename sorted on IP address."""
     try:
         with open(filename, mode="r", encoding="utf-8") as json_file:
@@ -84,10 +90,12 @@ def display_json(filename, info=False, empty=False, ports=False):
         hosts = results["results"]
         targets = sorted_hosts(hosts)
         for target in targets:
+            if "host" in options and target != options["host"]:
+                continue
             result = {}
             for port in hosts[target]["ports"]:
                 result[str(port)] = []
-            if "info" in hosts[target] and info:
+            if "info" in hosts[target] and options["info"]:
                 for port in hosts[target]["info"]:
                     for item in hosts[target]["info"][port]:
                         result[port].append(item)
@@ -95,10 +103,14 @@ def display_json(filename, info=False, empty=False, ports=False):
                 for port in hosts[target]["alerts"]:
                     for item in hosts[target]["alerts"][port]:
                         result[port].append(format_alert(item))
-            if empty or len(result) > 1:
+            if options["empty"] or len(result) > 1:
                 print(f"{Style.BRIGHT}{target}{Style.NORMAL}")
                 for port, items in result.items():
-                    if not len(items) and ports and (int(port) not in ALLOWED_PORTS):
+                    if (
+                        not len(items)
+                        and options["ports"]
+                        and (int(port) not in ALLOWED_PORTS)
+                    ):
                         print(f" {Fore.MAGENTA}{port:>5}{Fore.RESET} OPEN PORT")
                     for item in items:
                         print(f" {Fore.MAGENTA}{port:>5}{Fore.RESET} {item}")
@@ -114,7 +126,7 @@ def main():
     """Main program loop."""
     banner = "{0} version {1}".format(NAME, VERSION)
     options = parse_arguments(banner)
-    display_json(options["inputfile"], info=options["info"], ports=options["ports"])
+    display_json(options["inputfile"], **options)
     sys.exit(0)
 
 
