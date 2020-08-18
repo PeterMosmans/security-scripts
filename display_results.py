@@ -90,7 +90,7 @@ def display_json(filename, **options):
         hosts = results["results"]
         targets = sorted_hosts(hosts)
         for target in targets:
-            if "host" in options and target != options["host"]:
+            if options["host"] and target != options["host"]:
                 continue
             result = {}
             for port in hosts[target]["ports"]:
