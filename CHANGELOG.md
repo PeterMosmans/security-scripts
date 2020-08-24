@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.7.0](https://github.com/PeterMosmans/security-scripts/compare/v1.6.0...v1.7.0) (2020-08-24)
+
+
+### Features
+
+* generate alert when unexpected open port is found ([9cbc4a4](https://github.com/PeterMosmans/security-scripts/commit/9cbc4a458ece2a213d05cfd1ddd446c56ed1fb1c))
+* **display_hosts:** add several new options ([6c7077e](https://github.com/PeterMosmans/security-scripts/commit/6c7077e9be6c0b7e6e9e35ef0c781b277d65bfb3))
+* add display_results helper script ([6016cab](https://github.com/PeterMosmans/security-scripts/commit/6016cab79f6a6020929b6479dca10e6ad3e83206))
+* improve displaying results, show unexpected open ports ([5f8a8af](https://github.com/PeterMosmans/security-scripts/commit/5f8a8aff01a86d66fb340f630f603e07a53d30ee))
+
+
+### Bug Fixes
+
+* ensure results are shown without specifying host ([0efe1c5](https://github.com/PeterMosmans/security-scripts/commit/0efe1c573c9a569b6ece19be9bdf2113c407ddee))
+
 ## [1.6.0](https://github.com/PeterMosmans/security-scripts/compare/v1.5.0...v1.6.0) (2020-08-06)
 
 
