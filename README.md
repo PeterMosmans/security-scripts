@@ -39,6 +39,7 @@ The script runs under Python 3. Using Python 2 is not supported anymore.
 ### Installation
 
 Note that you can also run `analyze_hosts` straight from a Docker image:
+
 ```
 docker run --rm gofwd/analyze_hosts
 ```
@@ -72,7 +73,7 @@ usage: analyze_hosts [-h] [--version] [--dry-run] [-i INPUTFILE] [-o OUTPUT_FILE
                      [--username USERNAME] [--maxtime MAXTIME]
                      [target]
 
-analyze_hosts version 1.6.0 - scans one or more hosts for security misconfigurations
+analyze_hosts version 1.7.0 - scans one or more hosts for security misconfigurations
 
 positional arguments:
   target                [TARGET] can be a single (IP) address, an IP range, or
@@ -142,20 +143,24 @@ CURL, DROOPESCAN, NIKTO, OPENSSL, TESTSSL, WPSCAN
 A settings file can be used (`--settings`) to configure or tweak scan parameters
 per host / port combination. This allows you to suppress false positives in scan
 results. Currently the Nikto `Plugins`, `Tuning` and `output` parameters are
-supported:
+supported, as well as a list of allowed / expected open ports:
 
 Example settings file:
+
 ```
 targets:
   127.0.0.1:
-  - port: 80
-    nikto_plugins: "@@ALL"
-    nikto_tuning: "x1"
-    nikto_output: "report.html"
+    allowed_ports: [22, 80, 443]
+    - port: 80
+      nikto_plugins: "@@ALL"
+      nikto_tuning: "x1"
+      nikto_output: "report.html"
 ```
 
 This will supply the `-Plugins '@@ALL' -Tuning 'x1' -output 'report.html'
-parameters to Nikto.
+parameters to Nikto. Furthermore, it will not generate an alert when an open
+port other than port 22, 80 or 443 is found. By default, an alert will be
+generated if an open port other than 80 or 443 is found.
 
 ### JSON format
 
@@ -239,8 +244,8 @@ parameters to Nikto.
 
 ## display_results.py
 
-A little helper script that formats the scan results nicely, so that scan results
-can easily be reviewed.
+A little helper script that formats the scan results nicely, so that scan
+results can easily be reviewed.
 
 ```
 usage: display_results.py [-h] [--info] [--version] [inputfile]

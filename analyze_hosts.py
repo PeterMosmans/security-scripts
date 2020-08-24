@@ -53,7 +53,7 @@ except ImportError as exception:
 
 
 NAME = "analyze_hosts"
-VERSION = "1.6.0"
+VERSION = "1.7.0"
 ALLPORTS = [
     (22, "ssh"),
     (25, "smtp"),
@@ -65,6 +65,10 @@ ALLPORTS = [
     (8080, "http-proxy"),
 ]
 SSL_PORTS = [25, 443, 465, 993, 995]
+ALLOWED_OPEN_PORTS = [
+    80,
+    443,
+]  # Default list of allowed open ports, different ports will generate an alert
 NIKTO_ALERTS = [
     "+ OSVDB-",
     "Entry '/index.php/user/register/' in robots.txt returned a non-forbidden or redirect HTTP code",
@@ -132,6 +136,7 @@ TESTSSL_ALERTS = [
     "TLS1: ",
     "VULNERABLE",
 ]
+
 # A regular expression of prepend characters to remove in a line
 REMOVE_PREPEND_LINE = r"^[| _+]*"
 UNKNOWN = -1
@@ -940,6 +945,13 @@ def process_host(
             open_ports = do_portscan(
                 host, options, host_logfile, stop_event, host_results
             )
+            expected_ports = ALLOWED_OPEN_PORTS
+            if (
+                "targets" in options["settings"]
+                and host in options["settings"]["targets"]
+                and "allowed_ports" in options["settings"]["targets"][host]
+            ):
+                expected_ports = options["settings"]["targets"][host]["allowed_ports"]
             if open_ports:
                 if UNKNOWN in open_ports:
                     logging.info("%s Scan interrupted ?", host)
@@ -949,6 +961,15 @@ def process_host(
                             logging.info("%s Scan interrupted ?", host)
                             break
                         # Sometimes nmap detects webserver as 'ssl/ssl'
+                        if port not in expected_ports:
+                            add_item(
+                                host_results,
+                                host,
+                                port,
+                                options,
+                                "Unexpected open port found",
+                                ALERT,
+                            )
                         if "http" in protocol or "ssl" in protocol:
                             http_checks(
                                 host,
