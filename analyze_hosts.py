@@ -53,7 +53,7 @@ except ImportError as exception:
 
 
 NAME = "analyze_hosts"
-VERSION = "1.7.0"
+VERSION = "1.7.1"
 ALLPORTS = [
     (22, "ssh"),
     (25, "smtp"),
@@ -979,7 +979,11 @@ def process_host(
                                 host_logfile,
                                 host_results,
                             )
-                        if "ssl" in protocol or port in SSL_PORTS:
+                        if (
+                            "ssl" in protocol
+                            or port in SSL_PORTS
+                            or options["force_ssl"]
+                        ):
                             tls_checks(
                                 host,
                                 port,
@@ -1216,6 +1220,11 @@ the Free Software Foundation, either version 3 of the License, or
     )
     parser.add_argument(
         "--http", action="store_true", help="Check for various HTTP vulnerabilities"
+    )
+    parser.add_argument(
+        "--force-ssl",
+        action="store_true",
+        help="Enforce SSL/TLS check on all open ports",
     )
     parser.add_argument(
         "--json", action="store", type=str, help="Save output in JSON file"
