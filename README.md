@@ -73,7 +73,7 @@ usage: analyze_hosts [-h] [--version] [--dry-run] [-i INPUTFILE] [-o OUTPUT_FILE
                      [--username USERNAME] [--maxtime MAXTIME]
                      [target]
 
-analyze_hosts version 1.7.0 - scans one or more hosts for security misconfigurations
+analyze_hosts version 1.8.0 - scans one or more hosts for security misconfigurations
 
 positional arguments:
   target                [TARGET] can be a single (IP) address, an IP range, or
@@ -151,16 +151,19 @@ Example settings file:
 targets:
   127.0.0.1:
     allowed_ports: [22, 80, 443]
-    - port: 80
-      nikto_plugins: "@@ALL"
-      nikto_tuning: "x1"
-      nikto_output: "report.html"
+    ports:
+      - port: 80
+        nikto_plugins: "@@ALL"
+        nikto_tuning: "x1"
+        nikto_output: "report.html"
 ```
 
 This will supply the `-Plugins '@@ALL' -Tuning 'x1' -output 'report.html'
-parameters to Nikto. Furthermore, it will not generate an alert when an open
-port other than port 22, 80 or 443 is found. By default, an alert will be
-generated if an open port other than 80 or 443 is found.
+parameters to Nikto, when port 80 is scanned.
+
+Furthermore, it will not generate an alert when an open port other than port 22,
+80 or 443 is found. By default, an alert will be generated if an open port other
+than 80 or 443 is found.
 
 ### JSON format
 

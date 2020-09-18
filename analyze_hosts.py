@@ -646,12 +646,12 @@ def do_nikto(host, port, options, logfile, host_results):
     if (
         "targets" in options["settings"]
         and host in options["settings"]["targets"]
-        and "port" in options["settings"]["targets"][host]
+        and "ports" in options["settings"]["targets"][host]
     ):
         parameters = next(
             (
                 item
-                for item in options["settings"]["targets"][host]
+                for item in options["settings"]["targets"][host]["ports"]
                 if item["port"] == port
             ),
             {},
