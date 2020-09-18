@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.8.0](https://github.com/PeterMosmans/security-scripts/compare/v1.7.0...v1.8.0) (2020-09-18)
+
+
+### Features
+
+* add option to enforce SSL/TLS check ([b641f7a](https://github.com/PeterMosmans/security-scripts/commit/b641f7a78ab2d4579d016d8821ab3c6c3c6836c7))
+
+
+### Bug Fixes
+
+* ensure that a host contains a port key ([6083104](https://github.com/PeterMosmans/security-scripts/commit/6083104f28598f7ea71ccb557557c0e7bbebe0c9))
+
 ## [1.7.0](https://github.com/PeterMosmans/security-scripts/compare/v1.6.0...v1.7.0) (2020-08-24)
 
 
