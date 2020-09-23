@@ -50,9 +50,8 @@ except ImportError as exception:
     )
     sys.stderr.flush()
 
-
 NAME = "analyze_hosts"
-VERSION = "1.8.0"
+__version__ = "1.8.0"
 ALLPORTS = [
     (22, "ssh"),
     (25, "smtp"),
@@ -1348,7 +1347,7 @@ def write_json(results, options):
 
 def main():
     """Main program loop."""
-    banner = "{0} version {1}".format(NAME, VERSION)
+    banner = "{0} version {1}".format(NAME, __version__)
     options = parse_arguments(banner)
     options["exit"] = 0
     setup_logging(options)
