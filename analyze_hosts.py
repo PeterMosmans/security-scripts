@@ -28,7 +28,6 @@ import ssl
 import subprocess
 import sys
 import tempfile
-import textwrap
 import threading
 import time
 
@@ -1121,21 +1120,7 @@ def read_targets(filename):
 def parse_arguments(banner):
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        description=textwrap.dedent(
-            banner
-            + """\
- - scans one or more hosts for security misconfigurations
-
-Please note that this is NOT a stealthy scan tool: By default, a TCP and UDP
-portscan will be launched, using some of nmap's interrogation scripts.
-
-Copyright (C) 2015-2020  Peter Mosmans [Go Forward]
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version."""
-        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter, description=__doc__,
     )
     parser.add_argument(
         "target",
