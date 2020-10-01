@@ -21,10 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install package manually
-RUN python3 -m pip install -e "git+https://github.com/KhasMek/python-Wappalyzer@python3#egg=python-wappalyzer"
-
-# Install (rest of the) packages as specified in the requirements.txt file
+# Install packages as specified in the requirements.txt file
 COPY requirements.txt .
 RUN pip3 install -r requirements.txt
 
