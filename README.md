@@ -31,10 +31,12 @@ generic security tests, without any heavy prerequisites, make the output as
 informative as possible, and use open source tools. It can easily be used as
 scheduled task, or be implemented in Continuous Integration environments.
 
+The only requirement is ``nmap``.
+
 As the scan output can be written to a JSON file it can be used to generate
 deltas (differences) between scans, or to use the output for further inspection.
 
-The script runs under Python 3. Using Python 2 is not supported anymore.
+The script runs under Python 3.
 
 ### Installation
 
@@ -50,15 +52,6 @@ are specified in the `requirements.txt` file):
 ```
 git clone https://github.com/PeterMosmans/security-scripts
 pip install -r requirements.txt
-```
-
-**PLEASE NOTE** : As of 06-06-2019 Python 3 is used by default. One library that
-`analyze_hosts` uses ((Wappalyzer-python) hasn't yet uploaded its Python 3
-capable version to PyPI. The correct version can be installed manually by
-performing
-
-```
-sudo pip3 install -e "git+https://github.com/KhasMek/python-Wappalyzer@python3#egg=python-wappalyzer"
 ```
 
 ### Usage
