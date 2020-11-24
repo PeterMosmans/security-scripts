@@ -16,6 +16,13 @@ the supplied Dockerfile, or grab the image from Docker Hub
 docker run --rm gofwd/analyze_hosts
 ```
 
+You can also run the included tools that way; just override the entrypoint. As
+an example, run `testssl.sh`:
+
+```
+docker run --rm --entrypoint 'testssl.sh' gofwd/analyze_hosts
+```
+
 ## analyze_hosts.py
 
 Build status for master branch:
@@ -31,7 +38,7 @@ generic security tests, without any heavy prerequisites, make the output as
 informative as possible, and use open source tools. It can easily be used as
 scheduled task, or be implemented in Continuous Integration environments.
 
-The only requirement is ``nmap``.
+The only requirement is `nmap`.
 
 As the scan output can be written to a JSON file it can be used to generate
 deltas (differences) between scans, or to use the output for further inspection.
