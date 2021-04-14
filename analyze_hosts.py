@@ -135,9 +135,9 @@ TESTSSL_ALERTS = [
     "TLS1: ",
     "VULNERABLE",
 ]
-TESTSSL_SELF_SIGNED = [
+TESTSSL_UNTRUSTED = [
     "NOT ok (self signed CA in chain)",
-    "NOT ok -- neither CRL",
+    "NOT ok -- neither CRL nor OCSP URI provided",
 ]
 
 # A regular expression of prepend characters to remove in a line
@@ -784,10 +784,14 @@ def check_strings_for_alerts(
     for line in strings:  # Highly inefficient 'brute-force' check
         for keyword in keywords:
             if keyword in line:
-                for item in negate:
-                    if item in line:
-                        continue
-                add_item(host_results, host, port, options, line, ALERT)
+                if not len(negate):
+                    add_item(host_results, host, port, options, line, ALERT)
+                else:
+                    for item in negate:
+                        if item in line:
+                            line = ""
+                    if line:
+                        add_item(host_results, host, port, options, line, ALERT)
 
 
 def add_item(host_results, host, port, options, line, logging_type):
@@ -863,8 +867,8 @@ def do_testssl(host, port, protocol, options, logfile, host_results):
         logfile,
     )
     negate = []
-    if "testssl_self_signed" in parameters and bool(parameters["testssl_self_signed"]):
-        negate = TESTSSL_SELF_SIGNED
+    if "testssl_untrusted" in parameters and bool(parameters["testssl_untrusted"]):
+        negate = TESTSSL_UNTRUSTED
     check_strings_for_alerts(
         stdout, TESTSSL_ALERTS, host_results, host, port, options, negate
     )

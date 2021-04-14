@@ -158,7 +158,7 @@ targets:
         nikto_tuning: "x1"
         nikto_output: "report.html"
       - port: 443
-        testssl_self_signed: true
+        testssl_untrusted: true
         testssl:
           - "--ccs-injection"
           - "--ticketbleed"
@@ -173,9 +173,9 @@ Furthermore, it will not generate an alert when an open port other than port 22,
 80 or 443 is found. By default, an alert will be generated if an open port other
 than 80 or 443 is found.
 
-There will no alert be generated if the SSL/TLS endpoint on port 443 contains a
-self-signed certificate. And instead of all default tests, only three SSL/TLS
-tests will be performed.
+There will no alert be generated if the SSL/TLS endpoint on port 443 contains an
+untrusted (self-signed) certificate. And instead of all default tests, only
+three SSL/TLS tests will be performed.
 
 ### JSON format
 
