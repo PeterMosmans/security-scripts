@@ -143,7 +143,8 @@ CURL, DROOPESCAN, NIKTO, OPENSSL, TESTSSL, WPSCAN
 A settings file can be used (`--settings`) to configure or tweak scan parameters
 per host / port combination. This allows you to suppress false positives in scan
 results. Currently the Nikto `Plugins`, `Tuning` and `output` parameters are
-supported, as well as a list of allowed / expected open ports:
+supported, as well as a list of allowed / expected open ports, and testssl
+parameters:
 
 Example settings file:
 
@@ -156,6 +157,13 @@ targets:
         nikto_plugins: "@@ALL"
         nikto_tuning: "x1"
         nikto_output: "report.html"
+      - port: 443
+        testssl_self_signed: true
+        testssl:
+          - "--ccs-injection"
+          - "--ticketbleed"
+          - "--robot"
+
 ```
 
 This will supply the `-Plugins '@@ALL' -Tuning 'x1' -output 'report.html'
@@ -164,6 +172,10 @@ parameters to Nikto, when port 80 is scanned.
 Furthermore, it will not generate an alert when an open port other than port 22,
 80 or 443 is found. By default, an alert will be generated if an open port other
 than 80 or 443 is found.
+
+There will no alert be generated if the SSL/TLS endpoint on port 443 contains a
+self-signed certificate. And instead of all default tests, only three SSL/TLS
+tests will be performed.
 
 ### JSON format
 

@@ -51,7 +51,7 @@ except ImportError as exception:
     sys.stderr.flush()
 
 NAME = "analyze_hosts"
-__version__ = "1.8.0"
+__version__ = "1.9.0"
 ALLPORTS = [
     (22, "ssh"),
     (25, "smtp"),
@@ -63,10 +63,11 @@ ALLPORTS = [
     (8080, "http-proxy"),
 ]
 SSL_PORTS = [25, 443, 465, 993, 995]
+# Default list of allowed open ports, different ports will generate an alert
 ALLOWED_OPEN_PORTS = [
     80,
     443,
-]  # Default list of allowed open ports, different ports will generate an alert
+]
 NIKTO_ALERTS = [
     "+ OSVDB-",
     "Entry '/index.php/user/register/' in robots.txt returned a non-forbidden or redirect HTTP code",
@@ -133,6 +134,10 @@ TESTSSL_ALERTS = [
     "NOT ok",
     "TLS1: ",
     "VULNERABLE",
+]
+TESTSSL_SELF_SIGNED = [
+    "NOT ok (self signed CA in chain)",
+    "NOT ok -- neither CRL",
 ]
 
 # A regular expression of prepend characters to remove in a line
@@ -643,30 +648,37 @@ def do_nikto(host, port, options, logfile, host_results):
         command += ["-useproxy", f'http://{options["proxy"]}']
     if options["username"] and options["password"]:
         command += ["-id", f'{options["username"]}:{options["password"]}']
-    if (
-        "targets" in options["settings"]
-        and host in options["settings"]["targets"]
-        and "ports" in options["settings"]["targets"][host]
-    ):
-        parameters = next(
-            (
-                item
-                for item in options["settings"]["targets"][host]["ports"]
-                if item["port"] == port
-            ),
-            {},
-        )
-        if "nikto_output" in parameters:
-            command += "-output", parameters["nikto_output"]
-        if "nikto_plugins" in parameters:
-            command += "-Plugins", parameters["nikto_plugins"]
-        if "nikto_tuning" in parameters:
-            command += "-Tuning", parameters["nikto_tuning"]
+    parameters = read_parameters(options["settings"], host, port)
+    if "nikto_output" in parameters:
+        command += "-output", parameters["nikto_output"]
+    if "nikto_plugins" in parameters:
+        command += "-Plugins", parameters["nikto_plugins"]
+    if "nikto_tuning" in parameters:
+        command += "-Tuning", parameters["nikto_tuning"]
     logging.info("%s Starting nikto on port %s", host, port)
     _result, stdout, _stderr = execute_command(
         command, options, logfile
     )  # pylint: disable=unused-variable
     check_strings_for_alerts(stdout, NIKTO_ALERTS, host_results, host, port, options)
+
+
+def read_parameters(settings, host, port):
+    """Read tuning dictionary per host-port combination from the settings dictionary."""
+    parameters = {}
+    if (
+        "targets" in settings
+        and host in settings["targets"]
+        and "ports" in settings["targets"][host]
+    ):
+        parameters = next(
+            (
+                item
+                for item in settings["targets"][host]["ports"]
+                if item["port"] == port
+            ),
+            {},
+        )
+    return parameters
 
 
 def do_portscan(host, options, logfile, stop_event, host_results):
@@ -765,11 +777,16 @@ def check_nmap_log_for_alerts(logfile, host_results, host, options):
         logging.error("FAILED: Could not read %s (%s)", logfile, exception)
 
 
-def check_strings_for_alerts(strings, keywords, host_results, host, port, options):
+def check_strings_for_alerts(
+    strings, keywords, host_results, host, port, options, negate=[]
+):
     """Check for keywords in strings and log them as alerts."""
     for line in strings:  # Highly inefficient 'brute-force' check
         for keyword in keywords:
             if keyword in line:
+                for item in negate:
+                    if item in line:
+                        continue
                 add_item(host_results, host, port, options, line, ALERT)
 
 
@@ -805,27 +822,36 @@ def get_binary(tool):
 def do_testssl(host, port, protocol, options, logfile, host_results):
     """Check SSL/TLS configuration and vulnerabilities."""
     # --color 0            Don't use color escape codes
+    # --warnings off       Skip connection warnings
+    # --quiet              Don't output the banner
+    #
+    # The following settings are default, and can be overwritten using the 'testssl' parameter
     # --each-cipher        Checks each local cipher remotely
     # --fs                 Check (perfect) forward secrecy settings
     # --protocols          Check TLS/SSL protocols
-    # --quiet              Don't output the banner
     # --server-defaults    Display the server's default picks and certificate info
     # --starttls protocol  Use starttls protocol
     # --vulnerable         Test for all vulnerabilities
-    # --warnings off       Skip connection warnings
     command = [
         get_binary("testssl.sh"),
         "--color",
         "0",
-        "--each-cipher",
-        "--fs",
-        "--protocols",
         "--quiet",
-        "--server-defaults",
-        "--vulnerable",
         "--warnings",
         "off",
     ]
+    parameters = read_parameters(options["settings"], host, port)
+    if "testssl" in parameters:
+        for parameter in parameters["testssl"]:
+            command.append(parameter)
+    else:
+        command += [
+            "--each-cipher",
+            "--fs",
+            "--protocols",
+            "--server-defaults",
+            "--vulnerable",
+        ]
     if options["timeout"]:
         command = [get_binary("timeout"), str(options["maxtime"])] + command
     if "smtp" in protocol:
@@ -836,7 +862,12 @@ def do_testssl(host, port, protocol, options, logfile, host_results):
         options,
         logfile,
     )
-    check_strings_for_alerts(stdout, TESTSSL_ALERTS, host_results, host, port, options)
+    negate = []
+    if "testssl_self_signed" in parameters and bool(parameters["testssl_self_signed"]):
+        negate = TESTSSL_SELF_SIGNED
+    check_strings_for_alerts(
+        stdout, TESTSSL_ALERTS, host_results, host, port, options, negate
+    )
 
 
 def do_wpscan(url, port, options, logfile):
@@ -1121,7 +1152,8 @@ def read_targets(filename):
 def parse_arguments(banner):
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        formatter_class=argparse.RawDescriptionHelpFormatter, description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=__doc__,
     )
     parser.add_argument(
         "target",
