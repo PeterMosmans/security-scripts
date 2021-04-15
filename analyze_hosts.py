@@ -51,7 +51,7 @@ except ImportError as exception:
     sys.stderr.flush()
 
 NAME = "analyze_hosts"
-__version__ = "1.9.0"
+__version__ = "1.10.0"
 ALLPORTS = [
     (22, "ssh"),
     (25, "smtp"),
@@ -257,22 +257,24 @@ def http_checks(host, port, protocol, options, logfile, host_results):
         url = "https://{0}:{1}".format(host, port)
     else:
         url = "http://{0}:{1}".format(host, port)
-    for tool in ["curl", "nikto"]:
-        use_tool(tool, host, port, protocol, options, logfile, host_results)
-    if options["dry_run"]:
-        return
+    if options["nikto"]:
+        do_nikto(host, port, options, logfile, host_results)
     if options["framework"]:
         analyze_url(url, port, options, logfile, host_results)
-    if options["http"]:
-        check_redirect(url, port, options, host_results)
-        check_headers(url, port, options, host_results, use_ssl=ssl)
+    if options["http"] or options["compression"]:
         check_compression(url, port, options, host_results, use_ssl=ssl)
+    if options["http"] or options["headers"]:
+        check_headers(url, port, options, host_results, use_ssl=ssl)
+    if options["http"] or options["redirect"]:
+        check_redirect(url, port, options, host_results)
+    if options["http"] or options["trace"]:
+        check_trace(host, port, options, logfile, host_results)
 
 
 def tls_checks(host, port, protocol, options, logfile, host_results):
     """Perform various SSL/TLS checks."""
     if options["ssl"]:
-        use_tool("testssl.sh", host, port, protocol, options, logfile, host_results)
+        do_testssl(host, port, protocol, options, logfile, host_results)
     if options["sslcert"]:
         download_cert(host, port, options, logfile)
 
@@ -598,7 +600,7 @@ def compact_strings(lines, options):
     return "".join(lines)
 
 
-def do_curl(host, port, options, logfile, host_results):
+def check_trace(host, port, options, logfile, host_results):
     """Check for HTTP TRACE method."""
     if options["trace"]:
         command = [
@@ -836,6 +838,8 @@ def do_testssl(host, port, protocol, options, logfile, host_results):
     # --server-defaults    Display the server's default picks and certificate info
     # --starttls protocol  Use starttls protocol
     # --vulnerable         Test for all vulnerabilities
+    if not options["testssl.sh"]:
+        return
     command = [
         get_binary("testssl.sh"),
         "--color",
@@ -950,18 +954,6 @@ def remove_from_queue(finished_queue, options, stop_event):
         except queue.Empty:
             time.sleep(1)
     logging.debug("Exiting remove_from_queue thread")
-
-
-def use_tool(tool, host, port, protocol, options, logfile, host_results):
-    """Check if tool is available, and start correct one."""
-    if not options[tool]:
-        return
-    if tool == "nikto":
-        do_nikto(host, port, options, logfile, host_results)
-    elif tool == "curl":
-        do_curl(host, port, options, logfile, host_results)
-    elif tool == "testssl.sh":
-        do_testssl(host, port, protocol, options, logfile, host_results)
 
 
 def process_host(
@@ -1241,11 +1233,27 @@ def parse_arguments(banner):
     parser.add_argument(
         "--udp", action="store_true", help="Check for open UDP ports as well"
     )
+
     parser.add_argument(
         "--framework", action="store_true", help="Analyze the website and run webscans"
     )
     parser.add_argument(
-        "--http", action="store_true", help="Check for various HTTP vulnerabilities"
+        "--http",
+        action="store_true",
+        help="""Check for various HTTP vulnerabilities (compression,
+headers, trace)""",
+    )
+    parser.add_argument(
+        "--compression", action="store_true", help="Check for webserver compression"
+    )
+    parser.add_argument(
+        "--headers", action="store_true", help="Check for various HTTP headers"
+    )
+    parser.add_argument(
+        "--trace", action="store_true", help="Check webserver for HTTP TRACE method"
+    )
+    parser.add_argument(
+        "--redirect", action="store_true", help="Check for insecure redirect"
     )
     parser.add_argument(
         "--force-ssl",
@@ -1262,12 +1270,7 @@ def parse_arguments(banner):
     parser.add_argument(
         "--sslcert", action="store_true", help="Download SSL certificate"
     )
-    parser.add_argument(
-        "-t",
-        "--trace",
-        action="store_true",
-        help="Check webserver for HTTP TRACE method",
-    )
+
     parser.add_argument(
         "-w", "--whois", action="store_true", help="Perform a whois lookup"
     )
