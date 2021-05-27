@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.0](https://github.com/PeterMosmans/security-scripts/compare/1.9.0...1.10.0) (2021-05-27)
+
+### Features
+
+- support file-based argugments
+  ([e33a6eb](https://github.com/PeterMosmans/security-scripts/commit/e33a6eb9bd37f2384ae2891b85355e4c966fbd5f))
+
 ## [1.9.0](https://github.com/PeterMosmans/security-scripts/compare/v1.8.0...v1.9.0) (2021-04-15)
 
 ### Features
