@@ -57,23 +57,34 @@ One-time installation steps without virtualenv (all required Python libraries
 are specified in the `requirements.txt` file):
 
 ```
-git clone https://github.com/PeterMosmans/security-scripts
-pip install -r requirements.txt
+git clone https://github.com/PeterMosmans/security-scripts && \
+cd security-script && \
+pip3 install -r requirements.txt
 ```
 
 ### Usage
 
 ```
-usage: analyze_hosts [-h] [--version] [--dry-run] [-i INPUTFILE] [-o OUTPUT_FILE]
-                     [--compact] [--queuefile QUEUEFILE] [--resume] [--settings SETTINGS]
-                     [--force] [--debug] [-v] [-q] [--allports] [-n] [-p PORT]
-                     [--up] [--udp] [--framework] [--http] [--json JSON] [--ssl] [--nikto]
-                     [--sslcert] [-t] [-w] [--proxy PROXY] [--timeout TIMEOUT]
-                     [--threads THREADS] [--user-agent USER_AGENT] [--password PASSWORD]
-                     [--username USERNAME] [--maxtime MAXTIME]
-                     [target]
+usage: analyze_hosts.py [-h] [--version] [--dry-run] [-i INPUTFILE]
+                        [-o OUTPUT_FILE] [--compact] [--queuefile QUEUEFILE]
+                        [--resume] [--settings SETTINGS] [--exit-code]
+                        [--force] [--debug] [-v] [-q] [--allports] [-n]
+                        [-p PORT] [--up] [--udp] [--framework] [--http]
+                        [--compression] [--headers] [--trace] [--redirect]
+                        [--force-ssl] [--json JSON] [--ssl] [--nikto]
+                        [--sslcert] [-w] [--proxy PROXY] [--timeout TIMEOUT]
+                        [--threads THREADS] [--user-agent USER_AGENT]
+                        [--password PASSWORD] [--username USERNAME]
+                        [--maxtime MAXTIME]
+                        [target]
 
-analyze_hosts version 1.8.0 - scans one or more hosts for security misconfigurations
+analyze_hosts - scans one or more hosts for security misconfigurations
+
+Copyright (C) 2015-2021 Peter Mosmans [Go Forward]
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
 positional arguments:
   target                [TARGET] can be a single (IP) address, an IP range, or
@@ -88,11 +99,13 @@ optional arguments:
   -o OUTPUT_FILE, --output-file OUTPUT_FILE
                         output file containing all scanresults (default
                         analyze_hosts.output)
+
   --compact             Only log raw logfiles and alerts to file
   --queuefile QUEUEFILE
                         the queuefile
   --resume              Resume working on the queue
-  --settings SETTINGS   Name of settings file to use (default analyze_hosts.yml)
+  --settings SETTINGS   Name of settings file to use (default
+                        analyze_hosts.yml)
   --exit-code           When supplied, return exit code 1 when alerts are
                         discovered
   --force               Ignore / overwrite the queuefile
@@ -105,12 +118,17 @@ optional arguments:
   --up                  Assume host is up (do not rely on ping probe)
   --udp                 Check for open UDP ports as well
   --framework           Analyze the website and run webscans
-  --http                Check for various HTTP vulnerabilities
+  --http                Check for various HTTP vulnerabilities (compression,
+                        headers, trace)
+  --compression         Check for webserver compression
+  --headers             Check for various HTTP headers
+  --trace               Check webserver for HTTP TRACE method
+  --redirect            Check for insecure redirect
+  --force-ssl           Enforce SSL/TLS check on all open ports
   --json JSON           Save output in JSON file
   --ssl                 Check for various SSL/TLS vulnerabilities
   --nikto               Run a nikto scan
   --sslcert             Download SSL certificate
-  -t, --trace           Check webserver for HTTP TRACE method
   -w, --whois           Perform a whois lookup
   --proxy PROXY         Use proxy server (host:port)
   --timeout TIMEOUT     Timeout for requests in seconds (default 10)
@@ -120,6 +138,7 @@ optional arguments:
   --password PASSWORD   Password for HTTP basic host authentication
   --username USERNAME   Username for HTTP basic host authentication
   --maxtime MAXTIME     Timeout for scans in seconds (default 600)
+
 
 ```
 
