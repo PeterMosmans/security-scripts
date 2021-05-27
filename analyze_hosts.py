@@ -1148,8 +1148,9 @@ def read_targets(filename):
 def parse_arguments(banner):
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        formatter_class=argparse.RawDescriptionHelpFormatter,
         description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        fromfile_prefix_chars="@",
     )
     parser.add_argument(
         "target",
