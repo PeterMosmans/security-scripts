@@ -3,17 +3,12 @@
 
 """analyze_hosts - scans one or more hosts for security misconfigurations
 
-Copyright (C) 2015-2020 Peter Mosmans [Go Forward]
+Copyright (C) 2015-2021 Peter Mosmans [Go Forward]
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 """
-
-
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import unicode_literals
 
 import argparse
 import io
@@ -254,9 +249,9 @@ def http_checks(host, port, protocol, options, logfile, host_results):
     ssl = False
     if "ssl" in protocol or "https" in protocol:
         ssl = True
-        url = "https://{0}:{1}".format(host, port)
+        url = f"https://{host}:{port}"
     else:
-        url = "http://{0}:{1}".format(host, port)
+        url = f"http://{host}:{port}"
     if options["nikto"]:
         do_nikto(host, port, options, logfile, host_results)
     if options["framework"]:
