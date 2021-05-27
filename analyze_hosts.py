@@ -652,6 +652,8 @@ def do_nikto(host, port, options, logfile, host_results):
         command += "-Plugins", parameters["nikto_plugins"]
     if "nikto_tuning" in parameters:
         command += "-Tuning", parameters["nikto_tuning"]
+    if options["timeout"]:
+        command = [get_binary("timeout"), str(options["maxtime"])] + command
     logging.info("%s Starting nikto on port %s", host, port)
     _result, stdout, _stderr = execute_command(
         command, options, logfile
