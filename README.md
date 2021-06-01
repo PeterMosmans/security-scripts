@@ -38,12 +38,10 @@ generic security tests, without any heavy prerequisites, make the output as
 informative as possible, and use open source tools. It can easily be used as
 scheduled task, or be implemented in Continuous Integration environments.
 
-The only requirement is `nmap`.
+The only requirements are ``nmap`` and ``Python3``.
 
 As the scan output can be written to a JSON file it can be used to generate
 deltas (differences) between scans, or to use the output for further inspection.
-
-The script runs under Python 3.
 
 ### Installation
 
