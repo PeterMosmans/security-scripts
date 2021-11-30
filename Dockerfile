@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 # Use a base image to build (and download) the tools on
 FROM python:slim-buster as build
 
