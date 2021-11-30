@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.11.0](https://github.com/PeterMosmans/security-scripts/compare/1.10.0...1.11.0) (2021-11-30)
+
+### Features
+
+- enforce timeout for nikto
+  ([d751eaa](https://github.com/PeterMosmans/security-scripts/commit/d751eaa1a215c0487c2ccdf5726f246a5dd39438))
+- ensure that Python output is unbuffered
+  ([83d7fdd](https://github.com/PeterMosmans/security-scripts/commit/83d7fdd75a8228a9f17a1e32a116af36fd431b8b))
+- rewrite deprecated function names
+  ([e4bfbec](https://github.com/PeterMosmans/security-scripts/commit/e4bfbec7b973684c9d054b0c26dc36559739e8d8))
+
 ## [1.10.0](https://github.com/PeterMosmans/security-scripts/compare/1.9.0...1.10.0) (2021-05-27)
 
 ### Features
