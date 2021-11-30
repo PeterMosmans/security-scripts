@@ -46,7 +46,7 @@ except ImportError as exception:
     sys.stderr.flush()
 
 NAME = "analyze_hosts"
-__version__ = "1.10.0"
+__version__ = "1.11.0"
 ALLPORTS = [
     (22, "ssh"),
     (25, "smtp"),
