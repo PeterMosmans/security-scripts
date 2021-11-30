@@ -45,10 +45,10 @@ COPY --from=build /opt/venv /opt/venv
 COPY --from=build /usr/lib/nikto/ /usr/lib/nikto/
 COPY --from=build /usr/lib/testssl/ /usr/lib/testssl/
 COPY analyze_hosts.py /usr/local/bin/analyze_hosts.py
-RUN ln -s /usr/lib/nikto/nikto.pl /usr/local/bin/nikto.pl
-RUN ln -s /usr/lib/nikto/nikto.pl /usr/local/bin/nikto
-RUN ln -s /usr/local/bin/analyze_hosts.py /usr/local/bin/analyze_hosts
-RUN ln -s /usr/lib/testssl/testssl.sh /usr/local/bin/testssl.sh
+RUN ln -s /usr/lib/nikto/nikto.pl /usr/local/bin/nikto.pl && \
+    ln -s /usr/lib/nikto/nikto.pl /usr/local/bin/nikto && \
+    ln -s /usr/local/bin/analyze_hosts.py /usr/local/bin/analyze_hosts && \
+    ln -s /usr/lib/testssl/testssl.sh /usr/local/bin/testssl.sh
 
 # Install necessary binaries
 RUN apt-get update && \
@@ -65,6 +65,8 @@ RUN apt-get update && \
 
 ENV PATH="/opt/venv/bin:$PATH"
 ENV LC_ALL=C.UTF-8
+# Esnsure that Python output is not buffered
+ENV PYTHONUNBUFFERED=1
 
 USER root
 WORKDIR /tmp
