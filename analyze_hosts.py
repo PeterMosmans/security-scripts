@@ -733,7 +733,7 @@ def do_portscan(host, options, logfile, stop_event, host_results):
             # Format logmessage as info message, so that it ends up in logfile
             logging.log(LOGS, "[*] %s No open ports found", host)
     except (AssertionError, nmap.PortScannerError) as exception:
-        if stop_event.isSet():
+        if stop_event.is_set():
             logging.debug("%s nmap interrupted", host)
         else:
             logging.log(
@@ -934,7 +934,7 @@ def prepare_queue(options):
 
 def remove_from_queue(finished_queue, options, stop_event):
     """Remove a host from the queue file."""
-    while not stop_event.isSet() or finished_queue.qsize():
+    while not stop_event.is_set() or finished_queue.qsize():
         try:
             host = finished_queue.get(block=False)
             with open(options["queuefile"], "r+") as queuefile:
@@ -985,7 +985,7 @@ def process_host(
                     logging.info("%s Scan interrupted ?", host)
                 else:
                     for port, protocol in open_ports:
-                        if stop_event.isSet():
+                        if stop_event.is_set():
                             logging.info("%s Scan interrupted ?", host)
                             break
                         # Sometimes nmap detects webserver as 'ssl/ssl'
@@ -1025,7 +1025,7 @@ def process_host(
                     with open(host_logfile, "r") as read_file:
                         output_queue.put(read_file.read())
                 os.remove(host_logfile)
-            if not stop_event.isSet():  # Do not flag host as being done
+            if not stop_event.is_set():  # Do not flag host as being done
                 results["results"][host] = host_results
                 finished_queue.put(host)
             host_queue.task_done()
@@ -1038,7 +1038,7 @@ def process_host(
 
 def process_output(output_queue, stop_event):
     """Convert logged items in output_queue atomically to log items."""
-    while not stop_event.isSet() or output_queue.qsize():
+    while not stop_event.is_set() or output_queue.qsize():
         try:
             item = output_queue.get(block=False)
             logging.debug("Processing output item")
@@ -1089,11 +1089,11 @@ def loop_hosts(options, target_list, results):
             target=remove_from_queue, args=(finished_queue, options, stop_event)
         )
     )
-    threads[-1].setDaemon(True)
+    threads[-1].daemon = True
     threads.append(
         threading.Thread(target=process_output, args=(output_queue, stop_event))
     )
-    threads[-1].setDaemon(True)
+    threads[-1].daemon = True
     logging.debug("Starting %s threads", len(threads))
     for thread in threads:
         thread.start()
@@ -1102,10 +1102,10 @@ def loop_hosts(options, target_list, results):
             time.sleep(0.0001)
         except IOError:
             pass
-    if not stop_event.isSet():
+    if not stop_event.is_set():
         work_queue.join()  # block until the queue is empty
     logging.debug("Work queue is empty - waiting for threads to finish")
-    while not stop_event.isSet() and (
+    while not stop_event.is_set() and (
         not output_queue.empty() or not finished_queue.empty()
     ):
         logging.debug(
