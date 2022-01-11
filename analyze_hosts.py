@@ -3,7 +3,7 @@
 
 """analyze_hosts - scans one or more hosts for security misconfigurations
 
-Copyright (C) 2015-2021 Peter Mosmans [Go Forward]
+Copyright (C) 2015-2022 Peter Mosmans [Go Forward]
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
@@ -46,7 +46,7 @@ except ImportError as exception:
     sys.stderr.flush()
 
 NAME = "analyze_hosts"
-__version__ = "1.11.0"
+__version__ = "1.12.0"
 ALLPORTS = [
     (22, "ssh"),
     (25, "smtp"),
@@ -781,7 +781,7 @@ def check_strings_for_alerts(
     for line in strings:  # Highly inefficient 'brute-force' check
         for keyword in keywords:
             if keyword in line:
-                if not len(negate):
+                if not negate:
                     add_item(host_results, host, port, options, line, ALERT)
                 else:
                     for item in negate:
