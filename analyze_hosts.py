@@ -141,14 +141,14 @@ UNKNOWN = -1
 # The program has the following loglevels:
 # logging.DEBUG = 10    debug messages (module constant)
 # logging.INFO  = 20    verbose status messages (module constant)
-COMMAND = 23  # tool command line        pylint:disable=bad-whitespace
-STATUS = 25  # generic status messages  pylint:disable=bad-whitespace
+COMMAND = 23  # tool command line
+STATUS = 25  # generic status messages
 # ERROR         = 40    recoverable error messages (module constant)
 # CRITICAL      = 50    abort program (module constant)
 
 # The following levels are used for the actual scanning output:
-LOGS = 30  # scan output / logfiles   pylint:disable=bad-whitespace
-ALERT = 35  # vulnerabilities found    pylint:disable=bad-whitespace
+LOGS = 30  # scan output / logfiles
+ALERT = 35  # vulnerabilities found
 
 
 class LogFormatter(logging.Formatter):
