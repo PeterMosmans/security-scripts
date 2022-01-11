@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.12.0](https://github.com/PeterMosmans/security-scripts/compare/1.11.0...1.12.0) (2022-01-11)
+
+### Bug Fixes
+
+- remove unused inline pylint directives
+  ([0e785bf](https://github.com/PeterMosmans/security-scripts/commit/0e785bff05e14cccce56e05e9e2fcda5b828e72e))
+
 ## [1.11.0](https://github.com/PeterMosmans/security-scripts/compare/1.10.0...1.11.0) (2021-11-30)
 
 ### Features
