@@ -423,7 +423,7 @@ def preflight_checks(options):
                 not os.path.isfile(options["queuefile"])
                 or not os.stat(options["queuefile"]).st_size
             ):
-                abort_program("Queuefile {0} is empty".format(options["queuefile"]))
+                abort_program(f"Queuefile {options['queuefile']} is empty")
         else:
             if (
                 os.path.isfile(options["queuefile"])
@@ -433,7 +433,7 @@ def preflight_checks(options):
                     os.remove(options["queuefile"])
                 else:
                     abort_program(
-                        "Queuefile {0} already exists.\n".format(options["queuefile"])
+                        f"Queuefile {options['queuefile']} already exists.\n"
                         + "    Use --resume to resume with previous targets, "
                         + "or use --force to overwrite the queuefile"
                     )
@@ -707,13 +707,11 @@ def do_portscan(host, options, logfile, stop_event, host_results):
     if options["dry_run"]:
         return ALLPORTS
     try:
-        temp_file = "nmap-{0}-{1}".format(
-            host, next(tempfile._get_candidate_names())
-        )  # pylint: disable=protected-access
+        temp_file = f"nmap-{host}-{next(tempfile._get_candidate_names())}"  # pylint: disable=protected-access
         scanner = nmap.PortScanner()
         scanner.scan(
             hosts=host,
-            arguments="{0} -oN {1}".format(options["nmap_arguments"], temp_file),
+            arguments=f"{options['nmap_arguments']} -oN {temp_file}",
         )
         for ip_address in [
             x for x in scanner.all_hosts() if scanner[x] and scanner[x].state() == "up"
@@ -915,7 +913,7 @@ def prepare_queue(options):
                 else:
                     arguments = "-nsL"
                     scanner = nmap.PortScanner()
-                    scanner.scan(hosts="{0}".format(host), arguments=arguments)
+                    scanner.scan(hosts=f"{host}", arguments=arguments)
                     if "." in scanner.all_hosts():
                         targets += sorted(
                             scanner.all_hosts(),
@@ -929,7 +927,7 @@ def prepare_queue(options):
         if expanded:
             os.remove(expanded)
     except IOError as exception:
-        abort_program("Could not read/write file: {0}".format(exception))
+        abort_program(f"Could not read/write file: {exception}")
 
 
 def remove_from_queue(finished_queue, options, stop_event):
@@ -1386,7 +1384,7 @@ def write_json(results, options):
 
 def main():
     """Main program loop."""
-    banner = "{0} version {1}".format(NAME, __version__)
+    banner = f"{NAME} version {__version__}"
     options = parse_arguments(banner)
     options["exit"] = 0
     setup_logging(options)
