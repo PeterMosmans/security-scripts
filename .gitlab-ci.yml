@@ -1,0 +1,21 @@
+---
+include:
+  - project: tooling/pipeline
+    file: docker.yml
+    ref: main
+
+stages:
+  - pre-build lint
+  - build
+  - post-build lint
+  - test
+
+test:
+  stage: test
+  dependencies: []
+  variables:
+    GIT_STRATEGY: none
+  image:
+    name: ${IMAGE_TAG}
+  script:
+    - analyze_hosts --version
