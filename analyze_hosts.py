@@ -191,8 +191,11 @@ def analyze_url(url, port, options, logfile, host_results):
     """Analyze a URL using wappalyzer and execute corresponding scans."""
     wappalyzer = Wappalyzer.Wappalyzer.latest()
     page = requests_get(url, options)
-    if page.status_code == 400 and "http://" in url:
-        # Retry with a different proticol, as the site might also be securely accessible
+    if not page:
+        logging.debug("%s Got no reply - cannot analyze that", url)
+        return
+    if page.status_code in [400] and "http://" in url:
+        # Retry with a different protocol, as the site might also be securely accessible
         url = url.replace("http://", "https://")
         page = requests_get(url, options)
     if page.status_code == 200:
