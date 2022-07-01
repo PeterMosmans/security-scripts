@@ -25,6 +25,7 @@ import sys
 import tempfile
 import threading
 import time
+import warnings
 
 
 try:
@@ -45,8 +46,11 @@ except ImportError as exception:
     )
     sys.stderr.flush()
 
+# Workaround for https://github.com/chorsley/python-Wappalyzer/issues/40
+warnings.simplefilter("ignore")
+
 NAME = "analyze_hosts"
-__version__ = "1.12.0"
+__version__ = "1.12.1"
 ALLPORTS = [
     (22, "ssh"),
     (25, "smtp"),
