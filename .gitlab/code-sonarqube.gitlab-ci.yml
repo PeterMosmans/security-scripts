@@ -1,0 +1,30 @@
+---
+# Job template - to be used in a pipeline by including this file.
+# Make sure to include the .validate stage in the pipeline template
+#
+# Make sure to set the (masked) variable SONAR_TOKEN in CI/CD settings
+#
+# Checks the quality of the code using SonarQube
+#
+# include:
+#  - .gitlab/dockerfile-lint.gitlab-ci.yml
+
+sonarqube:
+  extends: .sast
+  dependencies: []
+  variables:
+    GIT_DEPTH: 1
+    GIT_STRATEGY: fetch
+    SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"
+  image:
+    name: gofwd/tools-image
+    entrypoint: [""]
+  cache:
+    key: "${CI_JOB_NAME}"
+    paths:
+      - .sonar/cache
+  script:
+    - sonar-scanner -Dsonar.host.url=${SONAR_URL}
+  rules:
+    - if: '$SONAR_TOKEN != null'
+      when: always

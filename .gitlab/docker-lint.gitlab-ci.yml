@@ -1,0 +1,27 @@
+---
+# Job template - to be used in a pipeline by including this file.
+# Make sure to include the .test stage in the pipeline template.
+#
+# Lints a Docker image
+# If it exists, the configuration file .dockleignore will be read
+#
+# include:
+#  - .gitlab/docker-lint.gitlab-ci.yml
+
+lint_image:
+  extends: .security
+  dependencies:
+    - build
+  variables:
+    GIT_DEPTH: 1
+    GIT_STRATEGY: fetch
+  image:
+    name: goodwithtech/dockle:v0.4.5
+    entrypoint: [""]
+  script:
+    - mkdir -p reports || true
+    - dockle --input ${IMAGE_TAR} ${DOCKLE_PARMS} --exit-code 1 | tee reports/dockle-report.txt
+  artifacts:
+    paths:
+      - reports/dockle-report.txt
+    when: always

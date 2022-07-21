@@ -1,0 +1,2 @@
+# allow root user, to properly use nmap
+CIS-DI-0001
