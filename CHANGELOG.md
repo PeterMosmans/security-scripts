@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.13.0](https://git.go-forward.net/tooling/security-scripts/-/compare/1.12.0...1.13.0) (2022-07-21)
+
+### Features
+
+- add basic pipeline
+  ([fff2bc0](https://git.go-forward.net/tooling/security-scripts/-/commit/fff2bc0f7023926fb8b97574dd2786ae33bc4045))
+- add several automated security tests
+  ([0469f4f](https://git.go-forward.net/tooling/security-scripts/-/commit/0469f4fd0b71124911e74e12ebcb772b4ce70ee3))
+- add workaround for wappalyzer error message
+  ([b815d88](https://git.go-forward.net/tooling/security-scripts/-/commit/b815d88b4e32dcdd371c16fa3f28bde1b941537c))
+
+### Bug Fixes
+
+- clean up Dockerfile linting issues
+  ([05c6a53](https://git.go-forward.net/tooling/security-scripts/-/commit/05c6a53f5f4f3ffb1f3c517a2d807e4a24ad0adf))
+- handle connection errors gracefully
+  ([8fb96fe](https://git.go-forward.net/tooling/security-scripts/-/commit/8fb96fe7fdbd76c47d453547f2f9afaff5c60359))
+
 ## [1.12.0](https://github.com/PeterMosmans/security-scripts/compare/1.11.0...1.12.0) (2022-01-11)
 
 ### Bug Fixes
