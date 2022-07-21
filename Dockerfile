@@ -8,13 +8,16 @@ LABEL maintainer="support@go-forward.net" \
       org.label-schema.description="A tool around several security tools to simplify scanning of hosts for network vulnerabilities" \
       org.label-schema.url="https://github.com/PeterMosmans/security-scripts" \
       org.label-schema.vcs-url="https://github.com/PeterMosmans/security-scripts" \
-      org.label-schema.maintainer="support@go-forward.net"
+    org.label-schema.maintainer="support@go-forward.net"
+
+WORKDIR /
 
 # Create virtual environment
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Install necessary binaries
+# hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     git \
@@ -24,7 +27,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install packages as specified in the requirements.txt file
 COPY requirements.txt .
-RUN pip3 install -r requirements.txt
+RUN pip3 install -r requirements.txt  --no-cache-dir
 
 # Clone nikto.pl
 RUN git clone --depth=1 https://github.com/sullo/nikto /tmp/nikto && \
@@ -51,6 +54,7 @@ RUN ln -s /usr/lib/nikto/nikto.pl /usr/local/bin/nikto.pl && \
     ln -s /usr/lib/testssl/testssl.sh /usr/local/bin/testssl.sh
 
 # Install necessary binaries
+# hadolint ignore=DL3008
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     bsdmainutils \
@@ -68,6 +72,7 @@ ENV LC_ALL=C.UTF-8
 # Esnsure that Python output is not buffered
 ENV PYTHONUNBUFFERED=1
 
+# hadolint ignore=DL3002
 USER root
 WORKDIR /tmp
 ENTRYPOINT ["/usr/local/bin/analyze_hosts"]
