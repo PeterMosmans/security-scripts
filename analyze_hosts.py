@@ -50,7 +50,7 @@ except ImportError as exception:
 warnings.simplefilter("ignore")
 
 NAME = "analyze_hosts"
-__version__ = "1.12.1"
+__version__ = "1.13.0"
 ALLPORTS = [
     (22, "ssh"),
     (25, "smtp"),
