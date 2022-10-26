@@ -16,11 +16,13 @@ WORKDIR /
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Install necessary binaries
+# Install necessary binaries including dependencies
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    gcc \
     git \
+    libc6-dev \
     unzip \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -62,6 +64,7 @@ RUN apt-get update && \
     dnsutils \
     git \
     libnet-ssleay-perl \
+    make \
     nmap \
     procps \
     && apt-get clean \

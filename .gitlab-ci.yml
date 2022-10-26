@@ -2,125 +2,42 @@
 # Pipeline template
 # Includes several jobs
 include:
-  # build
-  - .gitlab/docker-build.gitlab-ci.yml
-  # sast
-  - .gitlab/dockerfile-lint.gitlab-ci.yml
-  # sast
-  - .gitlab/code-sonarqube.gitlab-ci.yml
-  # security
-  - .gitlab/docker-analyze.gitlab-ci.yml
-  # security
-  - .gitlab/docker-lint.gitlab-ci.yml
-  # security
-  - .gitlab/code-dependencies.gitlab-ci.yml
+  - project: tooling/ci-templates
+    ref: main
+    file:
+      - detect-secrets.gitlab-ci.yml
+      - hadolint.gitlab-ci.yml
+      - docker_build.gitlab-ci.yml
+      - docker_push.gitlab-ci.yml
+      - dive.gitlab-ci.yml
+      - dockle.gitlab-ci.yml
+      - dependency-check.gitlab-ci.yml
+      - test.gitlab-ci.yml
 
 variables:
   IMAGE_NAMESPACE: gofwd
-  IMAGE_REPOSITORY: ${IMAGE_NAMESPACE}/analyze_hosts
+  IMAGE_REPOSITORY: ${IMAGE_NAMESPACE}/${CI_PROJECT_NAME}
   IMAGE_TAG: ${CI_COMMIT_SHORT_SHA}
   IMAGE_TAR: ${IMAGE_TAG}.tgz
-  JOB_FINGERPRINT: $CI_COMMIT_SHORT_SHA-$CI_PIPELINE_ID
 
 stages:
-  # Validates whether the project meets the minimum requirements
-  - validate
   # security checks that don't need build
   - sast
+  # build the image
   - build
-  - test
   # security checks after build
-  - security
-  - deploy
-
-# Note that this stage is defined here, so that other jobs can be dependent on it
-validate:
-  stage: validate
-  image: gofwd/tools-image
-  script:
-    - mkdir -p reports &>/dev/null
-    - rm -rf reports/detect-secrets-report.txt &>/dev/null
-    - >
-      if [ "$CI_COMMIT_BEFORE_SHA" = "0000000000000000000000000000000000000000" ]; then
-      COMMIT_BEFORE_SHA=$(git rev-parse HEAD~1);
-      else
-      COMMIT_BEFORE_SHA=$CI_COMMIT_BEFORE_SHA;
-      fi
-    - >-
-      echo "Checking the following files for secrets:
-      $(git diff --name-only $COMMIT_BEFORE_SHA $CI_COMMIT_SHA)"
-    - >
-      git diff --name-only $COMMIT_BEFORE_SHA $CI_COMMIT_SHA |
-      xargs detect-secrets-hook --baseline .detect-secrets.json |
-      tee reports/detect-secrets-report.txt
-  artifacts:
-    name: "$CI_JOB_NAME artifacts from $CI_PROJECT_NAME on $CI_COMMIT_REF_SLUG"
-    when: always
-    paths:
-      - reports/detect-secrets-report.txt
+  - security_testing
+  # test build
+  - test
+  # push build
+  - push
 
 .sast:
   stage: sast
-  needs:
-    - validate
 
-test:
-  stage: test
-  dependencies: []
-  variables:
-    GIT_STRATEGY: none
-  image:
-    name: ${IMAGE_TAG}
-    entrypoint: [""]
-  script:
-    - analyze_hosts --version
-    - curl --version
-    - nikto.pl -Version
-    - nmap --version
-    - testssl.sh --version
-
-.security:
-  stage: security
+.security_testing:
+  stage: security_testing
   needs:
     - build
   variables:
     GIT_STRATEGY: none
-
-.deploy:
-  stage: deploy
-  variables:
-    GIT_STRATEGY: none
-  dependencies: []
-  rules:
-    - if: '$REGISTRY_PASSWORD == null'
-      when: never
-
-tag_latest:
-  extends: .deploy
-  script:
-    - docker tag ${IMAGE_TAG} ${IMAGE_REPOSITORY}:latest
-  rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-
-tag_image:
-  extends: .deploy
-  script:
-    - docker tag ${IMAGE_TAG} ${IMAGE_REPOSITORY}:$CI_COMMIT_TAG
-  rules:
-    - if: $CI_COMMIT_TAG
-
-push:
-  extends: .deploy
-  script:
-    - echo "$REGISTRY_PASSWORD" | docker login -u "$REGISTRY_USER" --password-stdin
-    - docker push ${IMAGE_REPOSITORY}:latest
-  rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-
-push_tags:
-  extends: .deploy
-  script:
-    - echo "$REGISTRY_PASSWORD" | docker login -u "$REGISTRY_USER" --password-stdin
-    - docker push ${IMAGE_REPOSITORY}:$CI_COMMIT_TAG
-  rules:
-    - if: $CI_COMMIT_TAG
