@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.14.0](https://git.go-forward.net/tooling/security-scripts/-/compare/1.13.0...1.14.0) (2022-10-27)
+
+### Features
+
+- bump version number for consistency
+  ([a356a21](https://git.go-forward.net/tooling/security-scripts/-/commit/a356a21034f2974316a0817751ad670ecb71c7bd))
+- change default working directory to /workdir
+  ([f430cc0](https://git.go-forward.net/tooling/security-scripts/-/commit/f430cc022d3fa8bb3f1bb0b06c14d1e733c5aaca))
+- hardcode name of project/Docker image
+  ([a999117](https://git.go-forward.net/tooling/security-scripts/-/commit/a9991170af7e5db3225efcd275b7326e0cf6b881))
+- simplify testing stage
+  ([7b2662d](https://git.go-forward.net/tooling/security-scripts/-/commit/7b2662d6ccd356d2a5282c97e50075d836c8ba60))
+
+### Bug Fixes
+
+- suppress dockle false positive
+  ([2f0957c](https://git.go-forward.net/tooling/security-scripts/-/commit/2f0957c15344c992871e188cd148bd8662a81cfe))
+
 ## [1.13.0](https://git.go-forward.net/tooling/security-scripts/-/compare/1.12.0...1.13.0) (2022-07-21)
 
 ### Features
