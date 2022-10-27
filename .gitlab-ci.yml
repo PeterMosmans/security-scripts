@@ -19,6 +19,8 @@ variables:
   IMAGE_REPOSITORY: ${IMAGE_NAMESPACE}/analyze_hosts
   IMAGE_TAG: ${CI_COMMIT_SHORT_SHA}
   IMAGE_TAR: ${IMAGE_TAG}.tgz
+  # Don't mind the container being run as root
+  DOCKLE_PARMS: "--ignore CIS-DI-0001"
 
 stages:
   # security checks that don't need build
