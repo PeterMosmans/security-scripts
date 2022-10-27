@@ -77,6 +77,6 @@ ENV PYTHONUNBUFFERED=1
 
 # hadolint ignore=DL3002
 USER root
-WORKDIR /tmp
+WORKDIR /workdir
 ENTRYPOINT ["/usr/local/bin/analyze_hosts"]
 CMD ["--help"]
