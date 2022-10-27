@@ -25,10 +25,6 @@ docker run --rm --entrypoint 'testssl.sh' gofwd/analyze_hosts
 
 ## analyze_hosts.py
 
-Build status for master branch:
-[![Build
-Status](https://travis-ci.org/PeterMosmans/security-scripts.svg?branch=master)](https://travis-ci.org/PeterMosmans/security-scripts)
-
 A simple wrapper script around several open source security tools to simplify
 scanning of hosts for network vulnerabilities. The script lets you analyze one
 or several hosts for common misconfiguration vulnerabilities and weaknesses.
@@ -38,7 +34,7 @@ generic security tests, without any heavy prerequisites, make the output as
 informative as possible, and use open source tools. It can easily be used as
 scheduled task, or be implemented in Continuous Integration environments.
 
-The only requirements are ``nmap`` and ``Python3``.
+The only requirements are `nmap` and `Python3`.
 
 As the scan output can be written to a JSON file it can be used to generate
 deltas (differences) between scans, or to use the output for further inspection.
@@ -63,30 +59,22 @@ pip3 install -r requirements.txt
 ### Usage
 
 ```
-usage: analyze_hosts.py [-h] [--version] [--dry-run] [-i INPUTFILE]
-                        [-o OUTPUT_FILE] [--compact] [--queuefile QUEUEFILE]
-                        [--resume] [--settings SETTINGS] [--exit-code]
-                        [--force] [--debug] [-v] [-q] [--allports] [-n]
-                        [-p PORT] [--up] [--udp] [--framework] [--http]
-                        [--compression] [--headers] [--trace] [--redirect]
-                        [--force-ssl] [--json JSON] [--ssl] [--nikto]
-                        [--sslcert] [-w] [--proxy PROXY] [--timeout TIMEOUT]
-                        [--threads THREADS] [--user-agent USER_AGENT]
-                        [--password PASSWORD] [--username USERNAME]
-                        [--maxtime MAXTIME]
+usage: analyze_hosts.py [-h] [--version] [--dry-run] [-i INPUTFILE] [-o OUTPUT_FILE] [--compact] [--queuefile QUEUEFILE] [--resume] [--settings SETTINGS]
+                        [--exit-code] [--force] [--debug] [-v] [-q] [--allports] [-n] [-p PORT] [--up] [--udp] [--framework] [--http] [--compression]
+                        [--headers] [--trace] [--redirect] [--force-ssl] [--json JSON] [--ssl] [--nikto] [--sslcert] [-w] [--proxy PROXY]
+                        [--timeout TIMEOUT] [--threads THREADS] [--user-agent USER_AGENT] [--password PASSWORD] [--username USERNAME] [--maxtime MAXTIME]
                         [target]
 
 analyze_hosts - scans one or more hosts for security misconfigurations
 
-Copyright (C) 2015-2021 Peter Mosmans [Go Forward]
+Copyright (C) 2015-2022 Peter Mosmans [Go Forward]
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
 positional arguments:
-  target                [TARGET] can be a single (IP) address, an IP range, or
-                        multiple comma-separated addressess
+  target                [TARGET] can be a single (IP) address, an IP range, or multiple comma-separated addressess
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -95,17 +83,13 @@ optional arguments:
   -i INPUTFILE, --inputfile INPUTFILE
                         A file containing targets, one per line
   -o OUTPUT_FILE, --output-file OUTPUT_FILE
-                        output file containing all scanresults (default
-                        analyze_hosts.output)
-
+                        output file containing all scanresults (default analyze_hosts.output)
   --compact             Only log raw logfiles and alerts to file
   --queuefile QUEUEFILE
                         the queuefile
   --resume              Resume working on the queue
-  --settings SETTINGS   Name of settings file to use (default
-                        analyze_hosts.yml)
-  --exit-code           When supplied, return exit code 1 when alerts are
-                        discovered
+  --settings SETTINGS   Name of settings file to use (default analyze_hosts.yml)
+  --exit-code           When supplied, return exit code 1 when alerts are discovered
   --force               Ignore / overwrite the queuefile
   --debug               Show debug information
   -v, --verbose         Be more verbose
@@ -116,8 +100,7 @@ optional arguments:
   --up                  Assume host is up (do not rely on ping probe)
   --udp                 Check for open UDP ports as well
   --framework           Analyze the website and run webscans
-  --http                Check for various HTTP vulnerabilities (compression,
-                        headers, trace)
+  --http                Check for various HTTP vulnerabilities (compression, headers, trace)
   --compression         Check for webserver compression
   --headers             Check for various HTTP headers
   --trace               Check webserver for HTTP TRACE method
@@ -136,8 +119,6 @@ optional arguments:
   --password PASSWORD   Password for HTTP basic host authentication
   --username USERNAME   Username for HTTP basic host authentication
   --maxtime MAXTIME     Timeout for scans in seconds (default 600)
-
-
 ```
 
 The script `analyze_hosts` automatically execute other scans (based on their
