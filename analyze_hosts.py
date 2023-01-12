@@ -3,7 +3,7 @@
 
 """analyze_hosts - scans one or more hosts for security misconfigurations
 
-Copyright (C) 2015-2022 Peter Mosmans [Go Forward]
+Copyright (C) 2015-2023 Peter Mosmans [Go Forward]
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
@@ -70,6 +70,13 @@ ALLOWED_OPEN_PORTS = [
 NIKTO_ALERTS = [
     "+ OSVDB-",
     "Entry '/index.php/user/register/' in robots.txt returned a non-forbidden or redirect HTTP code",
+    "Retrieved access-control-allow-origin header: *",
+    "Retrieved x-powered-by header",
+    "The anti-clickjacking X-Frame-Options header is not present",
+    "This might be interesting",
+    "Uncommon header",
+    "created without the httponly flag",
+    "entries which should be manually viewed",
 ]
 NMAP_ALERTS = [
     "3des-cbc",
@@ -83,6 +90,7 @@ NMAP_ALERTS = [
     "ecdsa",
     "hmac-md5",
     "hmac-sha1",
+    "http-php-version",
     "message_signing: disabled",
     "mountd ",
     "msrpc",
