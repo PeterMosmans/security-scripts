@@ -812,6 +812,9 @@ def add_item(host_results, host, port, options, line, logging_type):
 
     logging_type can be INFO or ALERT.
     """
+    # Don't log anything if no port has been set
+    if not port:
+        return
     filtered_line = re.sub(REMOVE_PREPEND_LINE, "", line).strip()
     if logging_type == logging.INFO:
         key = "info"
