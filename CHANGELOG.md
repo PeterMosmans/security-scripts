@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.15.0](https://git.go-forward.net/tooling/security-scripts/-/compare/1.14.0...1.15.0) (2023-01-12)
+
+### Features
+
+- add fours (Snap Shot Security Scanner)
+  ([5603e4d](https://git.go-forward.net/tooling/security-scripts/-/commit/5603e4de2d9f2265fb7eed2f7731bb02591a9229))
+- add more alert strings for Nikto and nmap scripts
+  ([ae0008c](https://git.go-forward.net/tooling/security-scripts/-/commit/ae0008cdd985b747feb4cc8971908647fdc347e6))
+
+### Bug Fixes
+
+- don't log anything for 'empty' port numbers
+  ([d077f07](https://git.go-forward.net/tooling/security-scripts/-/commit/d077f07ecf3b9a36501fed91c872872895086912))
+
 ## [1.14.0](https://git.go-forward.net/tooling/security-scripts/-/compare/1.13.0...1.14.0) (2022-10-27)
 
 ### Features
