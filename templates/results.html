@@ -24,7 +24,6 @@
      function toggle_class(className) {
        elements = document.getElementsByClassName(className);
        for (var i=0, item; item = elements[i]; i++) {
-         alert(item.style.display);
          if (item.style.display === "block") {
            item.style.display = "none";
          } else {
