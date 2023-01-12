@@ -5,7 +5,8 @@
 
 # TAG	!= git tag|tail -1
 TAG     = "latest"
-NAME	!= basename $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+#NAME	!= basename $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+NAME	= analyze_hosts
 DOCKER_IMG := gofwd/$(NAME):$(TAG)
 
 
@@ -15,7 +16,7 @@ DOCKER_IMG := gofwd/$(NAME):$(TAG)
 # Build image
 image:
 	@echo "Building $(DOCKER_IMG)..." && \
-	docker build . -t $(DOCKER_IMG)
+	DOCKER_BUILDKIT=1 docker build . -t $(DOCKER_IMG)
 
 test:
-	analyze_hosts.py --version
+	analyze_hosts.py --version && results_to_html --help

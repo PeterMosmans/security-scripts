@@ -50,9 +50,13 @@ COPY --from=build /opt/venv /opt/venv
 COPY --from=build /usr/lib/nikto/ /usr/lib/nikto/
 COPY --from=build /usr/lib/testssl/ /usr/lib/testssl/
 COPY analyze_hosts.py /usr/local/bin/analyze_hosts.py
+COPY results_to_html.py /usr/local/bin/results_to_html.py
+COPY templates/results.html /usr/share/templates/results.html
+COPY fours.sh /usr/local/bin/fours.sh
 RUN ln -s /usr/lib/nikto/nikto.pl /usr/local/bin/nikto.pl && \
     ln -s /usr/lib/nikto/nikto.pl /usr/local/bin/nikto && \
     ln -s /usr/local/bin/analyze_hosts.py /usr/local/bin/analyze_hosts && \
+    ln -s /usr/local/bin/results_to_html.py /usr/local/bin/results_to_html && \
     ln -s /usr/lib/testssl/testssl.sh /usr/local/bin/testssl.sh
 
 # Install necessary binaries
@@ -70,10 +74,10 @@ RUN apt-get update && \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-ENV PATH="/opt/venv/bin:$PATH"
-ENV LC_ALL=C.UTF-8
 # Esnsure that Python output is not buffered
-ENV PYTHONUNBUFFERED=1
+ENV PATH="/opt/venv/bin:$PATH" \
+    LC_ALL=C.UTF-8 \
+    PYTHONUNBUFFERED=1
 
 # hadolint ignore=DL3002
 USER root

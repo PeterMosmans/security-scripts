@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="EN">
+  <head>
+    <style>
+     table td, table td * {
+       vertical-align: top;
+     }
+     .alert {
+       background-color: #ffeeff;
+     }
+     .scan_details {
+       display: none;
+     }
+     .info {
+       display: none;
+       background-color: #eeffee;
+     }
+     .config {
+       display: none;
+       background-color: #ffffee;
+    </style>
+
+    <script language="JavaScript">
+     function toggle_class(className) {
+       elements = document.getElementsByClassName(className);
+       for (var i=0, item; item = elements[i]; i++) {
+         alert(item.style.display);
+         if (item.style.display === "block") {
+           item.style.display = "none";
+         } else {
+           item.style.display = "block";
+         }
+       }
+     }
+    </script>
+    <title>
+      Scan results from {{ results["date_start"]|e }}
+    </title>
+  </head>
+  <body>
+    <p>
+      The scan was performed at {{ results["date_start"]|e }}
+    </p>
+    <p>
+      <button id="toggle_details" onclick="toggle_class('scan_details')">toggle scan details</button>
+      <button id="toggle_info" onclick="toggle_class('info')">toggle informational
+        items</button>
+      <button id="toggle_config" onclick="toggle_class('config')">toggle
+        configuration</button>
+    </p>
+    <div class="scan_details">
+      <table>
+        {% for key, value in results["arguments"].items() %}
+        <tr>
+          <td>
+            {{ key|e }}
+          </td>
+          <td>
+            {% if value is iterable and (value is not string and value is not mapping) %}
+            {% for item in value %}
+            {{ item|e }}<br />
+            {% endfor %}
+            {% else %}
+            {{ value|e }}
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+
+    <table>
+      {% for host in hosts %}
+      {% set result = results["results"][host] %}
+      {% set class = "alert" if "alerts" in result else "info" %}
+      <tr class="{{ class }}">
+        <td>
+          {{ host|e }}
+        </td>
+        <td>
+          {% if host in results["arguments"]["settings"]["targets"] %}
+          <div class="config">
+            {{ results["arguments"]["settings"]["targets"][host] }}
+          </div>
+          {% endif %}
+          {% if "info" in result %}
+          <ul class="info">
+          {% for port in result["info"] %}
+          <li>
+          {{ port|e }}
+          <ul>
+          {% for issue in result["info"][port] %}
+            <li>
+              {{ issue|e }}
+            </li>
+            {% endfor %}
+          </ul>
+          {% endfor %}
+          </li>
+          </ul>
+          {% endif %}
+
+          {% if "alerts" in result %}
+          <ul class="warning">
+          {% for port in result["alerts"] %}
+          <li>
+          {{ port|e }}
+          <ul>
+          {% for issue in result["alerts"][port] %}
+            <li>
+            {{ issue|e }}
+          </li>
+          {% endfor %}
+          </ul>
+          {% endfor %}
+          </li>
+          </ul>
+          {% endif %}
+        </td>
+      </tr>
+
+      {% endfor %}
+    </table>
+  </body>
+</html>
