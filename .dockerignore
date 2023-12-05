@@ -1,0 +1,8 @@
+# Ignore everything
+*
+
+# Only allow required files
+!/requirements.txt
+!/*.py
+!/fours.sh
+!/templates/results.html

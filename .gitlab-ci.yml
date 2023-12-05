@@ -1,45 +1,86 @@
 ---
 # Pipeline template
-# Includes several jobs
-include:
-  - project: tooling/ci-templates
-    ref: main
-    file:
-      - detect-secrets.gitlab-ci.yml
-      - hadolint.gitlab-ci.yml
-      - docker_build.gitlab-ci.yml
-      - docker_push.gitlab-ci.yml
-      - dive.gitlab-ci.yml
-      - dockle.gitlab-ci.yml
-      - dependency-check.gitlab-ci.yml
-      - test.gitlab-ci.yml
+
+### Variables used throughout the pipeline
 
 variables:
+  # Tool-specific: Image versions
+  DIVE_VERSION: v0.11
+  DOCKLE_VERSION: v0.4.13
+  HADOLINT_VERSION: v2.12.0-debian
+  TOOLS_VERSION: 1.7.0
+  # Tool-specific: Configuration
+  # Don't mind the container being run as root
+  DOCKLE_PARMS: "--ignore CIS-DI-0001"
+  # Generic information
+  DOCKER_DRIVER: overlay2
   IMAGE_NAMESPACE: gofwd
   IMAGE_REPOSITORY: ${IMAGE_NAMESPACE}/analyze_hosts
   IMAGE_TAG: ${CI_COMMIT_SHORT_SHA}
   IMAGE_TAR: ${IMAGE_TAG}.tgz
-  # Don't mind the container being run as root
-  DOCKLE_PARMS: "--ignore CIS-DI-0001"
+  JOB_FINGERPRINT: $CI_COMMIT_SHORT_SHA-$CI_PIPELINE_ID
+
+### Include several jobs
+
+include:
+  # pre-build
+  - .gitlab/secrets.gitlab-ci.yml
+  # sast
+  - .gitlab/dockerfile-lint.gitlab-ci.yml
+  # sast
+  - .gitlab/code-sonarqube.gitlab-ci.yml
+  # build
+  - .gitlab/docker-build.gitlab-ci.yml
+  # security: Software Composition analysis
+  - .gitlab/dependency-track.gitlab-ci.yml
+  # security
+  - .gitlab/docker-analyze.gitlab-ci.yml
+  # security
+  - .gitlab/docker-lint.gitlab-ci.yml
+  # security
+  #- .gitlab/code-dependencies.gitlab-ci.yml
+  # test
+  - .gitlab/test.gitlab-ci.yml
+
+### Pipeline stages
 
 stages:
-  # security checks that don't need build
+  # Security checks over source code, can be performed parallel to building
   - sast
-  # build the image
+  # Build the artifact
   - build
-  # security checks after build
-  - security_testing
-  # test build
+  # (Dynamic) security checks using / over build artifact
+  - security
+  # Test the artifact
   - test
-  # push build
-  - push
+
+### Jobs
+
+# All jobs that start with a dot are templates and can be extended
+# This facilitates directed acyclic graph pipelines
+# The needs keyword requires a job name
 
 .sast:
   stage: sast
+  needs:
+    - secret_detection
 
-.security_testing:
-  stage: security_testing
+.build:
+  stage: build
+  needs:
+    - secret_detection
+
+.dast:
+  stage: dast
   needs:
     - build
-  variables:
-    GIT_STRATEGY: none
+
+.security:
+  stage: security
+  needs:
+    - build
+
+.test:
+  stage: test
+  needs:
+    - build

@@ -1,0 +1,31 @@
+---
+# Job template - to be used in a pipeline by including this file.
+# Make sure to include the .validate stage in the pipeline template
+#
+# Make sure to set the (masked) variable DEPENDENCY_URL and
+# DEPENDENCY_KEY in CI/CD settings
+#
+# Detects whether outdated and insecure libraries are in use
+#
+# include:
+#  - .gitlab/dependency-track.gitlab-ci.yml
+
+dependency-track:
+  extends: .security
+  image:
+    name: curlimages/curl:8.4.0
+    entrypoint: [""]
+  variables:
+    GIT_DEPTH: 1
+    GIT_STRATEGY: fetch
+  script:
+    - >
+      curl "$DEPENDENCY_URL/api/v1/bom"
+      -H "X-Api-Key: $DEPENDENCY_KEY"
+      -F "autoCreate=true"
+      -F "projectName=$CI_PROJECT_TITLE"
+      -F "projectVersion=$CI_COMMIT_BRANCH"
+      -F "bom=@cyclonedx.json"
+  rules:
+    - if: "$DEPENDENCY_KEY != null"
+      when: always

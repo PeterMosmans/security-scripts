@@ -29,7 +29,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install packages as specified in the requirements.txt file
 COPY requirements.txt .
-RUN pip3 install -r requirements.txt  --no-cache-dir
+# We aren't pinning any versions here, but we will generate an SBOM
+# hadolint ignore=DL3013
+RUN pip3 install -r requirements.txt --no-cache-dir && \
+    pip3 install cyclonedx-bom --no-cache-dir && \
+    pip3 freeze > requirements.txt && \
+    cyclonedx-py -r --format json --output /opt/venv/cyclonedx.json && \
+    pip3 uninstall --yes cyclonedx-py
 
 # Clone nikto.pl
 RUN git clone --depth=1 https://github.com/sullo/nikto /tmp/nikto && \

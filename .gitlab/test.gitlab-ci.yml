@@ -1,0 +1,18 @@
+---
+# Job template - to be used in a pipeline by including this file.
+# As this is the test stage, this will automatically be included.
+#
+# Tests a Docker image using make test
+#
+# include:
+#  - .gitlab/test.gitlab-ci.yml
+test:
+  extends: .test
+  image:
+    name: ${IMAGE_TAG}
+    entrypoint: [""]
+  script:
+    - make test
+  variables:
+    GIT_DEPTH: 1
+    GIT_STRATEGY: fetch
