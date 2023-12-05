@@ -37,8 +37,6 @@ include:
   - .gitlab/docker-analyze.gitlab-ci.yml
   # security
   - .gitlab/docker-lint.gitlab-ci.yml
-  # security
-  #- .gitlab/code-dependencies.gitlab-ci.yml
   # test
   - .gitlab/test.gitlab-ci.yml
 

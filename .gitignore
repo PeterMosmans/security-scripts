@@ -5,6 +5,7 @@
 .prettierignore
 .prettierrc.yml
 .versionrc
+.yamllint
 \#*#
 analyze_hosts.output
 doc8.ini
