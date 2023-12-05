@@ -1,9 +1,10 @@
-\#*#
 *.py[cod]
-analyze_hosts.output
-doc8.ini
 .commitlintrc.yml
 .gitlint
+.pre-commitrc
 .prettierignore
 .prettierrc.yml
 .versionrc
+\#*#
+analyze_hosts.output
+doc8.ini
