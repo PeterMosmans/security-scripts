@@ -23,7 +23,7 @@ variables:
 ### Include several jobs
 
 include:
-  # pre-build
+  # .pre
   - .gitlab/secrets.gitlab-ci.yml
   # sast
   - .gitlab/dockerfile-lint.gitlab-ci.yml
@@ -31,12 +31,12 @@ include:
   - .gitlab/code-sonarqube.gitlab-ci.yml
   # build
   - .gitlab/docker-build.gitlab-ci.yml
-  # security: Software Composition analysis
+  # security
   - .gitlab/dependency-track.gitlab-ci.yml
   # security
-  - .gitlab/docker-analyze.gitlab-ci.yml
+  - .gitlab/image-analyze.gitlab-ci.yml
   # security
-  - .gitlab/docker-lint.gitlab-ci.yml
+  - .gitlab/image-lint.gitlab-ci.yml
   # test
   - .gitlab/test.gitlab-ci.yml
 
