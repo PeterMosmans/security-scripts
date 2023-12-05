@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.16.0](https://git.go-forward.net/tooling/security-scripts/-/compare/1.15.0...1.16.0) (2023-12-05)
+
+
+### Features
+
+* add autonomous automated security testing for GitLab ([1fda8ac](https://git.go-forward.net/tooling/security-scripts/-/commit/1fda8ac5b1fe7db57df8f9df5a86e31623196dd8))
+
+
+### Bug Fixes
+
+* remove debug statement in template ([48e6e7c](https://git.go-forward.net/tooling/security-scripts/-/commit/48e6e7c797b8ef0e204248ede2ec9a2cb0d1fd6b))
+
 ## [1.15.0](https://git.go-forward.net/tooling/security-scripts/-/compare/1.14.0...1.15.0) (2023-01-12)
 
 ### Features
