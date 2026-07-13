@@ -34,7 +34,7 @@ COPY requirements.txt .
 RUN pip3 install -r requirements.txt --no-cache-dir && \
     pip3 install cyclonedx-bom --no-cache-dir && \
     pip3 freeze > requirements.txt && \
-    cyclonedx-py -r --format json --output /opt/venv/cyclonedx.json && \
+    cyclonedx-py requirements --of json --output-file /opt/venv/cyclonedx.json && \
     pip3 uninstall --yes cyclonedx-py
 
 # Clone nikto.pl
