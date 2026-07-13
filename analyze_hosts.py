@@ -259,14 +259,24 @@ def requests_get(url, options, headers=None, allow_redirects=True):
     return request
 
 
+def bracket_ipv6(host):
+    """Wrap an IPv6 address literal in [] for use in a URL or host:port string.
+
+    IPv6 literals must be bracketed per RFC 3986 (e.g. https://[2001:db8::1]:443
+    and [2001:db8::1]:443). IPv4 addresses and hostnames are returned unchanged.
+    nmap takes the bare literal (with -6), so this is intentionally not used there.
+    """
+    return f"[{host}]" if ":" in host else host
+
+
 def http_checks(host, port, protocol, options, logfile, host_results):
     """Perform various HTTP checks."""
     ssl = False
     if "ssl" in protocol or "https" in protocol:
         ssl = True
-        url = f"https://{host}:{port}"
+        url = f"https://{bracket_ipv6(host)}:{port}"
     else:
-        url = f"http://{host}:{port}"
+        url = f"http://{bracket_ipv6(host)}:{port}"
     if options["nikto"]:
         do_nikto(host, port, options, logfile, host_results)
     if options["framework"]:
@@ -621,7 +631,7 @@ def check_trace(host, port, options, logfile, host_results):
             str(options["timeout"]),
             "-X",
             "TRACE",
-            f"{host}:{port}",
+            f"{bracket_ipv6(host)}:{port}",
         ]
         _result, _stdout, _stderr = execute_command(
             command, options, logfile
@@ -645,7 +655,7 @@ def do_nikto(host, port, options, logfile, host_results):
         "-ask",
         "no",
         "-host",
-        f"{host}:{port}",
+        f"{bracket_ipv6(host)}:{port}",
         "-maxtime",
         f'{options["maxtime"]}s',
         "-nointeractive",
@@ -879,7 +889,7 @@ def do_testssl(host, port, protocol, options, logfile, host_results):
         command += ["--starttls", "smtp"]
     logging.info("%s Starting testssl.sh on port %s", host, port)
     _result, stdout, _stderr = execute_command(
-        command + [f"{host}:{port}"],  # pylint: disable=unused-variable
+        command + [f"{bracket_ipv6(host)}:{port}"],  # pylint: disable=unused-variable
         options,
         logfile,
     )
