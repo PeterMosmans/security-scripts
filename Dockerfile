@@ -77,6 +77,8 @@ RUN apt-get update && \
     make \
     nmap \
     procps \
+    libjson-perl \
+    libxml-writer-perl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
