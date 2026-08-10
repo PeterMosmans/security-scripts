@@ -27,15 +27,8 @@ import threading
 import time
 import warnings
 
-
 try:
     import nmap
-except ImportError:
-    print(
-        "[-] Please install python-nmap, e.g. pip3 install python-nmap", file=sys.stderr
-    )
-    sys.exit(-1)
-try:
     import requests
     import yaml
     import Wappalyzer
@@ -45,6 +38,7 @@ except ImportError as exception:
         file=sys.stderr,
     )
     sys.stderr.flush()
+    sys.exit(-1)
 
 # Workaround for https://github.com/chorsley/python-Wappalyzer/issues/40
 warnings.simplefilter("ignore")
