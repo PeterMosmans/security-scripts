@@ -988,7 +988,7 @@ def process_host(
     """
     while host_queue.qsize() and not stop_event.wait(0.01):
         try:
-            host = host_queue.get()
+            host = host_queue.get(block=False)
             host_logfile = (
                 host + "-" + next(tempfile._get_candidate_names())
             )  # pylint: disable=protected-access
